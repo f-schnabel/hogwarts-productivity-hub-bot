@@ -14,9 +14,26 @@ function getDisplayWidth(str: string): number {
   let width = 0;
   for (const { segment } of segmenter.segment(str)) {
     const code = segment.codePointAt(0) ?? 0;
-    // Check if character is emoji or special unicode (above basic latin + extended)
-    // or if segment contains multiple code points (complex emoji)
-    if (code > 0x1f00 || segment.length > 1) {
+    // Check if character is:
+    // - emoji or special unicode (above 0x1F00)
+    // - complex grapheme (multiple code points)
+    // - small caps, modifier letters, phonetic extensions (0x1D00-0x1DBF)
+    // - superscript/subscript letters (0x2070-0x209F)
+    // - letter-like symbols (0x2100-0x214F)
+    // - Latin Extended-D (0xA720-0xA7FF) - includes ꜱ
+    // - Arabic characters (0x0600-0x06FF) - includes ݁
+    // - CJK and other wide characters (0x1100+, 0x2E80+, 0x3000+, 0xFF00+)
+    const isWideChar =
+      code > 0x1f00 ||
+      segment.length > 1 ||
+      (code >= 0x1d00 && code <= 0x1dbf) ||
+      (code >= 0x2070 && code <= 0x209f) ||
+      (code >= 0x2100 && code <= 0x214f) ||
+      (code >= 0xa720 && code <= 0xa7ff) ||
+      (code >= 0x0600 && code <= 0x06ff) ||
+      (code >= 0x0250 && code <= 0x02af); // IPA extensions (includes ɥ, ɹ, etc.)
+
+    if (isWideChar) {
       width += 2;
     } else {
       width += 1;
