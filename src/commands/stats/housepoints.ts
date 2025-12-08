@@ -66,11 +66,11 @@ async function replyHousepoints(
     const position = index + 1;
 
     const medals = ["🥇", "🥈", "🥉"];
-    const medal = medals[position - 1] ?? `#${position}`;
+    const medal = medals[position - 1] ?? `${position}`;
     const name = user.username.substring(0, 32).padEnd(maxNameLength);
     const points = user.monthlyPoints.toString().padStart(6);
 
-    description += `${medal.padStart(2)} ${name}  ${points}\n`;
+    description += `${medal.padStart(medalPadding)} ${name}  ${points}\n`;
   });
 
   description += "```";
