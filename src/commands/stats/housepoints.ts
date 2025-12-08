@@ -1,10 +1,10 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { replyError } from "../../utils/utils.ts";
 import { db } from "../../db/db.ts";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { userTable } from "../../db/schema.ts";
 import type { Command, House } from "../../types.ts";
 import { HOUSE_COLORS } from "../../utils/constants.ts";
+import { client } from "../../client.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -27,31 +27,28 @@ export default {
 
     const house = interaction.options.getString("house", true) as House;
 
-    const houseLeaderboard = await db
-      .select()
-      .from(userTable)
-      .where(and(eq(userTable.house, house), gt(userTable.monthlyPoints, 0)))
-      .orderBy(desc(userTable.monthlyPoints));
-
-    if (houseLeaderboard.length === 0) {
-      await replyError(
-        interaction,
-        "No House Data",
-        "No house data is available yet. Houses need to earn points first!",
-        "Join a voice channel and complete tasks to start earning house points. House points are awarded for voice time and task completion.",
-      );
-      return;
-    }
-
-    await replyHousepoints(interaction, houseLeaderboard, house);
+    await replyHousepoints(interaction, house);
   },
 } as Command;
 
-async function replyHousepoints(
-  interaction: ChatInputCommandInteraction,
-  leaderboard: (typeof userTable.$inferSelect)[],
-  house: House,
-) {
+async function replyHousepoints(interaction: ChatInputCommandInteraction, house: House) {
+  const leaderboard = await db
+    .select()
+    .from(userTable)
+    .where(and(eq(userTable.house, house), gt(userTable.monthlyPoints, 0)))
+    .orderBy(desc(userTable.monthlyPoints));
+
+  for (const row of leaderboard) {
+    const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
+    await Promise.all(
+      members.map(async (m) => {
+        const member = await m;
+        if (!member) return;
+        row.username = member.nickname ?? member.user.globalName ?? member.user.username;
+      }),
+    );
+  }
+
   // Find the longest username (capped at 32 characters)
   const maxNameLength = Math.min(32, Math.max(...leaderboard.map((user) => user.username.length)));
   const medalPadding = leaderboard.length.toFixed(0).length + 1;
