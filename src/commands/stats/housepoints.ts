@@ -1,11 +1,10 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, time, userMention } from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { replyError } from "../../utils/utils.ts";
 import { db } from "../../db/db.ts";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { userTable } from "../../db/schema.ts";
 import type { Command, House } from "../../types.ts";
-import { BotColors } from "../../utils/constants.ts";
-import assert from "node:assert";
+import { HOUSE_COLORS } from "../../utils/constants.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -51,45 +50,47 @@ export default {
 async function replyHousepoints(
   interaction: ChatInputCommandInteraction,
   leaderboard: (typeof userTable.$inferSelect)[],
-  house: string,
+  house: House,
 ) {
-  // Add house rankings
-  const houseData: [string, string, string][] = leaderboard.map((user, index) => {
-    assert(user.house !== null);
+  // Find the longest username (capped at 32 characters)
+  const maxNameLength = Math.min(32, Math.max(...leaderboard.map((user) => user.username.length)));
+  const medalPadding = leaderboard.length.toFixed(0).length + 1;
+
+  // Create table header
+  let description = "```\n";
+  description += `${"#".padStart(medalPadding - 1)} ${"Name".padEnd(maxNameLength)}  Points\n`;
+  description += "━".repeat(maxNameLength + 11) + "\n";
+
+  // Add each user row
+  leaderboard.forEach((user, index) => {
     const position = index + 1;
+
     const medals = ["🥇", "🥈", "🥉"];
     const medal = medals[position - 1] ?? `#${position}`;
+    const name = user.username.substring(0, 32).padEnd(maxNameLength);
+    const points = user.monthlyPoints.toString().padStart(6);
 
-    return [medal, userMention(user.discordId), user.monthlyPoints.toFixed()];
+    description += `${medal.padStart(2)} ${name}  ${points}\n`;
   });
+
+  description += "```";
 
   await interaction.editReply({
     embeds: [
       {
-        color: BotColors.PRIMARY,
+        color: HOUSE_COLORS[house],
         title: house.toUpperCase(),
-        fields: [
-          {
-            name: "Place",
-            value: houseData.map((row) => row[0]).join("\n"),
-            inline: true,
-          },
-          {
-            name: "Name",
-            value: houseData.map((row) => row[1]).join("\n"),
-            inline: true,
-          },
-          {
-            name: "Points",
-            value: houseData.map((row) => row[2]).join("\n"),
-            inline: true,
-          },
-        ],
+        description: description,
         footer: {
-          text: "Last updated: " + time(new Date(), "R"),
+          text: `Last updated • ${new Date().toLocaleString("en-US", {
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })}`,
         },
       },
     ],
-    allowedMentions: { users: [] },
   });
 }
