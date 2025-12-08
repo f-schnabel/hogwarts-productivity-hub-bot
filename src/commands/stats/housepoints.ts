@@ -58,8 +58,9 @@ async function replyHousepoints(
 
   // Create table header
   let description = "```\n";
-  description += `${"#".padStart(medalPadding - 1)} ${"Name".padEnd(maxNameLength)}  Points\n`;
-  description += "━".repeat(maxNameLength + 11) + "\n";
+  const header = `${"#".padStart(medalPadding)} ${"Name".padEnd(maxNameLength)}  Points`;
+  description += `${header}\n`;
+  description += "━".repeat(header.length) + "\n";
 
   // Add each user row
   leaderboard.forEach((user, index) => {
