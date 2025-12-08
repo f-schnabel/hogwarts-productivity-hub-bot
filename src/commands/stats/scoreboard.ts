@@ -1,15 +1,40 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from "discord.js";
 import { db } from "../../db/db.ts";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { userTable } from "../../db/schema.ts";
 import type { Command, House } from "../../types.ts";
 import { HOUSE_COLORS } from "../../utils/constants.ts";
 import { client } from "../../client.ts";
+import { isOwner, isProfessor, replyError } from "../../utils/utils.ts";
+
+const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+
+// Calculate the visual display width of a string (emojis and special chars take ~2 spaces)
+function getDisplayWidth(str: string): number {
+  let width = 0;
+  for (const { segment } of segmenter.segment(str)) {
+    const code = segment.codePointAt(0) ?? 0;
+    // Check if character is emoji or special unicode (above basic latin + extended)
+    // or if segment contains multiple code points (complex emoji)
+    if (code > 0x1f00 || segment.length > 1) {
+      width += 2;
+    } else {
+      width += 1;
+    }
+  }
+  return width;
+}
+
+function padEndByDisplayWidth(str: string, targetWidth: number): string {
+  const currentWidth = getDisplayWidth(str);
+  const paddingNeeded = Math.max(0, targetWidth - currentWidth);
+  return str + " ".repeat(paddingNeeded);
+}
 
 export default {
   data: new SlashCommandBuilder()
-    .setName("housepoints")
-    .setDescription("View house point leaderboards and champions")
+    .setName("scoreboard")
+    .setDescription("View scoreboards for a house")
     .addStringOption((option) =>
       option
         .setName("house")
@@ -23,6 +48,12 @@ export default {
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
+    const member = interaction.member as GuildMember;
+    if (!isProfessor(member) || !isOwner(member)) {
+      await replyError(interaction, "Access Denied", "You do not have permission to use this command.");
+      return;
+    }
+
     await interaction.deferReply();
 
     const house = interaction.options.getString("house", true) as House;
@@ -49,13 +80,13 @@ async function replyHousepoints(interaction: ChatInputCommandInteraction, house:
     );
   }
 
-  // Find the longest username (capped at 32 characters)
-  const maxNameLength = Math.min(32, Math.max(...leaderboard.map((user) => user.username.length)));
+  // Find the longest username by display width (capped at 32 display chars)
+  const maxNameWidth = Math.min(32, Math.max(...leaderboard.map((user) => getDisplayWidth(user.username))));
   const medalPadding = leaderboard.length.toFixed(0).length + 1;
 
   // Create table header
   let description = "```\n";
-  const header = `${"#".padStart(medalPadding)} ${"Name".padEnd(maxNameLength)}  Points`;
+  const header = `${"#".padStart(medalPadding)} ${"Name".padEnd(maxNameWidth)}  Points`;
   description += `${header}\n`;
   description += "━".repeat(header.length) + "\n";
 
@@ -65,7 +96,15 @@ async function replyHousepoints(interaction: ChatInputCommandInteraction, house:
 
     const medals = ["🥇", "🥈", "🥉"];
     const medal = medals[position - 1] ?? `${position}`;
-    const name = user.username.substring(0, 32).padEnd(maxNameLength);
+    let truncatedName = "";
+    for (const { segment } of segmenter.segment(user.username)) {
+      if (getDisplayWidth(truncatedName + segment) <= 32) {
+        truncatedName += segment;
+      } else {
+        break;
+      }
+    }
+    const name = padEndByDisplayWidth(truncatedName, maxNameWidth);
     const points = user.monthlyPoints.toString().padStart(6);
 
     description += `${medal.padStart(medalPadding)} ${name}  ${points}\n`;

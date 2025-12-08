@@ -8,7 +8,7 @@ import { BotColors, houseEmojis } from "../../utils/constants.ts";
 
 export default {
   data: new SlashCommandBuilder()
-    .setName("leaderboard")
+    .setName("timely_leaderboard")
     .setDescription("View voice channel time leaderboards")
     .addStringOption((option) =>
       option

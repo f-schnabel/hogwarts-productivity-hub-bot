@@ -113,6 +113,10 @@ export async function updateMessageStreakInNickname(member: GuildMember | null, 
   }
 }
 
+export function isOwner(member: GuildMember): boolean {
+  return member.id === process.env.OWNER_ID;
+}
+
 export function isPrefect(member: GuildMember): boolean {
   return member.roles.cache.has(process.env.PREFECT_ROLE_ID);
 }
