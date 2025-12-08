@@ -50,11 +50,11 @@ export default {
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
     const member = interaction.member as GuildMember;
-    if (!isProfessor(member) || !isOwner(member)) {
+
+    if (!isProfessor(member) && !isOwner(member)) {
       await replyError(interaction, "Access Denied", "You do not have permission to use this command.");
       return;
     }
-
 
     const house = interaction.options.getString("house", true) as House;
 
