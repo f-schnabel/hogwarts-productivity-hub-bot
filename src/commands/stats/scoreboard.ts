@@ -4,7 +4,6 @@ import { and, desc, eq, gt } from "drizzle-orm";
 import { userTable } from "../../db/schema.ts";
 import type { Command, House } from "../../types.ts";
 import { HOUSE_COLORS } from "../../utils/constants.ts";
-import { client } from "../../client.ts";
 import { isOwner, isProfessor, replyError } from "../../utils/utils.ts";
 
 export default {
@@ -45,44 +44,26 @@ async function replyHousepoints(interaction: ChatInputCommandInteraction, house:
     .where(and(eq(userTable.house, house), gt(userTable.monthlyPoints, 0)))
     .orderBy(desc(userTable.monthlyPoints));
 
-  for (const row of leaderboard) {
-    const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
-    await Promise.all(
-      members.map(async (m) => {
-        const member = await m;
-        if (!member) return;
-        row.username = member.nickname ?? member.user.globalName ?? member.user.username;
-      }),
-    );
-  }
-
-  const medalPadding = leaderboard.length.toString().length + 1;
-
-  // Create table header
-  let description = "```\n";
-  description += `${"#".padStart(medalPadding)} ${"Points".padStart(6)}  Name\n`;
-  description += "━".repeat(medalPadding + 10) + "━━━━━━━━\n";
+  let description = "";
 
   // Add each user row
   leaderboard.forEach((user, index) => {
     const position = index + 1;
 
     const medals = ["🥇", "🥈", "🥉"];
-    const medal = medals[position - 1] ?? `${position}`;
-    const points = user.monthlyPoints.toString().padStart(6);
-    const name = user.username.substring(0, 32);
+    const medal = medals[position - 1] ?? `#${position}`;
+    const points = user.monthlyPoints;
+    const mention = `<@${user.discordId}>`;
 
-    description += `${medal.padStart(medalPadding)} ${points}  ${name}\n`;
+    description += `${medal} ${mention} • ${points} points\n`;
   });
-
-  description += "```";
 
   await interaction.editReply({
     embeds: [
       {
         color: HOUSE_COLORS[house],
         title: house.toUpperCase(),
-        description: description,
+        description: description || "No points earned yet!",
         footer: {
           text: `Last updated • ${new Date().toLocaleString("en-US", {
             month: "long",
@@ -94,5 +75,6 @@ async function replyHousepoints(interaction: ChatInputCommandInteraction, house:
         },
       },
     ],
+    allowedMentions: { users: [] },
   });
 }
