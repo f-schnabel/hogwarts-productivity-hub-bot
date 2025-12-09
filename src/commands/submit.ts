@@ -7,9 +7,11 @@ import {
   GuildMember,
   MessageFlags,
   SlashCommandBuilder,
+  TextInputStyle,
   time,
   userMention,
   type InteractionReplyOptions,
+  type LabelComponentData,
 } from "discord.js";
 import { awardPoints, getHouseFromMember, isPrefect } from "../utils/utils.ts";
 import assert from "node:assert";
@@ -76,11 +78,33 @@ export default {
       .returning();
 
     assert(submission, `Failed to update submission with ID ${submissionId}`);
+    let reason: string | undefined = undefined;
     if (event === "approve") {
       await awardPoints(db, submission.discordId, submission.points);
+    } else {
+      await interaction.showModal({
+        title: "Reject Submission",
+        customId: "ticketModal",
+        components: [
+          {
+            type: ComponentType.Label,
+            label: "Please provide a reason for rejection:",
+            component: {
+              type: ComponentType.TextInput,
+              style: TextInputStyle.Short,
+              customId: "reasonInput",
+            },
+          } as LabelComponentData,
+        ],
+      });
+      const modalResponse = await interaction.awaitModalSubmit({
+        filter: (i) => i.customId === "ticketModal" && i.user.id === interaction.user.id,
+        time: 60000,
+      });
+      reason = modalResponse.fields.getTextInputValue("reasonInput");
     }
 
-    await interaction.message.fetch().then((m) => m.edit(submissionMessage(submission)));
+    await interaction.message.fetch().then((m) => m.edit(submissionMessage(submission, reason)));
   },
 };
 
@@ -90,7 +114,10 @@ const SUBMISSION_COLORS = {
   REJECTED: 0xe74d3c,
 };
 
-function submissionMessage(submissionData: typeof submissionTable.$inferSelect) {
+function submissionMessage(
+  submissionData: typeof submissionTable.$inferSelect,
+  reason: string | undefined = undefined,
+) {
   let components: InteractionReplyOptions["components"] = [];
   if (submissionData.status === "PENDING") {
     components = [
@@ -151,9 +178,15 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect) 
       inline: false,
     });
   } else if (submissionData.status === "REJECTED") {
+    assert(reason, "Rejection reason must be provided for rejected submissions");
     embed.addFields({
-      name: "❌ Rejected by",
+      name: "Rejected by",
       value: `${userMention(submissionData.reviewedBy ?? "")} at ${time(submissionData.reviewedAt ?? new Date())}`,
+      inline: false,
+    });
+    embed.addFields({
+      name: "Reason",
+      value: reason,
       inline: false,
     });
   }
