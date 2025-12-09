@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, GuildMember, Message, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, type MessageEditOptions } from "discord.js";
 import { db } from "../../db/db.ts";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { houseScoreboardTable, userTable } from "../../db/schema.ts";
@@ -6,7 +6,6 @@ import type { Command, House } from "../../types.ts";
 import { HOUSE_COLORS } from "../../utils/constants.ts";
 import { client } from "../../client.ts";
 import { isOwner, isProfessor, replyError } from "../../utils/utils.ts";
-import assert from "assert";
 
 export default {
   data: new SlashCommandBuilder()
@@ -25,8 +24,7 @@ export default {
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
-    const message = (await interaction.deferReply({ withResponse: true })).resource?.message;
-    assert(message, "Failed to retrieve message after deferring reply");
+    await interaction.deferReply();
     const member = interaction.member as GuildMember;
 
     if (!isProfessor(member) && !isOwner(member)) {
@@ -36,17 +34,18 @@ export default {
 
     const house = interaction.options.getString("house", true) as House;
 
-    await updateHousepoints(message, house);
+    const scoreboardMessage = await getHousepointMessage(house);
+    const message = await interaction.editReply(scoreboardMessage);
 
     await db.insert(houseScoreboardTable).values({
       house,
-      channelId: interaction.channelId,
-      messageId: interaction.id,
+      channelId: message.channelId,
+      messageId: message.id,
     });
   },
 } as Command;
 
-export async function updateHousepoints(message: Message, house: House) {
+export async function getHousepointMessage(house: House): Promise<MessageEditOptions> {
   const leaderboard = await db
     .select()
     .from(userTable)
@@ -86,7 +85,7 @@ export async function updateHousepoints(message: Message, house: House) {
 
   description += "```";
 
-  await message.edit({
+  return {
     embeds: [
       {
         color: HOUSE_COLORS[house],
@@ -103,5 +102,5 @@ export async function updateHousepoints(message: Message, house: House) {
         },
       },
     ],
-  });
+  };
 }

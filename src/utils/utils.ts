@@ -8,7 +8,7 @@ import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import { BotColors } from "./constants.ts";
 import { client } from "../client.ts";
-import { updateHousepoints } from "../commands/stats/scoreboard.ts";
+import { getHousepointMessage } from "../commands/stats/scoreboard.ts";
 import { alertOwner } from "./alerting.ts";
 
 export function getHouseFromMember(member: GuildMember | null): House | undefined {
@@ -77,7 +77,8 @@ export async function awardPoints(
           continue;
         }
         const message = await channel.messages.fetch(msg.messageId);
-        await updateHousepoints(message, house);
+        const messageData = await getHousepointMessage(house);
+        await message.edit(messageData);
       } catch (e) {
         console.error(`Failed to update housepoints message ${msg.messageId} in channel ${msg.channelId}:`, e);
         brokenMessages.push(msg.id);
