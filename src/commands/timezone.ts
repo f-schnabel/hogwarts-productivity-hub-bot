@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
-import { BotColors } from "../utils/constants.ts";
+import { BOT_COLORS } from "../utils/constants.ts";
 import dayjs from "dayjs";
 import { db, fetchUserTimezone } from "../db/db.ts";
 import { userTable } from "../db/schema.ts";
@@ -51,7 +51,7 @@ async function viewTimezone(interaction: ChatInputCommandInteraction, discordId:
   await interaction.editReply({
     embeds: [
       {
-        color: BotColors.SUCCESS,
+        color: BOT_COLORS.SUCCESS,
         description: `Your timezone is currently set to \`${userTimezone}\` (Currently ${userLocalTime})`,
       },
     ],
@@ -79,7 +79,7 @@ async function setTimezone(interaction: ChatInputCommandInteraction, discordId: 
     await interaction.editReply({
       embeds: [
         {
-          color: BotColors.WARNING,
+          color: BOT_COLORS.WARNING,
           title: `No Change Needed`,
           description: `Your timezone is already set to \`${newTimezone}\`.`,
         },
@@ -104,7 +104,7 @@ async function setTimezone(interaction: ChatInputCommandInteraction, discordId: 
   await interaction.editReply({
     embeds: [
       {
-        color: BotColors.SUCCESS,
+        color: BOT_COLORS.SUCCESS,
         title: `Timezone Updated Successfully`,
         fields: [
           {

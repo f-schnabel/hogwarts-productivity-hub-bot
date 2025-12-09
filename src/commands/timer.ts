@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import type { Command, VoiceTimer } from "../types.ts";
 import assert from "node:assert";
 import { createProgressBar } from "../utils/visualHelpers.ts";
-import { BotColors } from "../utils/constants.ts";
+import { BOT_COLORS } from "../utils/constants.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -223,7 +223,7 @@ async function stopTimer(interaction: ChatInputCommandInteraction, activeVoiceTi
   await interaction.editReply({
     embeds: [
       {
-        color: BotColors.SUCCESS,
+        color: BOT_COLORS.SUCCESS,
         title: `✅ Timer Stopped Successfully`,
         description: `Your Pomodoro timer in <#${voiceChannelId}> has been stopped. 🚀 No worries - every session counts towards building your productivity habits!`,
         footer: {
@@ -315,7 +315,7 @@ function createTimerTemplate(
       ].filter(Boolean);
 
       embed = new EmbedBuilder({
-        color: BotColors.PRIMARY,
+        color: BOT_COLORS.PRIMARY,
         title: "⏱️ Pomodoro Timer Started",
         description: "Focus Session Active\n" + "Time to boost your productivity!",
         fields: [
@@ -357,7 +357,7 @@ function createTimerTemplate(
     case "work_complete":
       assert(data.breakTime, "Break time must be provided for work completion");
       embed = new EmbedBuilder({
-        color: BotColors.SUCCESS,
+        color: BOT_COLORS.SUCCESS,
         title: "🔔 Work Session Complete!",
         description: "Great Work!\nYou've successfully completed your focus session",
       });
@@ -383,7 +383,7 @@ function createTimerTemplate(
 
     case "break_complete":
       embed = new EmbedBuilder({
-        color: BotColors.INFO,
+        color: BOT_COLORS.INFO,
         title: "🕒 Break Time Is Over!",
         description: "Back to Work!\nTime to get back to your productive flow",
         fields: [
@@ -403,7 +403,7 @@ function createTimerTemplate(
       assert(data.workTime, "Work time must be provided for status");
       const isBreak = data.phase === "break";
       embed = new EmbedBuilder({
-        color: isBreak ? BotColors.WARNING : BotColors.PRIMARY,
+        color: isBreak ? BOT_COLORS.WARNING : BOT_COLORS.PRIMARY,
         title: `⏰ Timer Status - ${data.phase.charAt(0).toUpperCase() + data.phase.slice(1)} Phase`,
         description: `Active Session\nCurrently in ${data.phase} phase`,
       });
@@ -434,7 +434,7 @@ function createTimerTemplate(
 
     case "no_timer":
       embed = new EmbedBuilder({
-        color: BotColors.SECONDARY,
+        color: BOT_COLORS.SECONDARY,
         title: "⏰ Timer Status",
         description: `No Active Timer\nNo Pomodoro timer is currently running in <#${data.voiceChannel.id}>`,
         fields: [

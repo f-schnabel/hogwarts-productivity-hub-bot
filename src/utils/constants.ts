@@ -1,4 +1,4 @@
-export const BotColors = {
+export const BOT_COLORS = {
   PRIMARY: 0x4b82f3,
   SUCCESS: 0x00c853,
   WARNING: 0xff8f00,
@@ -10,13 +10,13 @@ export const BotColors = {
 } as const;
 
 export const HOUSE_COLORS = {
-  Gryffindor: 0x7c0a02,
-  Hufflepuff: 0xffd700,
-  Ravenclaw: 0x0e1a40,
-  Slytherin: 0x1a472a,
+  Gryffindor: 0xff2000,
+  Hufflepuff: 0xf8d301,
+  Ravenclaw: 0x0178c8,
+  Slytherin: 0x07ad34,
 } as const;
 
-export const houseEmojis = {
+export const HOUSE_EMOJIS = {
   Gryffindor: "🦁",
   Hufflepuff: "🦡",
   Ravenclaw: "🦅",

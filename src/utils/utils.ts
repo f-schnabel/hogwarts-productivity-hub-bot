@@ -6,7 +6,7 @@ import { housePointsTable, houseScoreboardTable, userTable } from "../db/schema.
 import type { Schema } from "../db/db.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
-import { BotColors } from "./constants.ts";
+import { BOT_COLORS } from "./constants.ts";
 import { client } from "../client.ts";
 import { getHousepointMessage } from "../commands/stats/scoreboard.ts";
 import { alertOwner } from "./alerting.ts";
@@ -95,7 +95,7 @@ export async function replyError(interaction: ChatInputCommandInteraction, title
   await interaction.editReply({
     embeds: [
       {
-        color: BotColors.ERROR,
+        color: BOT_COLORS.ERROR,
         title: `❌ ${title}`,
         description: messages.join("\n"),
       },

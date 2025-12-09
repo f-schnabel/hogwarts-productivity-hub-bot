@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import dayjs from "dayjs";
-import { BotColors } from "../../utils/constants.ts";
+import { BOT_COLORS } from "../../utils/constants.ts";
 import { db } from "../../db/db.ts";
 import { taskTable, userTable } from "../../db/schema.ts";
 import { and, eq, gt } from "drizzle-orm";
@@ -63,7 +63,7 @@ export default {
       embeds: [
         {
           title: "📊 Your Stats",
-          color: BotColors.PRIMARY,
+          color: BOT_COLORS.PRIMARY,
           description: greeting,
           fields: [
             // 1. Streak Information

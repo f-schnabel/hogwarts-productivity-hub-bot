@@ -14,7 +14,7 @@ import dayjs from "dayjs";
 import { db, fetchTasks, fetchUserTimezone } from "../db/db.ts";
 import { taskTable } from "../db/schema.ts";
 import { and, desc, eq, gte } from "drizzle-orm";
-import { BotColors, DAILY_TASK_LIMIT, TASK_MIN_TIME, TASK_POINT_SCORE } from "../utils/constants.ts";
+import { BOT_COLORS, DAILY_TASK_LIMIT, TASK_MIN_TIME, TASK_POINT_SCORE } from "../utils/constants.ts";
 import assert from "node:assert/strict";
 import { createProgressSection } from "../utils/visualHelpers.ts";
 import type { Task } from "../types.ts";
@@ -132,7 +132,7 @@ async function addTask(
     await interaction.editReply({
       embeds: [
         {
-          color: BotColors.WARNING,
+          color: BOT_COLORS.WARNING,
           title: `Daily Task Limit Reached`,
           description:
             `You have reached your daily task limit of ${DAILY_TASK_LIMIT} tasks.\n` +
@@ -153,7 +153,7 @@ async function addTask(
   await interaction.editReply({
     embeds: [
       {
-        color: BotColors.SUCCESS,
+        color: BOT_COLORS.SUCCESS,
         title: `Task Added Successfully!`,
         description: `**${task.title}**\n\n`,
         footer: {
@@ -205,7 +205,7 @@ async function viewTasks(interaction: ChatInputCommandInteraction, startOfDay: D
     await interaction.editReply({
       embeds: [
         {
-          color: BotColors.INFO,
+          color: BOT_COLORS.INFO,
           title: "📋 Your Task Dashboard",
           description: "Ready to get productive?\nUse `/tasks add` to create your first task!",
           footer: {
@@ -262,7 +262,7 @@ async function viewTasks(interaction: ChatInputCommandInteraction, startOfDay: D
   await interaction.editReply({
     embeds: [
       {
-        color: BotColors.PRIMARY,
+        color: BOT_COLORS.PRIMARY,
         title: `📋 Task Dashboard for **${user.username}**`,
         fields,
         footer: {
@@ -333,7 +333,7 @@ async function completeTask(
   await interaction.editReply({
     embeds: [
       {
-        color: BotColors.SUCCESS,
+        color: BOT_COLORS.SUCCESS,
         title: `🎉 Task Completed Successfully!`,
         description: bold(`Completed: "${taskToComplete.title}" (+${TASK_POINT_SCORE} points)`),
         footer: {
@@ -371,7 +371,7 @@ async function removeTask(
   await interaction.editReply({
     embeds: [
       {
-        color: BotColors.SUCCESS,
+        color: BOT_COLORS.SUCCESS,
         title: `Task Removed Successfully`,
         description: `**Removed task: "${task.title}"**`,
         footer: {

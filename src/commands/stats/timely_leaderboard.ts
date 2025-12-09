@@ -4,7 +4,7 @@ import { db } from "../../db/db.ts";
 import { userTable } from "../../db/schema.ts";
 import { desc, gte } from "drizzle-orm";
 import type { House } from "../../types.ts";
-import { BotColors, houseEmojis } from "../../utils/constants.ts";
+import { BOT_COLORS, HOUSE_EMOJIS } from "../../utils/constants.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -92,14 +92,14 @@ async function replyLeaderboard(
     //const hours = timeToHours(entry.voiceTime);
 
     leaderboardData.push(
-      `#${index + 1} ${userMention(entry.discordId)} • ${entry.points}points • ${entry.house ? houseEmojis[entry.house] : ""}`,
+      `#${index + 1} ${userMention(entry.discordId)} • ${entry.points}points • ${entry.house ? HOUSE_EMOJIS[entry.house] : ""}`,
     );
   }
 
   await interaction.editReply({
     embeds: [
       {
-        color: BotColors.PREMIUM,
+        color: BOT_COLORS.PREMIUM,
         title,
         description: leaderboardData.length === 0 ? "No rankings available" : leaderboardData.join("\n"),
       },
