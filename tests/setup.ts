@@ -21,12 +21,23 @@ global.console = {
 
 // Mock Discord.js for testing
 vi.mock("discord.js", () => ({
-  Client: vi.fn(() => ({
-    commands: new Map(),
-    login: vi.fn(),
-    on: vi.fn(),
-    user: { id: "test-bot-id" },
-  })),
+  Client: class MockClient {
+    commands = new Map();
+    login = vi.fn();
+    on = vi.fn();
+    user = { id: "test-bot-id" };
+    users = {
+      fetch: vi.fn().mockResolvedValue({
+        send: vi.fn(),
+      }),
+    };
+    channels = {
+      fetch: vi.fn(),
+    };
+    guilds = {
+      cache: new Map(),
+    };
+  },
   IntentsBitField: {
     Flags: {
       Guilds: 1,
@@ -34,26 +45,83 @@ vi.mock("discord.js", () => ({
       MessageContent: 4,
       GuildMembers: 8,
       GuildVoiceStates: 16,
+      DirectMessages: 32,
     },
   },
-  SlashCommandBuilder: vi.fn(() => ({
-    setName: vi.fn().mockReturnThis(),
-    setDescription: vi.fn().mockReturnThis(),
-    addStringOption: vi.fn().mockReturnThis(),
-    addIntegerOption: vi.fn().mockReturnThis(),
-    addBooleanOption: vi.fn().mockReturnThis(),
-    toJSON: vi.fn(() => ({})),
-  })),
-  EmbedBuilder: vi.fn(() => ({
-    setTitle: vi.fn().mockReturnThis(),
-    setDescription: vi.fn().mockReturnThis(),
-    setColor: vi.fn().mockReturnThis(),
-    addFields: vi.fn().mockReturnThis(),
-    setFooter: vi.fn().mockReturnThis(),
-    setTimestamp: vi.fn().mockReturnThis(),
-  })),
+  SlashCommandBuilder: class MockSlashCommandBuilder {
+    setName() {
+      return this;
+    }
+    setDescription() {
+      return this;
+    }
+    addStringOption(fn: (opt: unknown) => unknown) {
+      fn(new MockSlashCommandOption());
+      return this;
+    }
+    addIntegerOption(fn: (opt: unknown) => unknown) {
+      fn(new MockSlashCommandOption());
+      return this;
+    }
+    addBooleanOption(fn: (opt: unknown) => unknown) {
+      fn(new MockSlashCommandOption());
+      return this;
+    }
+    addUserOption(fn: (opt: unknown) => unknown) {
+      fn(new MockSlashCommandOption());
+      return this;
+    }
+    addSubcommand(fn: (opt: unknown) => unknown) {
+      fn(new MockSlashCommandBuilder());
+      return this;
+    }
+    toJSON() {
+      return {};
+    }
+  },
+  EmbedBuilder: class MockEmbedBuilder {
+    setTitle() {
+      return this;
+    }
+    setDescription() {
+      return this;
+    }
+    setColor() {
+      return this;
+    }
+    addFields() {
+      return this;
+    }
+    setFooter() {
+      return this;
+    }
+    setTimestamp() {
+      return this;
+    }
+  },
   Collection: Map,
 }));
+
+class MockSlashCommandOption {
+  setName() {
+    return this;
+  }
+  setDescription() {
+    return this;
+  }
+  setRequired() {
+    return this;
+  }
+  addChoices() {
+    return this;
+  }
+  setMinValue() {
+    return this;
+  }
+  setMaxValue() {
+    return this;
+  }
+}
 
 // Cleanup after each test
 afterEach(() => {

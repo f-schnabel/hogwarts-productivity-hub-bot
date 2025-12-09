@@ -126,7 +126,6 @@ describe("updateMessageStreakInNickname", () => {
       streak: 8,
       expected: "Silas ( ◡̀_◡́)ᕤ⚡8 ❄",
     },
-    
   ])("should $description", async ({ input, streak, expected }) => {
     mockMember.nickname = input.nickname;
     mockMember.user.globalName = input.globalName;
