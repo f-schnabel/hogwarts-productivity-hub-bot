@@ -11,7 +11,6 @@ import {
   time,
   userMention,
   type InteractionReplyOptions,
-  type LabelComponentData,
 } from "discord.js";
 import { awardPoints, getHouseFromMember, isPrefect } from "../utils/utils.ts";
 import assert from "node:assert";
