@@ -14,7 +14,6 @@ import {
 import { awardPoints, getHouseFromMember, isPrefect } from "../utils/utils.ts";
 import assert from "node:assert";
 import { db } from "../db/db.ts";
-import { HOUSE_COLORS } from "../utils/constants.ts";
 import { submissionTable } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
 
@@ -85,6 +84,12 @@ export default {
   },
 };
 
+const SUBMISSION_COLORS = {
+  PENDING: 0x979c9f,
+  APPROVED: 0x2ecc70,
+  REJECTED: 0xe74d3c,
+};
+
 function submissionMessage(submissionData: typeof submissionTable.$inferSelect) {
   let components: InteractionReplyOptions["components"] = [];
   if (submissionData.status === "PENDING") {
@@ -111,7 +116,7 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect) 
 
   const embed = new EmbedBuilder({
     title: submissionData.house.toUpperCase(),
-    color: HOUSE_COLORS[submissionData.house],
+    color: SUBMISSION_COLORS[submissionData.status],
     fields: [
       {
         name: "Submission ID",
@@ -141,7 +146,7 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect) 
 
   if (submissionData.status === "APPROVED") {
     embed.addFields({
-      name: "✅ Approved by",
+      name: "Approved by",
       value: `${userMention(submissionData.reviewedBy ?? "")} at ${time(submissionData.reviewedAt ?? new Date())}`,
       inline: false,
     });
