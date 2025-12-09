@@ -59,17 +59,51 @@ export default {
   },
 
   async buttonHandler(interaction: ButtonInteraction, event: string, submissionId: string | undefined): Promise<void> {
-    await interaction.deferUpdate();
-
     const member = interaction.member as GuildMember;
     if (!isPrefect(member)) {
-      await interaction.followUp({
+      await interaction.reply({
         content: "You do not have permission to perform this action.",
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
     assert(submissionId, "No data provided in button interaction");
+
+    let reason: string | undefined = undefined;
+
+    if (event === "reject") {
+      await interaction.showModal({
+        title: "Reject Submission",
+        customId: `rejectModal-${submissionId}`,
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.TextInput,
+                style: TextInputStyle.Short,
+                customId: "reasonInput",
+                label: "Please provide a reason for rejection:",
+                required: true,
+              },
+            ],
+          },
+        ],
+      });
+
+      try {
+        const modalResponse = await interaction.awaitModalSubmit({
+          filter: (i) => i.customId === `rejectModal-${submissionId}` && i.user.id === interaction.user.id,
+          time: 60000,
+        });
+        reason = modalResponse.fields.getTextInputValue("reasonInput");
+        await modalResponse.deferUpdate();
+      } catch {
+        return;
+      }
+    } else {
+      await interaction.deferUpdate();
+    }
 
     const [submission] = await db
       .update(submissionTable)
@@ -78,30 +112,9 @@ export default {
       .returning();
 
     assert(submission, `Failed to update submission with ID ${submissionId}`);
-    let reason: string | undefined = undefined;
+
     if (event === "approve") {
       await awardPoints(db, submission.discordId, submission.points);
-    } else {
-      await interaction.showModal({
-        title: "Reject Submission",
-        customId: "ticketModal",
-        components: [
-          {
-            type: ComponentType.Label,
-            label: "Please provide a reason for rejection:",
-            component: {
-              type: ComponentType.TextInput,
-              style: TextInputStyle.Short,
-              customId: "reasonInput",
-            },
-          } as LabelComponentData,
-        ],
-      });
-      const modalResponse = await interaction.awaitModalSubmit({
-        filter: (i) => i.customId === "ticketModal" && i.user.id === interaction.user.id,
-        time: 60000,
-      });
-      reason = modalResponse.fields.getTextInputValue("reasonInput");
     }
 
     await interaction.message.fetch().then((m) => m.edit(submissionMessage(submission, reason)));
