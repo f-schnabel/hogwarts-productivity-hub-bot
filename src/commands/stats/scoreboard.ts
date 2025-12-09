@@ -44,6 +44,7 @@ async function replyHousepoints(interaction: ChatInputCommandInteraction, house:
     .orderBy(desc(userTable.monthlyPoints));
 
   let description = "";
+  description += `**${house} Monthly Leaderboard**\n\n`;
 
   // Add each user row
   leaderboard.forEach((user, index) => {
@@ -59,7 +60,7 @@ async function replyHousepoints(interaction: ChatInputCommandInteraction, house:
 
   await interaction.editReply({
     content: description || "No points earned yet!",
-    allowedMentions: { users: [] },
+    //allowedMentions: { users: [] },
     //embeds: [
     //  {
     //    color: HOUSE_COLORS[house],
