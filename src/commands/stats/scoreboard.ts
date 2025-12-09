@@ -3,7 +3,6 @@ import { db } from "../../db/db.ts";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { userTable } from "../../db/schema.ts";
 import type { Command, House } from "../../types.ts";
-import { HOUSE_COLORS } from "../../utils/constants.ts";
 import { isOwner, isProfessor, replyError } from "../../utils/utils.ts";
 
 export default {
@@ -59,22 +58,23 @@ async function replyHousepoints(interaction: ChatInputCommandInteraction, house:
   });
 
   await interaction.editReply({
-    embeds: [
-      {
-        color: HOUSE_COLORS[house],
-        title: house.toUpperCase(),
-        description: description || "No points earned yet!",
-        footer: {
-          text: `Last updated • ${new Date().toLocaleString("en-US", {
-            month: "long",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })}`,
-        },
-      },
-    ],
+    content: description || "No points earned yet!",
     allowedMentions: { users: [] },
+    //embeds: [
+    //  {
+    //    color: HOUSE_COLORS[house],
+    //    title: house.toUpperCase(),
+    //    description: ,
+    //    footer: {
+    //      text: `Last updated • ${new Date().toLocaleString("en-US", {
+    //        month: "long",
+    //        day: "numeric",
+    //        hour: "numeric",
+    //        minute: "2-digit",
+    //        hour12: true,
+    //      })}`,
+    //    },
+    //  },
+    //],
   });
 }
