@@ -1,11 +1,12 @@
-import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, GuildMember, Message, SlashCommandBuilder } from "discord.js";
 import { db } from "../../db/db.ts";
 import { and, desc, eq, gt } from "drizzle-orm";
-import { userTable } from "../../db/schema.ts";
+import { houseScoreboardTable, userTable } from "../../db/schema.ts";
 import type { Command, House } from "../../types.ts";
 import { HOUSE_COLORS } from "../../utils/constants.ts";
 import { client } from "../../client.ts";
 import { isOwner, isProfessor, replyError } from "../../utils/utils.ts";
+import assert from "assert";
 
 export default {
   data: new SlashCommandBuilder()
@@ -24,7 +25,8 @@ export default {
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
+    const message = (await interaction.deferReply({ withResponse: true })).resource?.message;
+    assert(message, "Failed to retrieve message after deferring reply");
     const member = interaction.member as GuildMember;
 
     if (!isProfessor(member) && !isOwner(member)) {
@@ -34,11 +36,17 @@ export default {
 
     const house = interaction.options.getString("house", true) as House;
 
-    await replyHousepoints(interaction, house);
+    await updateHousepoints(message, house);
+
+    await db.insert(houseScoreboardTable).values({
+      house,
+      channelId: interaction.channelId,
+      messageId: interaction.id,
+    });
   },
 } as Command;
 
-async function replyHousepoints(interaction: ChatInputCommandInteraction, house: House) {
+export async function updateHousepoints(message: Message, house: House) {
   const leaderboard = await db
     .select()
     .from(userTable)
@@ -57,11 +65,12 @@ async function replyHousepoints(interaction: ChatInputCommandInteraction, house:
   }
 
   const medalPadding = leaderboard.length.toString().length + 1;
+  const longestNameLength = Math.min(Math.max(...leaderboard.map((user) => user.username.length)), 32);
 
   // Create table header
   let description = "```\n";
   description += `${"#".padStart(medalPadding)} ${"Points".padStart(6)}  Name\n`;
-  description += "━".repeat(medalPadding + 10) + "━━━━━━━━\n";
+  description += "━".repeat(medalPadding + 6 + 2 + longestNameLength) + "\n";
 
   // Add each user row
   leaderboard.forEach((user, index) => {
@@ -77,7 +86,7 @@ async function replyHousepoints(interaction: ChatInputCommandInteraction, house:
 
   description += "```";
 
-  await interaction.editReply({
+  await message.edit({
     embeds: [
       {
         color: HOUSE_COLORS[house],

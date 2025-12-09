@@ -1,12 +1,15 @@
 import { ChatInputCommandInteraction, type GuildMember } from "discord.js";
 import assert from "node:assert/strict";
 import type { House } from "../types.ts";
-import { eq, sql, type ExtractTablesWithRelations } from "drizzle-orm";
-import { housePointsTable, userTable } from "../db/schema.ts";
+import { eq, inArray, sql, type ExtractTablesWithRelations } from "drizzle-orm";
+import { housePointsTable, houseScoreboardTable, userTable } from "../db/schema.ts";
 import type { Schema } from "../db/db.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import { BotColors } from "./constants.ts";
+import { client } from "../client.ts";
+import { updateHousepoints } from "../commands/stats/scoreboard.ts";
+import { alertOwner } from "./alerting.ts";
 
 export function getHouseFromMember(member: GuildMember | null): House | undefined {
   let house: House | undefined = undefined;
@@ -63,6 +66,27 @@ export async function awardPoints(
         points: sql`${housePointsTable.points} + ${points}`,
       })
       .where(eq(housePointsTable.house, house));
+
+    const messages = await db.select().from(houseScoreboardTable).where(eq(houseScoreboardTable.house, house));
+    const brokenMessages = [];
+    for (const msg of messages) {
+      try {
+        const channel = await client.channels.fetch(msg.channelId);
+        if (!channel?.isTextBased()) {
+          brokenMessages.push(msg.id);
+          continue;
+        }
+        const message = await channel.messages.fetch(msg.messageId);
+        await updateHousepoints(message, house);
+      } catch (e) {
+        console.error(`Failed to update housepoints message ${msg.messageId} in channel ${msg.channelId}:`, e);
+        brokenMessages.push(msg.id);
+      }
+    }
+    if (brokenMessages.length > 0) {
+      await alertOwner(`Removed ${brokenMessages.length} broken house scoreboard message entries for house ${house}.`);
+      await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenMessages));
+    }
   }
 }
 
