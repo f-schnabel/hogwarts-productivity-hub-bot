@@ -17,6 +17,7 @@ const activeVoiceTimers = new Map<string, VoiceTimer>();
 export async function execute(interaction: Interaction): Promise<void> {
   const end = interactionExecutionTimer.startTimer();
   if (interaction.isButton()) {
+    // @eslint-disable-next-line prefer-const
     let [commandName, event, data] = interaction.customId.split("|", 3);
     assert(commandName, "Button command name missing");
     assert(typeof event === "string", "Button event missing");
