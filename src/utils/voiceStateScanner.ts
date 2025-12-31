@@ -59,9 +59,9 @@ export async function scanAndStartTracking() {
 
     console.log("VOICE SCAN SUMMARY:");
     if (scanResults.channels.length > 0) {
-      console.log("   📍 Voice Channels with Users:");
+      console.log("   Voice Channels with Users:");
       scanResults.channels.forEach((channel) => {
-        console.log(`      • ${channel.name}: ${channel.userCount} users`);
+        console.log(`    • ${channel.name}: ${channel.userCount} users`);
       });
     }
 
@@ -158,7 +158,7 @@ async function scanVoiceChannel(channel: BaseGuildVoiceChannel, activeVoiceSessi
     }
 
     if (usersStarted.length > 0) {
-      console.log(`🎯 Started tracking for ${usersStarted.length} users in ${channel.name}:`, usersStarted.join(", "));
+      console.log(`Started tracking for ${usersStarted.length} users in ${channel.name}:`, usersStarted.join(", "));
     }
   } catch (error) {
     console.error(`Error scanning voice channel ${channel.name}:`, error);

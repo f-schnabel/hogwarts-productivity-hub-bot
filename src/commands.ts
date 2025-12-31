@@ -14,10 +14,6 @@ commands.set(timezoneCommand.data.name, timezoneCommand);
 //commands.set(tasks.data.name, tasks);
 //commands.set(timer.data.name, timer);
 
-// Admin commands
-//commands.set(debug.data.name, debug);
-//commands.set(voicescan.data.name, voicescan);
-
 // Stats commands
 commands.set(scoreboard.data.name, scoreboard);
 //commands.set(leaderboard.data.name, leaderboard);
