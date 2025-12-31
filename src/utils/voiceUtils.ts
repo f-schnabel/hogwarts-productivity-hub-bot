@@ -1,4 +1,3 @@
-import { GuildMember, type ChatInputCommandInteraction, type VoiceBasedChannel } from "discord.js";
 import { type Schema } from "../db/db.ts";
 import { userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, eq, inArray, isNull, sql, type ExtractTablesWithRelations } from "drizzle-orm";
@@ -13,28 +12,6 @@ import type { NodePgDatabase, NodePgQueryResultHKT } from "drizzle-orm/node-post
 import type { VoiceSession } from "../types.ts";
 import assert from "node:assert/strict";
 import { awardPoints } from "./utils.ts";
-
-/**
- * get the voice channel for a user from an interaction
- * This function handles the case where Discord's cached member data might be stale
- * @param {ChatInputCommandInteraction} interaction - The Discord interaction
- * @param options - Options for voice channel detection
- */
-export function getUserVoiceChannel(interaction: ChatInputCommandInteraction): VoiceBasedChannel | null {
-  if (!interaction.guild) {
-    console.warn("No guild found in interaction");
-    return null;
-  }
-  const member = interaction.member;
-
-  if (member instanceof GuildMember && member.voice.channel) {
-    console.log(`Voice channel found via cached member: ${member.voice.channel.name} (${member.voice.channel.id})`);
-    return member.voice.channel;
-  }
-
-  console.log(`User ${interaction.user.tag} is not in any voice channel`);
-  return null;
-}
 
 // Start a voice session when user joins VC (timezone-aware)
 export async function startVoiceSession(

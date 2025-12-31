@@ -16,17 +16,6 @@ export const HOUSE_COLORS = {
   Slytherin: 0x07ad34,
 } as const;
 
-export const HOUSE_EMOJIS = {
-  Gryffindor: "🦁",
-  Hufflepuff: "🦡",
-  Ravenclaw: "🦅",
-  Slytherin: "🐍",
-} as const;
-
-export const TASK_POINT_SCORE = 2;
-export const DAILY_TASK_LIMIT = 10;
-export const TASK_MIN_TIME = 20;
-
 export const MIN_DAILY_MINUTES_FOR_STREAK = 15 * 60;
 export const MIN_DAILY_MESSAGES_FOR_STREAK = 3;
 export const FIRST_HOUR_POINTS = 5;

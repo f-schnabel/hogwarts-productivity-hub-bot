@@ -11,7 +11,7 @@ import { db, ensureUserExists } from "../db/db.ts";
 import { voiceSessionTable } from "../db/schema.ts";
 import { isNull } from "drizzle-orm";
 
-export let isScanning = false;
+let isScanning = false;
 let scanResults = {
   totalUsersFound: 0,
   trackingStarted: 0,
