@@ -55,20 +55,6 @@ export const voiceSessionTable = pgTable("voice_session", {
   duration: integer().generatedAlwaysAs(sql`EXTRACT(EPOCH FROM (left_at - joined_at))`),
 });
 
-export const taskTable = pgTable("task", {
-  // Technical fields
-  id: serial().primaryKey(),
-  discordId: varchar({ length: 255 })
-    .notNull()
-    .references(() => userTable.discordId),
-  createdAt: timestamp().notNull().defaultNow(),
-
-  // Task fields
-  title: varchar({ length: 500 }).notNull(),
-  isCompleted: boolean().default(false),
-  completedAt: timestamp(),
-});
-
 // Holds submission data so approvals/rejections persist bot restarts
 export const submissionTable = pgTable("submission", {
   // Technical fields

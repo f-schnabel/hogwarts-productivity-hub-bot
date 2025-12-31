@@ -46,13 +46,6 @@ export async function fetchUserTimezone(discordId: string) {
     .then((rows) => rows[0]?.timezone ?? "UTC");
 }
 
-export async function fetchTasks(discordId: string) {
-  return await db
-    .select({ title: schema.taskTable.title, id: schema.taskTable.id })
-    .from(schema.taskTable)
-    .where(and(eq(schema.taskTable.discordId, discordId), eq(schema.taskTable.isCompleted, false)));
-}
-
 export async function fetchOpenVoiceSessions(
   db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>,
   usersNeedingReset: string[] | null = null,
