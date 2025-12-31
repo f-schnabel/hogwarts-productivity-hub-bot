@@ -128,10 +128,7 @@ const SUBMISSION_COLORS = {
   REJECTED: 0xe74d3c,
 };
 
-function submissionMessage(
-  submissionData: typeof submissionTable.$inferSelect,
-  reason: string | undefined = undefined,
-) {
+function submissionMessage(submissionData: typeof submissionTable.$inferSelect, reason?: string) {
   let components: InteractionReplyOptions["components"] = [];
   if (submissionData.status === "PENDING") {
     components = [
