@@ -2,7 +2,6 @@ import { Collection } from "discord.js";
 import timezoneCommand from "./commands/timezone.ts";
 import stats from "./commands/stats/stats.ts";
 import type { Command } from "./types.ts";
-import draw from "./commands/draw.ts";
 import submit from "./commands/submit.ts";
 import admin from "./commands/admin.ts";
 import scoreboard from "./commands/stats/scoreboard.ts";
@@ -20,5 +19,4 @@ commands.set(admin.data.name, admin);
 commands.set(stats.data.name, stats);
 commands.set(user.data.name, user);
 
-commands.set(draw.data.name, draw);
 commands.set(submit.data.name, submit);
