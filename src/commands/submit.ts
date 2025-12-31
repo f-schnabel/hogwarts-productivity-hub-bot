@@ -18,6 +18,8 @@ import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
 
+const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS?.split(",") ?? [];
+
 export default {
   data: new SlashCommandBuilder()
     .setName("submit")
@@ -30,10 +32,7 @@ export default {
     ),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const member = interaction.member as GuildMember;
-    if (
-      !hasAnyRole(member, Role.OWNER) &&
-      !process.env.SUBMISSION_CHANNEL_IDS.split(",").includes(interaction.channelId)
-    ) {
+    if (!hasAnyRole(member, Role.OWNER) && !SUBMISSION_CHANNEL_IDS.includes(interaction.channelId)) {
       await replyError(interaction, "Invalid Channel", "You cannot use this command in this channel.");
       return;
     }
