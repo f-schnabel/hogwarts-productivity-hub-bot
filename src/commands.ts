@@ -16,7 +16,6 @@ commands.set(timezoneCommand.data.name, timezoneCommand);
 
 // Stats commands
 commands.set(scoreboard.data.name, scoreboard);
-//commands.set(leaderboard.data.name, leaderboard);
 commands.set(admin.data.name, admin);
 commands.set(stats.data.name, stats);
 commands.set(user.data.name, user);
