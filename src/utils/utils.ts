@@ -112,7 +112,7 @@ export function timeToHours(seconds: number | null): string {
 
 export async function updateMessageStreakInNickname(member: GuildMember | null, newStreak: number): Promise<void> {
   // Can't update nickname of guild owner
-  if (!member || member.guild.ownerId === member.user.id || isProfessor(member)) return;
+  if (!member || member.guild.ownerId === member.user.id || hasAnyRole(member, Role.PROFESSOR)) return;
 
   // If member has no nickname, no need to reset
   if (newStreak == 0 && member.nickname === null) return;
@@ -138,18 +138,16 @@ export async function updateMessageStreakInNickname(member: GuildMember | null, 
   }
 }
 
-export function isOwner(member: GuildMember): boolean {
-  return member.id === process.env.OWNER_ID;
-}
+export const Role = {
+  OWNER: 1 << 0,
+  PREFECT: 1 << 1,
+  PROFESSOR: 1 << 2,
+} as const;
 
-export function isPrefect(member: GuildMember): boolean {
-  return member.roles.cache.has(process.env.PREFECT_ROLE_ID);
-}
-
-export function isProfessor(member: GuildMember): boolean {
-  return member.roles.cache.has(process.env.PROFESSOR_ROLE_ID);
-}
-
-export function isPrefectOrProfessor(member: GuildMember): boolean {
-  return member.roles.cache.hasAny(process.env.PREFECT_ROLE_ID, process.env.PROFESSOR_ROLE_ID);
+export function hasAnyRole(member: GuildMember, roles: number): boolean {
+  let memberRoles = 0;
+  if (member.id === process.env.OWNER_ID) memberRoles |= Role.OWNER;
+  if (member.roles.cache.has(process.env.PREFECT_ROLE_ID)) memberRoles |= Role.PREFECT;
+  if (member.roles.cache.has(process.env.PROFESSOR_ROLE_ID)) memberRoles |= Role.PROFESSOR;
+  return (memberRoles & roles) !== 0;
 }

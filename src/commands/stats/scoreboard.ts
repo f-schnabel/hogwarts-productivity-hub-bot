@@ -5,7 +5,7 @@ import { houseScoreboardTable, userTable } from "../../db/schema.ts";
 import type { Command, House } from "../../types.ts";
 import { HOUSE_COLORS } from "../../utils/constants.ts";
 import { client } from "../../client.ts";
-import { isOwner, isProfessor, replyError } from "../../utils/utils.ts";
+import { hasAnyRole, replyError, Role } from "../../utils/utils.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -27,7 +27,7 @@ export default {
     await interaction.deferReply();
     const member = interaction.member as GuildMember;
 
-    if (!isProfessor(member) && !isOwner(member)) {
+    if (!hasAnyRole(member, Role.OWNER | Role.PROFESSOR)) {
       await replyError(interaction, "Access Denied", "You do not have permission to use this command.");
       return;
     }

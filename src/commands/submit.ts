@@ -12,7 +12,7 @@ import {
   userMention,
   type InteractionReplyOptions,
 } from "discord.js";
-import { awardPoints, getHouseFromMember, isOwner, isPrefect, replyError } from "../utils/utils.ts";
+import { awardPoints, getHouseFromMember, hasAnyRole, replyError, Role } from "../utils/utils.ts";
 import assert from "node:assert";
 import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";
@@ -35,7 +35,10 @@ export default {
     ),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const member = interaction.member as GuildMember;
-    if (!isOwner(member) && !process.env.SUBMISSION_CHANNEL_IDS.split(",").includes(interaction.channelId)) {
+    if (
+      !hasAnyRole(member, Role.OWNER) &&
+      !process.env.SUBMISSION_CHANNEL_IDS.split(",").includes(interaction.channelId)
+    ) {
       await replyError(interaction, "Invalid Channel", "You cannot use this command in this channel.");
       return;
     }
@@ -58,7 +61,7 @@ export default {
 
   async buttonHandler(interaction: ButtonInteraction, event: string, submissionId: string | undefined): Promise<void> {
     const member = interaction.member as GuildMember;
-    if (!isPrefect(member)) {
+    if (!hasAnyRole(member, Role.PREFECT)) {
       await interaction.reply({
         content: "You do not have permission to perform this action.",
         flags: MessageFlags.Ephemeral,

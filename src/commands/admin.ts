@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from "discord.js";
 import { db } from "../db/db.ts";
-import { awardPoints, isPrefectOrProfessor, replyError } from "../utils/utils.ts";
+import { awardPoints, hasAnyRole, replyError, Role } from "../utils/utils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { userTable } from "../db/schema.ts";
 
@@ -21,12 +21,15 @@ export default {
     )
     .addSubcommand((subcommand) =>
       subcommand.setName("reset-monthly-points").setDescription("Resets monthly points for all users"),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand.setName("reset-total-points").setDescription("Resets total points for all users"),
     ),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     await interaction.deferReply();
     const member = interaction.member as GuildMember;
 
-    if (!isPrefectOrProfessor(member)) {
+    if (!hasAnyRole(member, Role.PROFESSOR)) {
       await replyError(interaction, "Insufficient Permissions", "You do not have permission to use this command.");
       return;
     }
@@ -38,8 +41,15 @@ export default {
       case "reset-monthly-points":
         await resetMonthlyPoints(interaction);
         break;
+      case "reset-total-points":
+        await resetTotalPoints(interaction);
+        break;
       default:
-        await replyError(interaction, "Invalid Subcommand", "Please use `/admin adjust-points`.");
+        await replyError(
+          interaction,
+          "Invalid Subcommand",
+          "Please use `/admin adjust-points`, `/admin reset-monthly-points`, or `/admin reset-total-points`.",
+        );
         return;
     }
   },
@@ -61,4 +71,15 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction) {
     console.log("Monthly reset edited this many users:", result.rowCount);
   }, "Monthly reset processing");
   await interaction.editReply("Monthly points have been reset for all users.");
+}
+
+async function resetTotalPoints(interaction: ChatInputCommandInteraction) {
+  await wrapWithAlerting(async () => {
+    const result = await db.update(userTable).set({
+      totalPoints: 0,
+      totalVoiceTime: 0,
+    });
+    console.log("Total reset edited this many users:", result.rowCount);
+  }, "Total reset processing");
+  await interaction.editReply("Total points have been reset for all users.");
 }
