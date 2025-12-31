@@ -60,6 +60,8 @@ async function adjustPoints(interaction: ChatInputCommandInteraction) {
   const user = interaction.options.getUser("user", true);
 
   await awardPoints(db, user.id, amount);
+
+  await interaction.editReply(`Adjusted ${amount} points for ${user.tag}.`);
 }
 
 async function resetMonthlyPoints(interaction: ChatInputCommandInteraction) {
