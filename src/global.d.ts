@@ -12,7 +12,7 @@ export declare global {
       RAVENCLAW_ROLE_ID: string;
       DISCORD_TOKEN: string;
       NODE_ENV: "development" | "production" | "test";
-      EXCLUDE_VOICE_CHANNEL_IDS: string;
+      EXCLUDE_VOICE_CHANNEL_IDS?: string;
       CLIENT_ID: string;
       GUILD_ID: string;
       PREFECT_ROLE_ID: string;
