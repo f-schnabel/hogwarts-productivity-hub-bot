@@ -25,24 +25,11 @@ export async function start() {
     },
   );
 
-  // Schedule monthly reset checks - run on the 1st of the month
-  const monthlyResetJob = cron.schedule(
-    "0 * 1 * *",
-    async () => {
-      await processMonthlyResets();
-    },
-    {
-      timezone: "UTC",
-    },
-  );
-
   // Track all jobs
   scheduledJobs.set("dailyReset", dailyResetJob);
-  scheduledJobs.set("monthlyReset", monthlyResetJob);
 
   // Start all jobs
   await dailyResetJob.start();
-  await monthlyResetJob.start();
   console.log("CentralResetService started successfully");
 }
 
@@ -139,18 +126,4 @@ async function setBoosterPerk(
       isMessageStreakUpdatedToday: true,
     })
     .where(inArray(userTable.discordId, boosters));
-}
-
-async function processMonthlyResets() {
-  const end = resetExecutionTimer.startTimer();
-  console.debug("+".repeat(5) + " Processing monthly resets at " + dayjs().format("MMM DD HH:mm:ss"));
-  await wrapWithAlerting(async () => {
-    const result = await db.update(userTable).set({
-      monthlyPoints: 0,
-      monthlyVoiceTime: 0,
-    });
-    console.log("Monthly reset edited this many users:", result.rowCount);
-  }, "Monthly reset processing");
-  console.debug("-".repeat(5));
-  end({ action: "monthly" });
 }
