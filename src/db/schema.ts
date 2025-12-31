@@ -72,6 +72,7 @@ export const submissionTable = pgTable("submission", {
     length: 50,
     enum: ["Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin"],
   }).notNull(),
+  houseId: integer().default(-1).notNull(),
   screenshotUrl: varchar({ length: 1000 }).notNull(),
   points: integer().notNull(),
   status: varchar({

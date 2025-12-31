@@ -16,7 +16,7 @@ import { awardPoints, getHouseFromMember, hasAnyRole, replyError, Role } from ".
 import assert from "node:assert";
 import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS?.split(",") ?? [];
 
@@ -40,17 +40,27 @@ export default {
     const screenshot = interaction.options.getAttachment("screenshot", true);
     const house = getHouseFromMember(member);
     assert(house, "User does not have a house role assigned");
-    const [submission] = await db
-      .insert(submissionTable)
-      .values({
-        discordId: member.id,
-        points,
-        screenshotUrl: screenshot.url,
-        house: house,
-      })
-      .returning();
-    assert(submission, "Failed to create submission");
-    await interaction.reply(submissionMessage(submission));
+    await db.transaction(async (db) => {
+      const [houseId] = await db
+        .select({ value: count() })
+        .from(submissionTable)
+        .where(eq(submissionTable.house, house));
+      assert(houseId, "Failed to retrieve house submission count");
+
+      const [submission] = await db
+        .insert(submissionTable)
+        .values({
+          discordId: member.id,
+          points,
+          screenshotUrl: screenshot.url,
+          house: house,
+          houseId: houseId.value + 1,
+        })
+        .returning();
+
+      assert(submission, "Failed to create submission");
+      await interaction.reply(submissionMessage(submission));
+    });
   },
 
   async buttonHandler(interaction: ButtonInteraction, event: string, submissionId: string | undefined): Promise<void> {
@@ -152,7 +162,7 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect, 
     fields: [
       {
         name: "Submission ID",
-        value: submissionData.id.toFixed(),
+        value: submissionData.houseId.toFixed(),
         inline: false,
       },
       {

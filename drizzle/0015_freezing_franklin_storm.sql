@@ -1,0 +1,1 @@
+ALTER TABLE "submission" ADD COLUMN "house_id" integer DEFAULT -1 NOT NULL;

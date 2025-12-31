@@ -106,6 +106,13 @@
       "when": 1767186896219,
       "tag": "0014_luxuriant_sumo",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1767217562477,
+      "tag": "0015_freezing_franklin_storm",
+      "breakpoints": true
     }
   ]
 }
