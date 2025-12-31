@@ -90,8 +90,6 @@ async function processDailyResets() {
           dailyPoints: 0,
           dailyVoiceTime: 0,
           lastDailyReset: new Date(),
-          voiceStreak: sql`CASE WHEN ${userTable.isVoiceStreakUpdatedToday} = false THEN 0 ELSE ${userTable.voiceStreak} END`,
-          isVoiceStreakUpdatedToday: false,
           messageStreak: sql`CASE WHEN ${userTable.isMessageStreakUpdatedToday} = false THEN 0 ELSE ${userTable.messageStreak} END`,
           isMessageStreakUpdatedToday: false,
           dailyMessages: 0,

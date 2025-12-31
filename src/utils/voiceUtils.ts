@@ -1,12 +1,7 @@
 import { type Schema } from "../db/db.ts";
 import { userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, eq, inArray, isNull, sql, type ExtractTablesWithRelations } from "drizzle-orm";
-import {
-  FIRST_HOUR_POINTS,
-  MIN_DAILY_MINUTES_FOR_STREAK,
-  REST_HOURS_POINTS,
-  MAX_HOURS_PER_DAY,
-} from "../utils/constants.ts";
+import { FIRST_HOUR_POINTS, REST_HOURS_POINTS, MAX_HOURS_PER_DAY } from "../utils/constants.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgDatabase, NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import type { VoiceSession } from "../types.ts";
@@ -108,28 +103,8 @@ export async function endVoiceSession(
       .where(eq(userTable.discordId, session.discordId))
       .returning({
         dailyVoiceTime: userTable.dailyVoiceTime,
-        isVoiceStreakUpdatedToday: userTable.isVoiceStreakUpdatedToday,
       });
     assert(user !== undefined, `User not found for Discord ID ${session.discordId}`);
-
-    // update streak
-    if (user.dailyVoiceTime >= MIN_DAILY_MINUTES_FOR_STREAK && !user.isVoiceStreakUpdatedToday) {
-      const streakResult = await db
-        .update(userTable)
-        .set({
-          voiceStreak: sql`${userTable.voiceStreak} + 1`,
-          isVoiceStreakUpdatedToday: true,
-        })
-        .where(eq(userTable.discordId, session.discordId))
-        .returning({
-          voiceStreak: userTable.voiceStreak,
-        });
-
-      if (streakResult.length === 0) {
-        console.error(`Failed to update streak for ${session.username}, no user found`);
-        return;
-      }
-    }
 
     // Calculate and award points for this session
     const oldDailyVoiceTime = user.dailyVoiceTime - duration;

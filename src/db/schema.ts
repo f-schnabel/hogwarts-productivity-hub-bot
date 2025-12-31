@@ -28,9 +28,6 @@ export const userTable = pgTable("user", {
   monthlyVoiceTime: integer().default(0).notNull(),
   totalVoiceTime: integer().default(0).notNull(),
 
-  voiceStreak: integer().default(0).notNull(),
-  isVoiceStreakUpdatedToday: boolean().default(false).notNull(),
-
   dailyMessages: integer().default(0).notNull(),
   messageStreak: integer().default(0).notNull(),
   isMessageStreakUpdatedToday: boolean().default(false).notNull(),
