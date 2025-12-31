@@ -10,7 +10,6 @@ import user from "./commands/user.ts";
 export const commands = new Collection<string, Command>();
 
 commands.set(timezoneCommand.data.name, timezoneCommand);
-//commands.set(tasks.data.name, tasks);
 
 // Stats commands
 commands.set(scoreboard.data.name, scoreboard);
