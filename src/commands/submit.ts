@@ -131,13 +131,13 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect, 
         components: [
           {
             type: ComponentType.Button,
-            customId: "testing|approve|" + submissionData.id.toFixed(),
+            customId: "submit|approve|" + submissionData.id.toFixed(),
             label: `Approve ${submissionData.points} points`,
             style: ButtonStyle.Success,
           },
           {
             type: ComponentType.Button,
-            customId: "testing|reject|" + submissionData.id.toFixed(),
+            customId: "submit|reject|" + submissionData.id.toFixed(),
             label: "Reject",
             style: ButtonStyle.Secondary,
           },

@@ -17,9 +17,13 @@ const activeVoiceTimers = new Map<string, VoiceTimer>();
 export async function execute(interaction: Interaction): Promise<void> {
   const end = interactionExecutionTimer.startTimer();
   if (interaction.isButton()) {
-    const [commandName, event, data] = interaction.customId.split("|", 3);
+    let [commandName, event, data] = interaction.customId.split("|", 3);
     assert(commandName, "Button command name missing");
     assert(typeof event === "string", "Button event missing");
+    //TODO temporary fix
+    if (commandName === 'testing') {
+      commandName = 'submit';
+    }
 
     const command = commands.get(commandName);
     if (!command) {
