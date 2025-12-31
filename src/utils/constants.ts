@@ -12,7 +12,7 @@ export const BOT_COLORS = {
 export const HOUSE_COLORS = {
   Gryffindor: 0xff2000,
   Hufflepuff: 0xf8d301,
-  Ravenclaw: 0x0178c8,
+  Ravenclaw: 0x110091,
   Slytherin: 0x07ad34,
 } as const;
 
