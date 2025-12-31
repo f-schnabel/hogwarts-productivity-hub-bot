@@ -11,7 +11,6 @@ export const commands = new Collection<string, Command>();
 
 commands.set(timezoneCommand.data.name, timezoneCommand);
 //commands.set(tasks.data.name, tasks);
-//commands.set(timer.data.name, timer);
 
 // Stats commands
 commands.set(scoreboard.data.name, scoreboard);
