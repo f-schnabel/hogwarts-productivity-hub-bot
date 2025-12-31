@@ -26,6 +26,7 @@ export const resetExecutionTimer = new client.Histogram({
 
 register.registerMetric(interactionExecutionTimer);
 register.registerMetric(voiceSessionExecutionTimer);
+register.registerMetric(resetExecutionTimer);
 
 client.collectDefaultMetrics({ register });
 
