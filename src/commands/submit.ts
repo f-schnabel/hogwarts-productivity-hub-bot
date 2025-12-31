@@ -20,18 +20,13 @@ import { eq } from "drizzle-orm";
 
 export default {
   data: new SlashCommandBuilder()
-    .setName("testing")
-    .setDescription("Testing command")
-    .addSubcommand((subcommand) =>
-      subcommand
-        .setName("submit")
-        .setDescription("Submit a score")
-        .addIntegerOption((option) =>
-          option.setName("points").setDescription("The number of points to submit").setRequired(true),
-        )
-        .addAttachmentOption((option) =>
-          option.setName("screenshot").setDescription("A screenshot of your work").setRequired(true),
-        ),
+    .setName("submit")
+    .setDescription("Submit a score")
+    .addIntegerOption((option) =>
+      option.setName("points").setDescription("The number of points to submit").setRequired(true),
+    )
+    .addAttachmentOption((option) =>
+      option.setName("screenshot").setDescription("A screenshot of your work").setRequired(true),
     ),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const member = interaction.member as GuildMember;
