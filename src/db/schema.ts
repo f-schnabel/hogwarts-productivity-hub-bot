@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, integer, pgTable, serial, timestamp, text, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, serial, timestamp, text, varchar } from "drizzle-orm/pg-core";
 
 export const userTable = pgTable("user", {
   // Technical fields
@@ -33,24 +33,28 @@ export const userTable = pgTable("user", {
   isMessageStreakUpdatedToday: boolean().default(false).notNull(),
 });
 
-export const voiceSessionTable = pgTable("voice_session", {
-  // Technical fields
-  id: serial().primaryKey(),
-  discordId: varchar({ length: 255 })
-    .notNull()
-    .references(() => userTable.discordId),
+export const voiceSessionTable = pgTable(
+  "voice_session",
+  {
+    // Technical fields
+    id: serial().primaryKey(),
+    discordId: varchar({ length: 255 })
+      .notNull()
+      .references(() => userTable.discordId),
 
-  joinedAt: timestamp().notNull().defaultNow(),
-  leftAt: timestamp(),
-  channelId: varchar({ length: 255 }).notNull(),
-  channelName: varchar({ length: 255 }).notNull(),
+    joinedAt: timestamp().notNull().defaultNow(),
+    leftAt: timestamp(),
+    channelId: varchar({ length: 255 }).notNull(),
+    channelName: varchar({ length: 255 }).notNull(),
 
-  // if points and voiceTime were awarded for this session
-  isTracked: boolean().default(false).notNull(),
+    // if points and voiceTime were awarded for this session
+    isTracked: boolean().default(false).notNull(),
 
-  // in seconds
-  duration: integer().generatedAlwaysAs(sql`EXTRACT(EPOCH FROM (left_at - joined_at))`),
-});
+    // in seconds
+    duration: integer().generatedAlwaysAs(sql`EXTRACT(EPOCH FROM (left_at - joined_at))`),
+  },
+  (table) => [index("voice_session_discord_id_left_at_idx").on(table.discordId, table.leftAt)],
+);
 
 // Holds submission data so approvals/rejections persist bot restarts
 export const submissionTable = pgTable("submission", {

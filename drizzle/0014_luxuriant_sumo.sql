@@ -1,0 +1,1 @@
+CREATE INDEX "voice_session_discord_id_left_at_idx" ON "voice_session" USING btree ("discord_id","left_at");
