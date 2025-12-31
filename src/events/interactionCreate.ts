@@ -22,8 +22,8 @@ export async function execute(interaction: Interaction): Promise<void> {
     assert(commandName, "Button command name missing");
     assert(typeof event === "string", "Button event missing");
     //TODO temporary fix
-    if (commandName === 'testing') {
-      commandName = 'submit';
+    if (commandName === "testing") {
+      commandName = "submit";
     }
 
     const command = commands.get(commandName);
