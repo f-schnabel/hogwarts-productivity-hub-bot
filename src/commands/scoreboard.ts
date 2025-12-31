@@ -64,7 +64,9 @@ export async function getHousepointMessage(house: House): Promise<MessageEditOpt
   }
 
   const medalPadding = leaderboard.length.toString().length + 1;
-  const longestNameLength = Math.min(Math.max(...leaderboard.map((user) => user.username.length)), 32);
+  const longestNameLength = leaderboard.length
+    ? Math.min(Math.max(...leaderboard.map((user) => user.username.length)), 32)
+    : 0;
 
   // Create table header
   let description = "```\n";
