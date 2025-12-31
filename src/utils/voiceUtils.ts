@@ -8,7 +8,7 @@ import type { VoiceSession } from "../types.ts";
 import assert from "node:assert/strict";
 import { awardPoints } from "./utils.ts";
 
-const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS.split(",");
+const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
 // Start a voice session when user joins VC (timezone-aware)
 export async function startVoiceSession(
