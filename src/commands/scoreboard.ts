@@ -1,11 +1,11 @@
 import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, type MessageEditOptions } from "discord.js";
-import { db } from "../../db/db.ts";
+import { db } from "../db/db.ts";
 import { and, desc, eq, gt } from "drizzle-orm";
-import { houseScoreboardTable, userTable } from "../../db/schema.ts";
-import type { Command, House } from "../../types.ts";
-import { HOUSE_COLORS } from "../../utils/constants.ts";
-import { client } from "../../client.ts";
-import { hasAnyRole, replyError, Role } from "../../utils/utils.ts";
+import { houseScoreboardTable, userTable } from "../db/schema.ts";
+import type { Command, House } from "../types.ts";
+import { HOUSE_COLORS } from "../utils/constants.ts";
+import { client } from "../client.ts";
+import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
 
 export default {
   data: new SlashCommandBuilder()

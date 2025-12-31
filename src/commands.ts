@@ -3,7 +3,7 @@ import timezoneCommand from "./commands/timezone.ts";
 import type { Command } from "./types.ts";
 import submit from "./commands/submit.ts";
 import admin from "./commands/admin.ts";
-import scoreboard from "./commands/stats/scoreboard.ts";
+import scoreboard from "./commands/scoreboard.ts";
 import user from "./commands/user.ts";
 
 export const commands = new Collection<string, Command>();

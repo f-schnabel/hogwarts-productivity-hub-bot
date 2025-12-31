@@ -8,7 +8,7 @@ import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import { BOT_COLORS } from "./constants.ts";
 import { client } from "../client.ts";
-import { getHousepointMessage } from "../commands/stats/scoreboard.ts";
+import { getHousepointMessage } from "../commands/scoreboard.ts";
 import { alertOwner } from "./alerting.ts";
 
 export function getHouseFromMember(member: GuildMember | null): House | undefined {
