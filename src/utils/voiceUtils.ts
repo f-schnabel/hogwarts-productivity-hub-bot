@@ -8,6 +8,8 @@ import type { VoiceSession } from "../types.ts";
 import assert from "node:assert/strict";
 import { awardPoints } from "./utils.ts";
 
+const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS.split(",");
+
 // Start a voice session when user joins VC (timezone-aware)
 export async function startVoiceSession(
   session: VoiceSession,
@@ -15,7 +17,7 @@ export async function startVoiceSession(
 ) {
   const channelId = session.channelId;
   const channelName = session.channelName;
-  if (channelId === null || process.env.EXCLUDE_VOICE_CHANNEL_IDS.split(",").includes(channelId)) {
+  if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
     return;
   }
   assert(channelName !== null, "Channel name must be provided for voice session");
@@ -46,7 +48,7 @@ export async function endVoiceSession(
   isTracked = true,
 ) {
   const channelId = session.channelId;
-  if (channelId === null || process.env.EXCLUDE_VOICE_CHANNEL_IDS.split(",").includes(channelId)) {
+  if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
     return;
   }
   await db.transaction(async (db) => {
