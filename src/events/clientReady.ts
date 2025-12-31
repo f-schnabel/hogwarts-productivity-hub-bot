@@ -30,10 +30,10 @@ async function logDbUserRetention(client: Client) {
     .from(userTable)
     .then((rows) => new Set(rows.map((r) => r.discordId)));
 
+  // Use cache since resetNicknameStreaks already fetched all members
   const guildMemberIds = new Set<string>();
   for (const guild of client.guilds.cache.values()) {
-    const members = await guild.members.fetch();
-    for (const memberId of members.keys()) {
+    for (const memberId of guild.members.cache.keys()) {
       guildMemberIds.add(memberId);
     }
   }
