@@ -1,0 +1,1 @@
+ALTER TABLE "submission" ALTER COLUMN "house_id" DROP DEFAULT;
