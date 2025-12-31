@@ -12,7 +12,7 @@ import {
   userMention,
   type InteractionReplyOptions,
 } from "discord.js";
-import { awardPoints, getHouseFromMember, isPrefect } from "../utils/utils.ts";
+import { awardPoints, getHouseFromMember, isOwner, isPrefect, replyError } from "../utils/utils.ts";
 import assert from "node:assert";
 import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";
@@ -22,24 +22,23 @@ export default {
   data: new SlashCommandBuilder()
     .setName("testing")
     .setDescription("Testing command")
-    .addSubcommandGroup((subcommand) =>
+    .addSubcommand((subcommand) =>
       subcommand
         .setName("submit")
         .setDescription("Submit a score")
-        .addSubcommand((subcommand) =>
-          subcommand
-            .setName("score")
-            .setDescription("Submit a score")
-            .addIntegerOption((option) =>
-              option.setName("points").setDescription("The number of points to submit").setRequired(true),
-            )
-            .addAttachmentOption((option) =>
-              option.setName("screenshot").setDescription("A screenshot of your work").setRequired(true),
-            ),
+        .addIntegerOption((option) =>
+          option.setName("points").setDescription("The number of points to submit").setRequired(true),
+        )
+        .addAttachmentOption((option) =>
+          option.setName("screenshot").setDescription("A screenshot of your work").setRequired(true),
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const member = interaction.member as GuildMember;
+    if (!isOwner(member) && !process.env.SUBMISSION_CHANNEL_IDS.split(",").includes(interaction.channelId)) {
+      await replyError(interaction, "Invalid Channel", "You cannot use this command in this channel.");
+      return;
+    }
     const points = interaction.options.getInteger("points", true);
     const screenshot = interaction.options.getAttachment("screenshot", true);
     const house = getHouseFromMember(member);
