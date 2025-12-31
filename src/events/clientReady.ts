@@ -15,12 +15,33 @@ export async function execute(c: Client<true>): Promise<void> {
   try {
     await VoiceStateScanner.scanAndStartTracking();
     await resetNicknameStreaks(c);
+    await logDbUserRetention(c);
   } catch (error) {
     console.error("❌ Bot Initialization Failed");
     console.error("error:", error);
     process.exit(1);
   }
   await alertOwner("Bot deployed successfully.");
+}
+
+async function logDbUserRetention(client: Client) {
+  const dbUserIds = await db
+    .select({ discordId: userTable.discordId })
+    .from(userTable)
+    .then((rows) => new Set(rows.map((r) => r.discordId)));
+
+  const guildMemberIds = new Set<string>();
+  for (const guild of client.guilds.cache.values()) {
+    const members = await guild.members.fetch();
+    for (const memberId of members.keys()) {
+      guildMemberIds.add(memberId);
+    }
+  }
+
+  const foundCount = [...dbUserIds].filter((id) => guildMemberIds.has(id)).length;
+  const percentage = dbUserIds.size > 0 ? ((foundCount / dbUserIds.size) * 100).toFixed(1) : "0";
+
+  console.log(`DB User Retention: ${foundCount}/${dbUserIds.size} (${percentage}%) users in db found on servers`);
 }
 
 async function resetNicknameStreaks(client: Client) {
