@@ -133,7 +133,7 @@ async function scanVoiceChannel(channel: BaseGuildVoiceChannel, activeVoiceSessi
         scanResults.totalUsersFound++;
 
         // Check if user already has an active session
-        if (discordId in activeVoiceSessions) {
+        if (activeVoiceSessions.includes(discordId)) {
           continue;
         }
 
