@@ -69,15 +69,7 @@ export const taskTable = pgTable("task", {
   completedAt: timestamp(),
 });
 
-export const housePointsTable = pgTable("house_points", {
-  id: serial().primaryKey(),
-  house: varchar({
-    length: 50,
-    enum: ["Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin"],
-  }).notNull(),
-  points: integer().default(0).notNull(),
-});
-
+// Holds submission data so approvals/rejections persist bot restarts
 export const submissionTable = pgTable("submission", {
   // Technical fields
   id: serial().primaryKey(),
@@ -103,6 +95,7 @@ export const submissionTable = pgTable("submission", {
     .notNull(),
 });
 
+// Holds message ids to be updated for house scoreboards
 export const houseScoreboardTable = pgTable("house_scoreboard", {
   id: serial().primaryKey(),
   house: varchar({

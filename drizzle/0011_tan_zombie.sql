@@ -1,0 +1,1 @@
+DROP TABLE "house_points" CASCADE;

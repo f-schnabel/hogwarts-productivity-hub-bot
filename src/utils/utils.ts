@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction, type GuildMember } from "discord.js";
 import assert from "node:assert/strict";
 import type { House } from "../types.ts";
 import { eq, inArray, sql, type ExtractTablesWithRelations } from "drizzle-orm";
-import { housePointsTable, houseScoreboardTable, userTable } from "../db/schema.ts";
+import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import type { Schema } from "../db/db.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
@@ -60,13 +60,6 @@ export async function awardPoints(
     .then(([row]) => row?.house);
 
   if (house) {
-    await db
-      .update(housePointsTable)
-      .set({
-        points: sql`${housePointsTable.points} + ${points}`,
-      })
-      .where(eq(housePointsTable.house, house));
-
     const messages = await db.select().from(houseScoreboardTable).where(eq(houseScoreboardTable.house, house));
     const brokenMessages = [];
     for (const msg of messages) {

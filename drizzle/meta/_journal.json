@@ -78,6 +78,13 @@
       "when": 1761404714470,
       "tag": "0010_last_saracen",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1767180361740,
+      "tag": "0011_tan_zombie",
+      "breakpoints": true
     }
   ]
 }
