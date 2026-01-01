@@ -139,7 +139,7 @@ async function points(interaction: ChatInputCommandInteraction) {
       ? mergedSessions
           .map(
             (s) =>
-              `• ${formatDuration(s.duration ?? 0)} in ${s.channelName} (${dayjs(s.joinedAt).tz(userData.timezone).format("MMM D HH:mm")} - ${dayjs(s.leftAt).tz(userData.timezone).format("HH:mm z")})`,
+              `•${dayjs(s.joinedAt).tz(userData.timezone).format("MMM D HH:mm")} - ${dayjs(s.leftAt).tz(userData.timezone).format("HH:mm z")} in ${s.channelName} (${formatDuration(s.duration ?? 0)})`,
           )
           .join("\n")
       : "None";
