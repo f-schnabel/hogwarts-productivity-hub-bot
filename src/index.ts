@@ -13,6 +13,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 import relativeTime from "dayjs/plugin/relativeTime.js";
+import advancedFormat from "dayjs/plugin/advancedFormat.ts";
 import { db, fetchOpenVoiceSessions } from "./db/db.ts";
 import { endVoiceSession } from "./utils/voiceUtils.ts";
 import { alertOwner } from "./utils/alerting.ts";
@@ -20,6 +21,7 @@ import { interactionExecutionTimer, resetExecutionTimer, server, voiceSessionExe
 import { commands } from "./commands.ts";
 import { promisify } from "node:util";
 
+dayjs.extend(advancedFormat);
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(relativeTime);
