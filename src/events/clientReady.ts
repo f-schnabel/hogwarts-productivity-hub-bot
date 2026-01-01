@@ -3,9 +3,11 @@ import { commands } from "../commands.ts";
 import * as VoiceStateScanner from "../utils/voiceStateScanner.ts";
 import { alertOwner } from "../utils/alerting.ts";
 import { db } from "../db/db.ts";
-import { userTable } from "../db/schema.ts";
-import { gt } from "drizzle-orm";
+import { houseScoreboardTable, userTable } from "../db/schema.ts";
+import { gt, inArray } from "drizzle-orm";
 import { updateMessageStreakInNickname } from "../utils/utils.ts";
+import { getHousepointMessage } from "../commands/scoreboard.ts";
+import type { House } from "../types.ts";
 
 export async function execute(c: Client<true>): Promise<void> {
   console.log(`Bot User: ${c.user.tag}`);
@@ -16,6 +18,7 @@ export async function execute(c: Client<true>): Promise<void> {
     await VoiceStateScanner.scanAndStartTracking();
     await resetNicknameStreaks(c);
     await logDbUserRetention(c);
+    await refreshScoreboardMessages(c);
   } catch (error) {
     console.error("❌ Bot Initialization Failed");
     console.error("error:", error);
@@ -42,6 +45,35 @@ async function logDbUserRetention(client: Client) {
   const percentage = dbUserIds.size > 0 ? ((foundCount / dbUserIds.size) * 100).toFixed(1) : "0";
 
   console.log(`DB User Retention: ${foundCount}/${dbUserIds.size} (${percentage}%) users in db found on servers`);
+}
+
+// TODO duplication with awardPoints in utils.ts
+async function refreshScoreboardMessages(client: Client) {
+  const scoreboards = await db.select().from(houseScoreboardTable);
+  if (scoreboards.length === 0) return;
+
+  const brokenIds: number[] = [];
+  for (const scoreboard of scoreboards) {
+    try {
+      const channel = await client.channels.fetch(scoreboard.channelId);
+      if (!channel?.isTextBased()) {
+        brokenIds.push(scoreboard.id);
+        continue;
+      }
+      const message = await channel.messages.fetch(scoreboard.messageId);
+      const messageData = await getHousepointMessage(db, scoreboard.house as House);
+      await message.edit(messageData);
+    } catch (e) {
+      console.error(`Failed to refresh scoreboard ${scoreboard.messageId} in ${scoreboard.channelId}:`, e);
+      brokenIds.push(scoreboard.id);
+    }
+  }
+
+  if (brokenIds.length > 0) {
+    await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
+    await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`);
+  }
+  console.log(`Refreshed ${scoreboards.length - brokenIds.length} scoreboard messages`);
 }
 
 async function resetNicknameStreaks(client: Client) {
