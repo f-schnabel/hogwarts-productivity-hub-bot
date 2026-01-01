@@ -2,7 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from "d
 import dayjs from "dayjs";
 import { db } from "../db/db.ts";
 import { settingsTable, submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
-import { and, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
 import { BOT_COLORS, SETTINGS_KEYS } from "../utils/constants.ts";
 import { formatDuration } from "../utils/voiceUtils.ts";
@@ -95,7 +95,7 @@ async function points(interaction: ChatInputCommandInteraction) {
       ),
     );
 
-  // Get tracked voice sessions this month
+  // Get tracked voice sessions this month, ordered by joinedAt for merging
   const voiceSessions = await db
     .select({
       duration: voiceSessionTable.duration,
@@ -110,10 +110,23 @@ async function points(interaction: ChatInputCommandInteraction) {
         eq(voiceSessionTable.isTracked, true),
         gte(voiceSessionTable.leftAt, startOfMonth),
       ),
-    );
+    )
+    .orderBy(asc(voiceSessionTable.joinedAt));
 
   const totalSubmissionPoints = submissions.reduce((sum, s) => sum + s.points, 0);
   const totalVoiceSeconds = voiceSessions.reduce((sum, s) => sum + (s.duration ?? 0), 0);
+
+  // Merge consecutive sessions in same channel with <= 1 min gap
+  const mergedSessions: typeof voiceSessions = [];
+  for (const session of voiceSessions) {
+    const last = mergedSessions[mergedSessions.length - 1];
+    if (last?.channelName === session.channelName && dayjs(session.joinedAt).diff(dayjs(last.leftAt), "second") <= 60) {
+      last.leftAt = session.leftAt;
+      last.duration = (last.duration ?? 0) + (session.duration ?? 0);
+    } else {
+      mergedSessions.push({ ...session });
+    }
+  }
 
   // Build response
   const submissionLines =
@@ -122,8 +135,8 @@ async function points(interaction: ChatInputCommandInteraction) {
       : "None";
 
   const voiceLines =
-    voiceSessions.length > 0
-      ? voiceSessions
+    mergedSessions.length > 0
+      ? mergedSessions
           .map(
             (s) =>
               `• ${formatDuration(s.duration ?? 0)} in ${s.channelName} (${dayjs(s.joinedAt).tz(userData.timezone).format("MMM D HH:mm")} - ${dayjs(s.leftAt).tz(userData.timezone).format("HH:mm z")})`,
