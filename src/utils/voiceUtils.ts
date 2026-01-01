@@ -113,7 +113,7 @@ export async function endVoiceSession(
     const newDailyVoiceTime = user.dailyVoiceTime;
     const pointsEarned = calculatePoints(oldDailyVoiceTime, newDailyVoiceTime);
     console.log(
-      `Voice session ended for ${session.username}: ${duration} seconds, awarded ${pointsEarned} points (oldDailyVoiceTime: ${oldDailyVoiceTime}, newDailyVoiceTime: ${newDailyVoiceTime})`,
+      `Voice session ended for ${session.username}: ${formatDuration(duration)}, awarded ${pointsEarned} points (oldDailyVoiceTime: ${formatDuration(oldDailyVoiceTime)}, newDailyVoiceTime: ${formatDuration(newDailyVoiceTime)})`,
     );
 
     if (pointsEarned > 0) {
@@ -149,4 +149,16 @@ export function calculatePointsHelper(voiceTime: number): number {
 
 export function calculatePoints(oldDailyVoiceTime: number, newDailyVoiceTime: number): number {
   return calculatePointsHelper(newDailyVoiceTime) - calculatePointsHelper(oldDailyVoiceTime);
+}
+
+export function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+
+  const parts = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}min`);
+  if (secs > 0 || parts.length === 0) parts.push(`${secs}sec`);
+  return parts.join(" ");
 }

@@ -5,6 +5,7 @@ import { submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, eq, gte } from "drizzle-orm";
 import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
 import { BOT_COLORS } from "../utils/constants.ts";
+import { formatDuration } from "../utils/voiceUtils.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -57,18 +58,6 @@ async function time(interaction: ChatInputCommandInteraction) {
   );
 }
 
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-
-  const parts = [];
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}min`);
-  if (secs > 0 || parts.length === 0) parts.push(`${secs}sec`);
-  return parts.join(" ");
-}
-
 async function points(interaction: ChatInputCommandInteraction) {
   const member = interaction.member as GuildMember;
   if (!hasAnyRole(member, Role.OWNER | Role.PREFECT)) {
@@ -107,6 +96,7 @@ async function points(interaction: ChatInputCommandInteraction) {
     .select({
       duration: voiceSessionTable.duration,
       channelName: voiceSessionTable.channelName,
+      joinedAt: voiceSessionTable.joinedAt,
       leftAt: voiceSessionTable.leftAt,
     })
     .from(voiceSessionTable)
@@ -130,7 +120,10 @@ async function points(interaction: ChatInputCommandInteraction) {
   const voiceLines =
     voiceSessions.length > 0
       ? voiceSessions
-          .map((s) => `• ${formatDuration(s.duration ?? 0)} in ${s.channelName} (${dayjs(s.leftAt).format("MMM D")})`)
+          .map(
+            (s) =>
+              `• ${formatDuration(s.duration ?? 0)} in ${s.channelName} (${dayjs(s.joinedAt).tz(userData.timezone).format("MMM D HH:mm")} - ${dayjs(s.leftAt).tz(userData.timezone).format("HH:mm z")})`,
+          )
           .join("\n")
       : "None";
 

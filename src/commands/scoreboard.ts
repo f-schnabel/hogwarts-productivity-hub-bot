@@ -100,7 +100,7 @@ export async function getHousepointMessage(house: House): Promise<MessageEditOpt
             hour: "numeric",
             minute: "2-digit",
             hour12: true,
-          })}`,
+          })} UTC`,
         },
       },
     ],
