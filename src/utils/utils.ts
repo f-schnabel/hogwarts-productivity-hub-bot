@@ -70,7 +70,7 @@ export async function awardPoints(
           continue;
         }
         const message = await channel.messages.fetch(msg.messageId);
-        const messageData = await getHousepointMessage(house);
+        const messageData = await getHousepointMessage(db, house);
         await message.edit(messageData);
       } catch (e) {
         console.error(`Failed to update housepoints message ${msg.messageId} in channel ${msg.channelId}:`, e);

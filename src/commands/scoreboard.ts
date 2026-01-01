@@ -1,11 +1,13 @@
 import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, type MessageEditOptions } from "discord.js";
-import { db } from "../db/db.ts";
-import { and, desc, eq, gt } from "drizzle-orm";
+import { db, type Schema } from "../db/db.ts";
+import { and, desc, eq, gt, type ExtractTablesWithRelations } from "drizzle-orm";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import type { Command, House } from "../types.ts";
 import { HOUSE_COLORS } from "../utils/constants.ts";
 import { client } from "../client.ts";
 import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
+import type { PgTransaction } from "drizzle-orm/pg-core";
+import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 
 export default {
   data: new SlashCommandBuilder()
@@ -33,19 +35,23 @@ export default {
     }
 
     const house = interaction.options.getString("house", true) as House;
+    await db.transaction(async (db) => {
+      const scoreboardMessage = await getHousepointMessage(db, house);
+      const message = await interaction.editReply(scoreboardMessage);
 
-    const scoreboardMessage = await getHousepointMessage(house);
-    const message = await interaction.editReply(scoreboardMessage);
-
-    await db.insert(houseScoreboardTable).values({
-      house,
-      channelId: message.channelId,
-      messageId: message.id,
+      await db.insert(houseScoreboardTable).values({
+        house,
+        channelId: message.channelId,
+        messageId: message.id,
+      });
     });
   },
 } as Command;
 
-export async function getHousepointMessage(house: House): Promise<MessageEditOptions> {
+export async function getHousepointMessage(
+  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | typeof import("../db/db.ts").db,
+  house: House,
+): Promise<MessageEditOptions> {
   const leaderboard = await db
     .select()
     .from(userTable)
