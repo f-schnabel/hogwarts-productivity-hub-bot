@@ -94,3 +94,9 @@ export const houseScoreboardTable = pgTable("house_scoreboard", {
   messageId: text().notNull(),
   updatedAt: timestamp().defaultNow().notNull(),
 });
+
+// Stores global settings
+export const settingsTable = pgTable("settings", {
+  key: varchar({ length: 255 }).primaryKey().notNull(),
+  value: text().notNull(),
+});

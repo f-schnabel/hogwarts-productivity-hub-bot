@@ -1,10 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from "discord.js";
 import dayjs from "dayjs";
 import { db } from "../db/db.ts";
-import { submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
+import { settingsTable, submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, eq, gte } from "drizzle-orm";
 import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
-import { BOT_COLORS } from "../utils/constants.ts";
+import { BOT_COLORS, SETTINGS_KEYS } from "../utils/constants.ts";
 import { formatDuration } from "../utils/voiceUtils.ts";
 
 export default {
@@ -73,8 +73,12 @@ async function points(interaction: ChatInputCommandInteraction) {
     return;
   }
 
-  // Get start of current month in UTC
-  const startOfMonth = dayjs().startOf("month").toDate();
+  // Get last monthly reset timestamp from settings
+  const [setting] = await db
+    .select()
+    .from(settingsTable)
+    .where(eq(settingsTable.key, SETTINGS_KEYS.LAST_MONTHLY_RESET));
+  const startOfMonth = setting ? new Date(setting.value) : dayjs().startOf("month").toDate();
 
   // Get approved submissions this month
   const submissions = await db

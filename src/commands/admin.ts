@@ -2,7 +2,8 @@ import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from "d
 import { db } from "../db/db.ts";
 import { awardPoints, hasAnyRole, replyError, Role } from "../utils/utils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
-import { userTable } from "../db/schema.ts";
+import { settingsTable, userTable } from "../db/schema.ts";
+import { SETTINGS_KEYS } from "../utils/constants.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -71,6 +72,15 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction) {
       monthlyVoiceTime: 0,
     });
     console.log("Monthly reset edited this many users:", result.rowCount);
+
+    // Store reset timestamp
+    await db
+      .insert(settingsTable)
+      .values({ key: SETTINGS_KEYS.LAST_MONTHLY_RESET, value: new Date().toISOString() })
+      .onConflictDoUpdate({
+        target: settingsTable.key,
+        set: { value: new Date().toISOString() },
+      });
   }, "Monthly reset processing");
   await interaction.editReply("Monthly points have been reset for all users.");
 }
