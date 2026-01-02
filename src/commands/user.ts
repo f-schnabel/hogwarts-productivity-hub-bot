@@ -124,7 +124,9 @@ async function points(interaction: ChatInputCommandInteraction) {
     if (last?.channelName === session.channelName && dayjs(session.joinedAt).diff(dayjs(last.leftAt), "second") <= 60) {
       last.leftAt = session.leftAt;
       last.duration = (last.duration ?? 0) + (session.duration ?? 0);
-      last.points = (last.points ?? 0) + (session.points ?? 0);
+
+      // If use not null values but if both are null keep null
+      last.points = last.points === null && session.points === null ? null : (last.points ?? 0) + (session.points ?? 0);
     } else {
       mergedSessions.push({ ...session });
     }
@@ -139,10 +141,13 @@ async function points(interaction: ChatInputCommandInteraction) {
   const voiceLines =
     mergedSessions.length > 0
       ? mergedSessions
-          .map(
-            (s) =>
-              `•${dayjs(s.joinedAt).tz(userData.timezone).format("MMM D HH:mm")} - ${dayjs(s.leftAt).tz(userData.timezone).format("HH:mm z")} in ${s.channelName} (${formatDuration(s.duration ?? 0)} - ${s.points ?? 0}pts)`,
-          )
+          .map((s) => {
+            const start = dayjs(s.joinedAt).tz(userData.timezone).format("MMM D HH:mm");
+            const end = dayjs(s.leftAt).tz(userData.timezone).format("HH:mm");
+            const duration = formatDuration(s.duration ?? 0);
+            const points = s.points !== null ? ` - ${s.points}pts` : "";
+            return `•${start} - ${end} in ${s.channelName} (${duration}${points})`;
+          })
           .join("\n")
       : "None";
 
@@ -157,7 +162,7 @@ async function points(interaction: ChatInputCommandInteraction) {
             value: submissionLines,
           },
           {
-            name: `Study Time (${formatDuration(totalVoiceSeconds)})`,
+            name: `Study Time (${formatDuration(totalVoiceSeconds)}) ${dayjs().tz(userData.timezone).format("z")}`,
             value: voiceLines,
           },
           {
