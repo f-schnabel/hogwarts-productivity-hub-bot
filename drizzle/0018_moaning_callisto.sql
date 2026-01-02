@@ -1,0 +1,1 @@
+ALTER TABLE "voice_session" ADD COLUMN "points" integer;
