@@ -82,6 +82,7 @@ export async function endVoiceSession(
         ),
       )
       .returning({
+        id: voiceSessionTable.id,
         duration: voiceSessionTable.duration,
       });
 
@@ -120,6 +121,10 @@ export async function endVoiceSession(
       // Award points to user
       await awardPoints(db, session.discordId, pointsEarned);
     }
+    await db
+      .update(voiceSessionTable)
+      .set({ points: pointsEarned })
+      .where(eq(voiceSessionTable.id, voiceSessionWithDuration.id));
   });
 }
 

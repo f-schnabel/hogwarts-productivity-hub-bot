@@ -102,6 +102,7 @@ async function points(interaction: ChatInputCommandInteraction) {
       channelName: voiceSessionTable.channelName,
       joinedAt: voiceSessionTable.joinedAt,
       leftAt: voiceSessionTable.leftAt,
+      points: voiceSessionTable.points,
     })
     .from(voiceSessionTable)
     .where(
@@ -123,6 +124,7 @@ async function points(interaction: ChatInputCommandInteraction) {
     if (last?.channelName === session.channelName && dayjs(session.joinedAt).diff(dayjs(last.leftAt), "second") <= 60) {
       last.leftAt = session.leftAt;
       last.duration = (last.duration ?? 0) + (session.duration ?? 0);
+      last.points = (last.points ?? 0) + (session.points ?? 0);
     } else {
       mergedSessions.push({ ...session });
     }
@@ -139,7 +141,7 @@ async function points(interaction: ChatInputCommandInteraction) {
       ? mergedSessions
           .map(
             (s) =>
-              `•${dayjs(s.joinedAt).tz(userData.timezone).format("MMM D HH:mm")} - ${dayjs(s.leftAt).tz(userData.timezone).format("HH:mm z")} in ${s.channelName} (${formatDuration(s.duration ?? 0)})`,
+              `•${dayjs(s.joinedAt).tz(userData.timezone).format("MMM D HH:mm")} - ${dayjs(s.leftAt).tz(userData.timezone).format("HH:mm z")} in ${s.channelName} (${formatDuration(s.duration ?? 0)} - ${s.points ?? 0}pts)`,
           )
           .join("\n")
       : "None";

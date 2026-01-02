@@ -49,6 +49,7 @@ export const voiceSessionTable = pgTable(
 
     // if points and voiceTime were awarded for this session
     isTracked: boolean().default(false).notNull(),
+    points: integer(),
 
     // in seconds
     duration: integer().generatedAlwaysAs(sql`EXTRACT(EPOCH FROM (left_at - joined_at))`),
