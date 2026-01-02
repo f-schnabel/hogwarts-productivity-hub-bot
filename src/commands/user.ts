@@ -117,36 +117,35 @@ async function points(interaction: ChatInputCommandInteraction) {
   const totalSubmissionPoints = submissions.reduce((sum, s) => sum + s.points, 0);
   const totalVoiceSeconds = voiceSessions.reduce((sum, s) => sum + (s.duration ?? 0), 0);
 
-  // Merge consecutive sessions in same channel with <= 1 min gap
-  const mergedSessions: typeof voiceSessions = [];
-  for (const session of voiceSessions) {
-    const last = mergedSessions[mergedSessions.length - 1];
-    if (last?.channelName === session.channelName && dayjs(session.joinedAt).diff(dayjs(last.leftAt), "second") <= 60) {
-      last.leftAt = session.leftAt;
-      last.duration = (last.duration ?? 0) + (session.duration ?? 0);
+  // Group by day in user's timezone
+  const tz = userData.timezone;
+  const dailyData = new Map<string, { voiceSeconds: number; submissionPoints: number }>();
 
-      // If use not null values but if both are null keep null
-      last.points = last.points === null && session.points === null ? null : (last.points ?? 0) + (session.points ?? 0);
-    } else {
-      mergedSessions.push({ ...session });
-    }
+  for (const session of voiceSessions) {
+    const day = dayjs(session.joinedAt).tz(tz).format("YYYY-MM-DD");
+    const existing = dailyData.get(day) ?? { voiceSeconds: 0, submissionPoints: 0 };
+    existing.voiceSeconds += session.duration ?? 0;
+    dailyData.set(day, existing);
   }
 
-  // Build response
-  const submissionLines =
-    submissions.length > 0
-      ? submissions.map((s) => `• ${s.points} pts (${dayjs(s.reviewedAt).format("MMM D")})`).join("\n")
-      : "None";
+  for (const submission of submissions) {
+    const day = dayjs(submission.reviewedAt).tz(tz).format("YYYY-MM-DD");
+    const existing = dailyData.get(day) ?? { voiceSeconds: 0, submissionPoints: 0 };
+    existing.submissionPoints += submission.points;
+    dailyData.set(day, existing);
+  }
 
-  const voiceLines =
-    mergedSessions.length > 0
-      ? mergedSessions
-          .map((s) => {
-            const start = dayjs(s.joinedAt).tz(userData.timezone).format("MMM D HH:mm");
-            const end = dayjs(s.leftAt).tz(userData.timezone).format("HH:mm");
-            const duration = formatDuration(s.duration ?? 0);
-            const points = s.points !== null ? ` - ${s.points}pts` : "";
-            return `•${start} - ${end} in ${s.channelName} (${duration}${points})`;
+  // Sort days and build lines
+  const sortedDays = [...dailyData.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const dailyLines =
+    sortedDays.length > 0
+      ? sortedDays
+          .map(([day, data]) => {
+            const dayLabel = dayjs(day).format("MMM D");
+            const parts: string[] = [];
+            if (data.voiceSeconds > 0) parts.push(formatDuration(data.voiceSeconds));
+            if (data.submissionPoints > 0) parts.push(`${data.submissionPoints}pts submitted`);
+            return `• ${dayLabel}: ${parts.join(", ")}`;
           })
           .join("\n")
       : "None";
@@ -158,17 +157,12 @@ async function points(interaction: ChatInputCommandInteraction) {
         title: `${user.displayName}'s Monthly Points Breakdown`,
         fields: [
           {
-            name: `Submissions (${totalSubmissionPoints} pts)`,
-            value: submissionLines,
+            name: `Daily Activity (${dayjs().tz(tz).format("z")})`,
+            value: dailyLines,
           },
           {
-            name: `Study Time (${formatDuration(totalVoiceSeconds)}) ${dayjs().tz(userData.timezone).format("z")}`,
-            value: voiceLines,
-          },
-          {
-            name: "Total Monthly Points",
-            value: `**${userData.monthlyPoints}** pts`,
-            inline: true,
+            name: "Monthly Totals",
+            value: `Study: ${formatDuration(totalVoiceSeconds)}\nSubmissions: ${totalSubmissionPoints} pts\n**Total: ${userData.monthlyPoints} pts**`,
           },
         ],
         footer: { text: `Month: ${dayjs().format("MMMM YYYY")}` },
