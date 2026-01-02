@@ -17,6 +17,7 @@ import assert from "node:assert";
 import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";
 import { count, eq } from "drizzle-orm";
+import { DEFAULT_SUBMISSION_POINTS } from "../utils/constants.ts";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS?.split(",") ?? [];
 
@@ -24,11 +25,11 @@ export default {
   data: new SlashCommandBuilder()
     .setName("submit")
     .setDescription("Submit a score")
-    .addIntegerOption((option) =>
-      option.setName("points").setDescription("The number of points to submit").setRequired(true),
-    )
     .addAttachmentOption((option) =>
       option.setName("screenshot").setDescription("A screenshot of your work").setRequired(true),
+    )
+    .addIntegerOption((option) =>
+      option.setName("points").setDescription(`The number of points to submit (default: ${DEFAULT_SUBMISSION_POINTS})`),
     ),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const member = interaction.member as GuildMember;
@@ -36,7 +37,7 @@ export default {
       await replyError(interaction, "Invalid Channel", "You cannot use this command in this channel.");
       return;
     }
-    const points = interaction.options.getInteger("points", true);
+    const points = interaction.options.getInteger("points") ?? DEFAULT_SUBMISSION_POINTS;
     const screenshot = interaction.options.getAttachment("screenshot", true);
     const house = getHouseFromMember(member);
     assert(house, "User does not have a house role assigned");

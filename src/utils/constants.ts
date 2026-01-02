@@ -16,6 +16,7 @@ export const HOUSE_COLORS = {
   Slytherin: 0x07ad34,
 } as const;
 
+export const DEFAULT_SUBMISSION_POINTS = 5;
 export const MIN_DAILY_MESSAGES_FOR_STREAK = 3;
 export const FIRST_HOUR_POINTS = 5;
 export const REST_HOURS_POINTS = 2;
