@@ -142,13 +142,13 @@ async function points(interaction: ChatInputCommandInteraction) {
       ? sortedDays
           .map(([day, data]) => {
             const dayLabel = dayjs(day).format("MMM D");
+            const voicePoints = calculatePointsHelper(data.voiceSeconds);
+            const dailyTotal = voicePoints + data.submissionPoints;
             const parts: string[] = [];
-            if (data.voiceSeconds > 0) {
-              const voicePoints = calculatePointsHelper(data.voiceSeconds);
-              parts.push(`${formatDuration(data.voiceSeconds)} (${voicePoints}pts)`);
-            }
-            if (data.submissionPoints > 0) parts.push(`${data.submissionPoints}pts submitted`);
-            return `• ${dayLabel}: ${parts.join(", ")}`;
+            if (voicePoints > 0) parts.push(`${voicePoints}pt vc`);
+            if (data.submissionPoints > 0) parts.push(`${data.submissionPoints}pt submitted`);
+            const duration = data.voiceSeconds > 0 ? ` (${formatDuration(data.voiceSeconds)})` : "";
+            return `• ${dayLabel}: **${dailyTotal}pt** = ${parts.join(" + ")}${duration}`;
           })
           .join("\n")
       : "None";
