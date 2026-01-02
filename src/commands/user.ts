@@ -145,10 +145,9 @@ async function points(interaction: ChatInputCommandInteraction) {
             const voicePoints = calculatePointsHelper(data.voiceSeconds);
             const dailyTotal = voicePoints + data.submissionPoints;
             const parts: string[] = [];
-            if (voicePoints > 0) parts.push(`${voicePoints}pt vc`);
-            if (data.submissionPoints > 0) parts.push(`${data.submissionPoints}pt submitted`);
-            const duration = data.voiceSeconds > 0 ? ` (${formatDuration(data.voiceSeconds)})` : "";
-            return `• ${dayLabel}: **${dailyTotal}pt** = ${parts.join(" + ")}${duration}`;
+            if (data.voiceSeconds > 0) parts.push(`${formatDuration(data.voiceSeconds)} (${voicePoints} pt)`);
+            if (data.submissionPoints > 0) parts.push(`To-Do Lists (${data.submissionPoints} pt)`);
+            return `• ${dayLabel}: **${dailyTotal} pt** = ${parts.join(" + ")}`;
           })
           .join("\n")
       : "None";
