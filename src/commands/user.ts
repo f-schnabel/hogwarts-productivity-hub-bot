@@ -5,7 +5,7 @@ import { settingsTable, submissionTable, userTable, voiceSessionTable } from "..
 import { and, asc, eq, gte } from "drizzle-orm";
 import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
 import { BOT_COLORS, SETTINGS_KEYS } from "../utils/constants.ts";
-import { formatDuration } from "../utils/voiceUtils.ts";
+import { calculatePointsHelper, formatDuration } from "../utils/voiceUtils.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -143,7 +143,10 @@ async function points(interaction: ChatInputCommandInteraction) {
           .map(([day, data]) => {
             const dayLabel = dayjs(day).format("MMM D");
             const parts: string[] = [];
-            if (data.voiceSeconds > 0) parts.push(formatDuration(data.voiceSeconds));
+            if (data.voiceSeconds > 0) {
+              const voicePoints = calculatePointsHelper(data.voiceSeconds);
+              parts.push(`${formatDuration(data.voiceSeconds)} (${voicePoints}pts)`);
+            }
             if (data.submissionPoints > 0) parts.push(`${data.submissionPoints}pts submitted`);
             return `• ${dayLabel}: ${parts.join(", ")}`;
           })
