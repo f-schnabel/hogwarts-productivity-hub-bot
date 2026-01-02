@@ -84,14 +84,14 @@ async function points(interaction: ChatInputCommandInteraction) {
   const submissions = await db
     .select({
       points: submissionTable.points,
-      reviewedAt: submissionTable.reviewedAt,
+      submittedAt: submissionTable.submittedAt,
     })
     .from(submissionTable)
     .where(
       and(
         eq(submissionTable.discordId, user.id),
         eq(submissionTable.status, "APPROVED"),
-        gte(submissionTable.reviewedAt, startOfMonth),
+        gte(submissionTable.submittedAt, startOfMonth),
       ),
     );
 
@@ -129,7 +129,7 @@ async function points(interaction: ChatInputCommandInteraction) {
   }
 
   for (const submission of submissions) {
-    const day = dayjs(submission.reviewedAt).tz(tz).format("YYYY-MM-DD");
+    const day = dayjs(submission.submittedAt).tz(tz).format("YYYY-MM-DD");
     const existing = dailyData.get(day) ?? { voiceSeconds: 0, submissionPoints: 0 };
     existing.submissionPoints += submission.points;
     dailyData.set(day, existing);
