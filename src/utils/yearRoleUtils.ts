@@ -22,13 +22,13 @@ export function getYearFromMonthlyVoiceTime(seconds: number): number | null {
 export async function updateYearRole(
   member: GuildMember,
   monthlyVoiceTimeSeconds: number,
-  opId?: string,
+  opId: string,
 ): Promise<void> {
   if (YEAR_ROLE_IDS.length !== 7) return; // Skip if not configured
 
   const targetYear = getYearFromMonthlyVoiceTime(monthlyVoiceTimeSeconds);
   const targetRoleId = targetYear !== null ? YEAR_ROLE_IDS[targetYear - 1] : null;
-  const ctx = { opId: opId ?? "role", userId: member.id, user: member.user.displayName };
+  const ctx = { opId, userId: member.id, user: member.user.displayName };
 
   // Remove all year roles except target
   const rolesToRemove = YEAR_ROLE_IDS.filter((id) => id !== targetRoleId && member.roles.cache.has(id));
@@ -44,7 +44,7 @@ export async function updateYearRole(
   }
 }
 
-export async function refreshAllYearRoles(guild: Guild): Promise<number> {
+export async function refreshAllYearRoles(guild: Guild, opId: string): Promise<number> {
   if (YEAR_ROLE_IDS.length !== 7) return 0;
 
   const users = await db
@@ -55,7 +55,7 @@ export async function refreshAllYearRoles(guild: Guild): Promise<number> {
   for (const user of users) {
     try {
       const member = await guild.members.fetch(user.discordId);
-      await updateYearRole(member, user.monthlyVoiceTime);
+      await updateYearRole(member, user.monthlyVoiceTime, opId);
       updated++;
     } catch {
       // Member not in guild, skip
