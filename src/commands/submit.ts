@@ -119,11 +119,11 @@ export default {
 
     assert(submission, `Failed to update submission with ID ${submissionId}`);
 
+    await interaction.message.fetch().then((m) => m.edit(submissionMessage(submission, reason)));
+
     if (event === "approve") {
       await awardPoints(db, submission.discordId, submission.points);
     }
-
-    await interaction.message.fetch().then((m) => m.edit(submissionMessage(submission, reason)));
   },
 };
 
