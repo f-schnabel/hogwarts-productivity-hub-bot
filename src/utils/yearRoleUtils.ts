@@ -17,10 +17,10 @@ const YEAR_ROLE_IDS = process.env["YEAR_ROLE_IDS"]?.split(",") ?? [];
 const YEAR_ANNOUNCEMENT_CHANNEL_ID = process.env["YEAR_ANNOUNCEMENT_CHANNEL_ID"];
 
 const YEAR_MESSAGES: Record<House, string> = {
-  Gryffindor: "🦁 True courage lies in perseverance. You rise to {ROLE} with {HOURS} hours of steadfast effort.",
-  Slytherin: "🐍 Ambition well applied brings results. {ROLE} claimed after {HOURS} hours of focused study.",
-  Hufflepuff: "🌟 Your consistency shines brightest. {ROLE} earned through {HOURS} hours in the study halls.",
-  Ravenclaw: "✒️ Each hour sharpened your mind — {ROLE} is now yours after {HOURS} hours. Wisdom suits you.",
+  Gryffindor: "🦁 True courage lies in perseverance. You rise to {ROLE} with **{HOURS}** of steadfast effort.",
+  Slytherin: "🐍 Ambition well applied brings results. {ROLE} claimed after **{HOURS}** of focused study.",
+  Hufflepuff: "🌟 Your consistency shines brightest. {ROLE} earned through **{HOURS}** in the study halls.",
+  Ravenclaw: "✒️ Each hour sharpened your mind — {ROLE} is now yours after **{HOURS}**. Wisdom suits you.",
 };
 
 // Returns 1-7 for year, or null if <1 hour
@@ -43,7 +43,7 @@ async function announceYearPromotion(member: GuildMember, year: YEAR): Promise<v
   const hours = YEAR_THRESHOLDS_HOURS[year - 1];
   assert(hours, `No hours threshold configured for year ${year}`);
 
-  const message = YEAR_MESSAGES[house].replace("{ROLE}", roleMention(roleId)).replace("{HOURS}", hours.toString());
+  const message = YEAR_MESSAGES[house].replace("{ROLE}", roleMention(roleId)).replace("{HOURS}", hours.toString() + (hours === 1 ? " hour" : " hours"));
   try {
     const channel = await client.channels.fetch(YEAR_ANNOUNCEMENT_CHANNEL_ID);
     if (channel?.isTextBased()) {
