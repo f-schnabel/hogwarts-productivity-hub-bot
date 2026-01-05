@@ -1,6 +1,8 @@
 import client from "prom-client";
 import express from "express";
+import { createLogger } from "./utils/logger.ts";
 
+const log = createLogger("Monitoring");
 const app = express();
 
 const register = new client.Registry();
@@ -36,5 +38,5 @@ app.get("/metrics", async (_req, res) => {
 });
 
 export const server = app.listen(8080, "127.0.0.1", () => {
-  console.log("Server is running on http://localhost:8080, metrics are exposed on http://localhost:8080/metrics");
+  log.info("Metrics server started", { opId: "monitor", url: "http://localhost:8080/metrics" });
 });

@@ -8,26 +8,31 @@ import { gt, inArray } from "drizzle-orm";
 import { updateMessageStreakInNickname } from "../utils/utils.ts";
 import { getHousepointMessage } from "../commands/scoreboard.ts";
 import type { House } from "../types.ts";
+import { createLogger, OpId } from "../utils/logger.ts";
+
+const log = createLogger("Startup");
 
 export async function execute(c: Client<true>): Promise<void> {
-  console.log(`Bot User: ${c.user.tag}`);
-  console.log(`Client ID: ${c.user.id}`);
-  console.log(`Commands Loaded: ${commands.size}`);
+  const opId = OpId.start();
+  const ctx = { opId };
+
+  log.info("Bot starting", { ...ctx, user: c.user.tag, clientId: c.user.id, commands: commands.size });
 
   try {
-    await VoiceStateScanner.scanAndStartTracking();
-    await resetNicknameStreaks(c);
-    await logDbUserRetention(c);
-    await refreshScoreboardMessages(c);
+    await VoiceStateScanner.scanAndStartTracking(opId);
+    await resetNicknameStreaks(c, opId);
+    await logDbUserRetention(c, opId);
+    await refreshScoreboardMessages(c, opId);
   } catch (error) {
-    console.error("❌ Bot Initialization Failed");
-    console.error("error:", error);
+    log.error("Initialization failed", ctx, error);
     process.exit(1);
   }
+  log.info("Bot ready", ctx);
   await alertOwner("Bot deployed successfully.");
 }
 
-async function logDbUserRetention(client: Client) {
+async function logDbUserRetention(client: Client, opId: string) {
+  const ctx = { opId };
   const dbUserIds = await db
     .select({ discordId: userTable.discordId })
     .from(userTable)
@@ -44,11 +49,12 @@ async function logDbUserRetention(client: Client) {
   const foundCount = [...dbUserIds].filter((id) => guildMemberIds.has(id)).length;
   const percentage = dbUserIds.size > 0 ? ((foundCount / dbUserIds.size) * 100).toFixed(1) : "0";
 
-  console.log(`DB User Retention: ${foundCount}/${dbUserIds.size} (${percentage}%) users in db found on servers`);
+  log.info("DB user retention", { ...ctx, found: foundCount, total: dbUserIds.size, pct: `${percentage}%` });
 }
 
 // TODO duplication with awardPoints in utils.ts
-async function refreshScoreboardMessages(client: Client) {
+async function refreshScoreboardMessages(client: Client, opId: string) {
+  const ctx = { opId };
   const scoreboards = await db.select().from(houseScoreboardTable);
   if (scoreboards.length === 0) return;
 
@@ -64,7 +70,7 @@ async function refreshScoreboardMessages(client: Client) {
       const messageData = await getHousepointMessage(db, scoreboard.house as House);
       await message.edit(messageData);
     } catch (e) {
-      console.error(`Failed to refresh scoreboard ${scoreboard.messageId} in ${scoreboard.channelId}:`, e);
+      log.error("Scoreboard refresh failed", { ...ctx, messageId: scoreboard.messageId, channelId: scoreboard.channelId }, e);
       brokenIds.push(scoreboard.id);
     }
   }
@@ -73,11 +79,13 @@ async function refreshScoreboardMessages(client: Client) {
     await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
     await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`);
   }
-  console.log(`Refreshed ${scoreboards.length - brokenIds.length} scoreboard messages`);
+  log.info("Scoreboards refreshed", { ...ctx, refreshed: scoreboards.length - brokenIds.length, broken: brokenIds.length });
 }
 
-async function resetNicknameStreaks(client: Client) {
-  console.log("Guilds Cache Size:", client.guilds.cache.size);
+async function resetNicknameStreaks(client: Client, opId: string) {
+  const ctx = { opId };
+  log.debug("Resetting nickname streaks", { ...ctx, guildsCache: client.guilds.cache.size });
+
   const discordIdsToStreak = await db
     .select({
       discordId: userTable.discordId,
@@ -109,9 +117,14 @@ async function resetNicknameStreaks(client: Client) {
           member.nickname.endsWith(` ⚡${String(discordIdsToStreak[member.id])}`)),
     );
 
-    console.log(
-      `Processing guild: ${guild.name} (${guild.id}), Members Cache Size: ${guild.members.cache.size}, toReset ${membersToReset.size} toUpdate ${membersToUpdate.size}`,
-    );
+    log.debug("Processing guild nicknames", {
+      ...ctx,
+      guild: guild.name,
+      membersCache: guild.members.cache.size,
+      toReset: membersToReset.size,
+      toUpdate: membersToUpdate.size,
+    });
+
     await Promise.all([
       ...membersToReset.values().map(async (m) => {
         await updateMessageStreakInNickname(m, 0);

@@ -20,7 +20,9 @@ import { alertOwner } from "./utils/alerting.ts";
 import { interactionExecutionTimer, resetExecutionTimer, server, voiceSessionExecutionTimer } from "./monitoring.ts";
 import { commands } from "./commands.ts";
 import { promisify } from "node:util";
-import { OpId } from "./utils/logger.ts";
+import { createLogger, OpId } from "./utils/logger.ts";
+
+const log = createLogger("Main");
 
 dayjs.extend(advancedFormat);
 dayjs.extend(utc);
@@ -37,7 +39,7 @@ try {
   await CentralResetService.start();
   await client.login(process.env.DISCORD_TOKEN);
 } catch (error) {
-  console.error("Error initializing bot:", error);
+  log.error("Error initializing bot", { opId: "init" }, error);
   process.exit(1);
 }
 
@@ -51,9 +53,12 @@ function registerEvents(client: Client) {
 function registerShutdownHandlers() {
   async function shutdown() {
     const opId = OpId.shtdwn();
-    console.log("Closing any existing voice sessions");
+    const ctx = { opId };
+    log.info("Shutdown initiated", ctx);
+
     await db.transaction(async (db) => {
       const openVoiceSessions = await fetchOpenVoiceSessions(db);
+      log.debug("Closing voice sessions", { ...ctx, count: openVoiceSessions.length });
       await Promise.all(openVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
     });
 
@@ -62,7 +67,7 @@ function registerShutdownHandlers() {
     await closeServer();
     server.closeAllConnections();
 
-    console.log("Bye");
+    log.info("Shutdown complete", ctx);
     process.exit(0);
   }
 

@@ -10,6 +10,9 @@ import { BOT_COLORS } from "./constants.ts";
 import { client } from "../client.ts";
 import { getHousepointMessage } from "../commands/scoreboard.ts";
 import { alertOwner } from "./alerting.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("Utils");
 
 export function getHouseFromMember(member: GuildMember | null): House | undefined {
   let house: House | undefined = undefined;
@@ -73,7 +76,7 @@ export async function awardPoints(
         const messageData = await getHousepointMessage(db, house);
         await message.edit(messageData);
       } catch (e) {
-        console.error(`Failed to update housepoints message ${msg.messageId} in channel ${msg.channelId}:`, e);
+        log.error("Failed to update housepoints message", { opId: "points", messageId: msg.messageId, channelId: msg.channelId }, e);
         brokenMessages.push(msg.id);
       }
     }
@@ -85,7 +88,7 @@ export async function awardPoints(
 }
 
 export async function replyError(interaction: ChatInputCommandInteraction, title: string, ...messages: string[]) {
-  console.warn(`Error reply to ${interaction.user.username}: ${title} - ${messages.join("; ")}`);
+  log.warn("Error reply", { opId: "reply", user: interaction.user.username, title, msg: messages.join("; ") });
   await interaction.editReply({
     embeds: [
       {
@@ -115,12 +118,12 @@ export async function updateMessageStreakInNickname(member: GuildMember | null, 
   }
 
   if (newNickname.length > 32) {
-    console.warn(`Nickname for ${member.user.tag} is too long (${newNickname}). Ignoring update.`);
+    log.warn("Nickname too long", { opId: "nick", user: member.user.tag, nickname: newNickname });
     return;
   }
 
   if (newNickname !== member.nickname) {
-    console.log(`Updating nickname from ${member.nickname ?? "NO NICKNAME"} to ${newNickname}`);
+    log.debug("Updating nickname", { opId: "nick", user: member.user.tag, from: member.nickname ?? "NO_NICKNAME", to: newNickname });
     await member.setNickname(newNickname);
   }
 }

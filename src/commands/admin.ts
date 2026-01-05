@@ -5,6 +5,9 @@ import { wrapWithAlerting } from "../utils/alerting.ts";
 import { settingsTable, userTable } from "../db/schema.ts";
 import { SETTINGS_KEYS } from "../utils/constants.ts";
 import { refreshAllYearRoles } from "../utils/yearRoleUtils.ts";
+import { createLogger } from "../utils/logger.ts";
+
+const log = createLogger("Admin");
 
 export default {
   data: new SlashCommandBuilder()
@@ -82,11 +85,11 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction) {
       monthlyPoints: 0,
       monthlyVoiceTime: 0,
     });
-    console.log("Monthly reset edited this many users:", result.rowCount);
+    log.info("Monthly reset complete", { opId: "admin", usersReset: result.rowCount });
 
     // Refresh year roles after resetting (removes all year roles since voice time is 0)
     const rolesUpdated = await refreshAllYearRoles(guild);
-    console.log("Year roles refreshed for", rolesUpdated, "users");
+    log.info("Year roles refreshed", { opId: "admin", usersUpdated: rolesUpdated });
 
     // Store reset timestamp
     await db
@@ -106,7 +109,7 @@ async function resetTotalPoints(interaction: ChatInputCommandInteraction) {
       totalPoints: 0,
       totalVoiceTime: 0,
     });
-    console.log("Total reset edited this many users:", result.rowCount);
+    log.info("Total reset complete", { opId: "admin", usersReset: result.rowCount });
   }, "Total reset processing");
   await interaction.editReply("Total points have been reset for all users.");
 }

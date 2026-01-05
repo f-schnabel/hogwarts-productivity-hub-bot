@@ -10,7 +10,9 @@ import { startVoiceSession } from "./voiceUtils.ts";
 import { db, ensureUserExists } from "../db/db.ts";
 import { voiceSessionTable } from "../db/schema.ts";
 import { isNull } from "drizzle-orm";
-import { OpId } from "./logger.ts";
+import { createLogger, OpId } from "./logger.ts";
+
+const log = createLogger("VoiceScan");
 
 let isScanning = false;
 let scanResults = {
@@ -23,9 +25,12 @@ let scanResults = {
 /**
  * Scan all voice channels and start tracking for users already in voice
  */
-export async function scanAndStartTracking() {
+export async function scanAndStartTracking(parentOpId?: string) {
+  const opId = parentOpId ?? OpId.vcscan();
+  const ctx = { opId };
+
   if (isScanning) {
-    console.warn("🔄 Voice state scan already in progress, skipping...");
+    log.warn("Scan already in progress, skipping", ctx);
     return scanResults;
   }
 
@@ -50,33 +55,25 @@ export async function scanAndStartTracking() {
     const guilds = client.guilds.cache;
 
     if (guilds.size === 0) {
-      console.warn("No guilds found for voice state scanning");
+      log.warn("No guilds found", ctx);
       return scanResults;
     }
 
     for (const [, guild] of guilds) {
-      await scanGuildVoiceStates(guild, activeVoiceSessions);
+      await scanGuildVoiceStates(guild, activeVoiceSessions, opId);
     }
 
-    console.log("VOICE SCAN SUMMARY:");
-    if (scanResults.channels.length > 0) {
-      console.log("   Voice Channels with Users:");
-      scanResults.channels.forEach((channel) => {
-        console.log(`    • ${channel.name}: ${channel.userCount} users`);
-      });
-    }
-
-    if (scanResults.trackingStarted > 0) {
-      console.log(`   Successfully started automatic tracking for ${scanResults.trackingStarted} users`);
-    } else if (scanResults.totalUsersFound > 0) {
-      console.log("   All found users were already being tracked");
-    } else {
-      console.log("   No users currently in voice channels");
-    }
+    log.info("Scan complete", {
+      ...ctx,
+      usersFound: scanResults.totalUsersFound,
+      trackingStarted: scanResults.trackingStarted,
+      errors: scanResults.errors,
+      channels: scanResults.channels.map((c) => `${c.name}:${c.userCount}`).join(", ") || "none",
+    });
 
     return scanResults;
   } catch (error) {
-    console.error("❌ Error during voice state scan:", error);
+    log.error("Scan failed", ctx, error);
     scanResults.errors++;
     return scanResults;
   } finally {
@@ -88,7 +85,8 @@ export async function scanAndStartTracking() {
  * Scan voice states for a specific guild
  * @param {Guild} guild - Discord guild
  */
-async function scanGuildVoiceStates(guild: Guild, activeVoiceSessions: string[]) {
+async function scanGuildVoiceStates(guild: Guild, activeVoiceSessions: string[], opId: string) {
+  const ctx = { opId, guild: guild.name };
   try {
     // Get all voice channels in the guild
     const voiceChannels = guild.channels.cache.filter(
@@ -98,10 +96,10 @@ async function scanGuildVoiceStates(guild: Guild, activeVoiceSessions: string[])
     ) as Collection<string, BaseGuildVoiceChannel>;
 
     for (const [, channel] of voiceChannels) {
-      await scanVoiceChannel(channel, activeVoiceSessions);
+      await scanVoiceChannel(channel, activeVoiceSessions, opId);
     }
   } catch (error) {
-    console.error(`❌ Error scanning guild ${guild.name}:`, error);
+    log.error("Guild scan failed", ctx, error);
     scanResults.errors++;
   }
 }
@@ -110,7 +108,8 @@ async function scanGuildVoiceStates(guild: Guild, activeVoiceSessions: string[])
  * Scan a specific voice channel and start tracking for users
  * @param {BaseGuildVoiceChannel} channel - Discord voice channel
  */
-async function scanVoiceChannel(channel: BaseGuildVoiceChannel, activeVoiceSessions: string[]) {
+async function scanVoiceChannel(channel: BaseGuildVoiceChannel, activeVoiceSessions: string[], opId: string) {
+  const ctx = { opId, channel: channel.name };
   try {
     const members = channel.members;
 
@@ -148,22 +147,22 @@ async function scanVoiceChannel(channel: BaseGuildVoiceChannel, activeVoiceSessi
             channelName: channel.name,
           },
           db,
-          OpId.vcscan(),
+          opId,
         );
 
         scanResults.trackingStarted++;
         usersStarted.push(username);
       } catch (userError) {
-        console.error(`Error starting tracking for user ${username}:`, userError);
+        log.error("Failed to start tracking for user", { ...ctx, user: username }, userError);
         scanResults.errors++;
       }
     }
 
     if (usersStarted.length > 0) {
-      console.log(`Started tracking for ${usersStarted.length} users in ${channel.name}:`, usersStarted.join(", "));
+      log.debug("Started tracking users", { ...ctx, users: usersStarted.join(", ") });
     }
   } catch (error) {
-    console.error(`Error scanning voice channel ${channel.name}:`, error);
+    log.error("Channel scan failed", ctx, error);
     scanResults.errors++;
   }
 }

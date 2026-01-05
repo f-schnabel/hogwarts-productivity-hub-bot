@@ -85,6 +85,14 @@ npx drizzle-kit generate   # Generate new migration from schema changes
 - Tracks interaction execution time, voice session duration, reset duration
 - Express server for metrics endpoint
 
+**Logging** (`src/utils/logger.ts`):
+- Structured logging with operation IDs for tracing
+- Format: `[Scope] [opId] key=value message`
+- Scopes: Command, Voice, VoiceEvent, VoiceScan, Reset, Message, Startup
+- OpId prefixes: cmd, vc, rst, msg, vcscan, start, shtdwn
+- Logs sent to stdout with syslog priority levels (via `src/console.ts`)
+- Use `createLogger(scope)` to create scoped loggers with debug/info/warn/error methods
+
 **Error Handling**:
 - `src/utils/alerting.ts` - Alert bot owner on critical errors
 - Uncaught exceptions/rejections sent to owner via DM
