@@ -23,8 +23,8 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
     opId,
     userId: discordId,
     user: username,
-    from: oldChannel?.name ?? null,
-    to: newChannel?.name ?? null,
+    ...(oldChannel && { from: oldChannel.name }),
+    ...(newChannel && { to: newChannel.name }),
   };
 
   const oldVoiceSession = {

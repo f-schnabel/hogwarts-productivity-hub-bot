@@ -16,11 +16,11 @@ import * as utils from "../../src/utils/utils.ts";
 
 describe("updateMessageStreakInNickname", () => {
   let mockMember: GuildMember;
-  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+  let consoleDebugSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    consoleDebugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     mockMember = {
       guild: { ownerId: "different-owner-id" },
@@ -65,7 +65,7 @@ describe("updateMessageStreakInNickname", () => {
     mockMember.nickname = "VeryLongNicknameThatExceeds32Characters ⚡5";
     await utils.updateMessageStreakInNickname(mockMember, 999);
     expect(mockMember.setNickname).not.toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("Nickname too long"));
+    expect(consoleDebugSpy).toHaveBeenCalledWith(expect.stringContaining("Nickname too long"));
   });
 
   it.each([

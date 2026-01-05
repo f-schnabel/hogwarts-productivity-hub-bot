@@ -122,7 +122,7 @@ export async function updateMessageStreakInNickname(member: GuildMember | null, 
   }
 
   if (newNickname.length > 32) {
-    log.warn("Nickname too long", { opId: "nick", user: member.user.tag, nickname: newNickname });
+    log.debug("Nickname too long", { opId: "nick", user: member.user.tag, nickname: newNickname });
     return;
   }
 
