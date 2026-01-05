@@ -13,8 +13,12 @@ export const OpId = {
   shtdwn: () => genOpId("shtdwn"),
 };
 
-// Context formatter: [opId] key=val key2=val2
+// Context formatter: [opId] key=val key2="val with spaces"
 type Ctx = { opId: string } & Record<string, unknown>;
+const fmtVal = (v: unknown): string => {
+  const s = String(v);
+  return s.includes(" ") ? `"${s}"` : s;
+};
 const fmt = (ctx?: Ctx) => {
   if (!ctx) return "";
   const { opId, ...rest } = ctx;
@@ -22,8 +26,7 @@ const fmt = (ctx?: Ctx) => {
   parts.push(
     ...Object.entries(rest)
       .filter(([, v]) => v !== undefined)
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      .map(([k, v]) => `${k}=${v}`),
+      .map(([k, v]) => `${k}=${fmtVal(v)}`),
   );
   return parts.join(" ") + " ";
 };
