@@ -10,7 +10,9 @@ import { client } from "../client.ts";
 import { updateMessageStreakInNickname } from "../utils/utils.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
+import { createLogger, OpId } from "../utils/logger.ts";
 
+const log = createLogger("Reset");
 const scheduledJobs = new Map<string, cron.ScheduledTask>();
 
 export async function start() {
@@ -30,12 +32,16 @@ export async function start() {
 
   // Start all jobs
   await dailyResetJob.start();
-  console.log("CentralResetService started successfully");
+  log.debug("CentralResetService started");
 }
 
 async function processDailyResets() {
+  const start = Date.now();
   const end = resetExecutionTimer.startTimer();
-  console.debug("+".repeat(5) + " Processing daily resets at " + dayjs().format("MMM DD HH:mm:ss"));
+  const opId = OpId.rst();
+  const ctx = { opId };
+
+  log.debug("Daily reset start", ctx);
 
   await wrapWithAlerting(async () => {
     await db.transaction(async (db) => {
@@ -59,30 +65,43 @@ async function processDailyResets() {
       }
 
       if (usersNeedingReset.length === 0) {
-        console.log("No users need daily reset at this time");
+        log.debug("No users need reset", ctx);
         return;
       }
 
       const usersInVoiceSessions = await fetchOpenVoiceSessions(db, usersNeedingReset);
+      log.info("Users identified", {
+        ...ctx,
+        total: usersNeedingReset.length,
+        inVoice: usersInVoiceSessions.map((s) => s.discordId).join(", "),
+      });
 
-      await Promise.all(usersInVoiceSessions.map((session) => endVoiceSession(session, db)));
+      await Promise.all(usersInVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
 
-      await setBoosterPerk(db, usersNeedingReset);
+      const boostersUpdated = await setBoosterPerk(db, usersNeedingReset);
+      if (boostersUpdated > 0) {
+        log.debug("Boosters auto-credited", { ...ctx, count: boostersUpdated });
+      }
 
-      await db
-        .select()
+      const usersLosingStreak = await db
+        .select({ discordId: userTable.discordId })
         .from(userTable)
-        .where(and(inArray(userTable.discordId, usersNeedingReset), eq(userTable.isMessageStreakUpdatedToday, false)))
-        .then(async (rows) => {
-          for (const row of rows) {
-            const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
-            await Promise.all(
-              members.map(async (m) => {
-                await updateMessageStreakInNickname(await m, 0);
-              }),
-            );
-          }
+        .where(and(inArray(userTable.discordId, usersNeedingReset), eq(userTable.isMessageStreakUpdatedToday, false)));
+
+      if (usersLosingStreak.length > 0) {
+        log.debug("Streaks being reset", {
+          ...ctx,
+          usersLosingStreak: usersLosingStreak.map((u) => u.discordId).join(", "),
         });
+        for (const row of usersLosingStreak) {
+          const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
+          await Promise.all(
+            members.map(async (m) => {
+              await updateMessageStreakInNickname(await m, 0);
+            }),
+          );
+        }
+      }
 
       const result = await db
         .update(userTable)
@@ -96,19 +115,18 @@ async function processDailyResets() {
         })
         .where(inArray(userTable.discordId, usersNeedingReset));
 
-      await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db)));
+      await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db, opId)));
 
-      console.log("Daily reset edited this many users:", result.rowCount);
+      log.info("Daily reset complete", { ...ctx, usersReset: result.rowCount, ms: Date.now() - start });
     });
   }, "Daily reset processing");
-  console.debug("-".repeat(5));
   end({ action: "daily" });
 }
 
 async function setBoosterPerk(
   db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>,
   usersNeedingReset: string[],
-) {
+): Promise<number> {
   const boosters = await client.guilds
     .fetch(process.env.GUILD_ID)
     .then((guild) => guild.members.fetch())
@@ -118,10 +136,14 @@ async function setBoosterPerk(
         .map((member) => member.id),
     );
 
+  if (boosters.length === 0) return 0;
+
   await db
     .update(userTable)
     .set({
       isMessageStreakUpdatedToday: true,
     })
     .where(inArray(userTable.discordId, boosters));
+
+  return boosters.length;
 }

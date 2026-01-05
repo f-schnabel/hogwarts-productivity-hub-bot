@@ -10,6 +10,7 @@ import { startVoiceSession } from "./voiceUtils.ts";
 import { db, ensureUserExists } from "../db/db.ts";
 import { voiceSessionTable } from "../db/schema.ts";
 import { isNull } from "drizzle-orm";
+import { OpId } from "./logger.ts";
 
 let isScanning = false;
 let scanResults = {
@@ -147,6 +148,7 @@ async function scanVoiceChannel(channel: BaseGuildVoiceChannel, activeVoiceSessi
             channelName: channel.name,
           },
           db,
+          OpId.vcscan(),
         );
 
         scanResults.trackingStarted++;

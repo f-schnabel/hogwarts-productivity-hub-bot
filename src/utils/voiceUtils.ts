@@ -9,6 +9,9 @@ import type { GuildMember } from "discord.js";
 import assert from "node:assert/strict";
 import { awardPoints } from "./utils.ts";
 import { updateYearRole } from "./yearRoleUtils.ts";
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("Voice");
 
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
@@ -16,10 +19,14 @@ const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split("
 export async function startVoiceSession(
   session: VoiceSession,
   db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | NodePgDatabase<Schema>,
+  opId: string,
 ) {
   const channelId = session.channelId;
   const channelName = session.channelName;
+  const ctx = { opId, userId: session.discordId, user: session.username, channel: channelName };
+
   if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
+    log.debug("Skipped excluded channel", ctx);
     return;
   }
   assert(channelName !== null, "Channel name must be provided for voice session");
@@ -31,28 +38,33 @@ export async function startVoiceSession(
       .where(and(eq(voiceSessionTable.discordId, session.discordId), isNull(voiceSessionTable.leftAt)));
 
     if (existingVoiceSessions.length > 0) {
-      console.error(`Voice session already active for ${session.username}, closing and starting a new one`);
-      await endVoiceSession(session, db, false); // End existing session without tracking
+      log.warn("Existing session found, closing first", { ...ctx, existingSessions: existingVoiceSessions.length });
+      await endVoiceSession(session, db, opId, false); // End existing session without tracking
     }
 
     await db.insert(voiceSessionTable).values({ discordId: session.discordId, channelId, channelName });
 
-    console.log(`Voice session started for ${session.username}`);
+    log.info("Session started", ctx);
   });
 }
 
 /** End a voice session when user leaves VC
  *  @param isTracked - If false, do not update user stats (for deleting old sessions)
+ *  @param opId - Operation ID for tracing
  *  @param member - GuildMember to update year role (optional)
  */
 export async function endVoiceSession(
   session: VoiceSession,
   db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | NodePgDatabase<Schema>,
+  opId: string,
   isTracked = true,
   member?: GuildMember,
 ) {
   const channelId = session.channelId;
+  const ctx = { opId, userId: session.discordId, user: session.username, channel: session.channelName };
+
   if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
+    log.debug("Skipped excluded channel", ctx);
     return;
   }
   await db.transaction(async (db) => {
@@ -67,9 +79,7 @@ export async function endVoiceSession(
         ),
       );
     if (isTracked && existingVoiceSession.length !== 1) {
-      console.error(
-        `Could not end voice session, found ${existingVoiceSession.length} active voice session found for ${session.username}`,
-      );
+      log.error("Unexpected session count", { ...ctx, found: existingVoiceSession.length, expected: 1 });
       return;
     }
 
@@ -91,6 +101,7 @@ export async function endVoiceSession(
       });
 
     if (!isTracked) {
+      log.debug("Session closed (untracked)", ctx);
       return;
     }
 
@@ -118,9 +129,14 @@ export async function endVoiceSession(
     const oldDailyVoiceTime = user.dailyVoiceTime - duration;
     const newDailyVoiceTime = user.dailyVoiceTime;
     const pointsEarned = calculatePoints(oldDailyVoiceTime, newDailyVoiceTime);
-    console.log(
-      `Voice session ended for ${session.username}: ${formatDuration(duration)}, awarded ${pointsEarned} points (oldDailyVoiceTime: ${formatDuration(oldDailyVoiceTime)}, newDailyVoiceTime: ${formatDuration(newDailyVoiceTime)})`,
-    );
+
+    log.info("Session ended", {
+      ...ctx,
+      duration: formatDuration(duration),
+      points: pointsEarned,
+      oldDaily: formatDuration(oldDailyVoiceTime),
+      newDaily: formatDuration(newDailyVoiceTime),
+    });
 
     if (pointsEarned > 0) {
       // Award points to user

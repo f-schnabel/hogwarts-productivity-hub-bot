@@ -11,11 +11,16 @@ import { ensureUserExists } from "../db/db.ts";
 import { alertOwner } from "../utils/alerting.ts";
 import { interactionExecutionTimer } from "../monitoring.ts";
 import type { VoiceTimer } from "../types.ts";
+import { createLogger, OpId } from "../utils/logger.ts";
 
+const log = createLogger("Command");
 const activeVoiceTimers = new Map<string, VoiceTimer>();
 
 export async function execute(interaction: Interaction): Promise<void> {
+  const start = Date.now();
   const end = interactionExecutionTimer.startTimer();
+  const opId = OpId.cmd();
+
   if (interaction.isButton()) {
     // eslint-disable-next-line prefer-const
     let [commandName, event, data] = interaction.customId.split("|", 3);
@@ -26,15 +31,19 @@ export async function execute(interaction: Interaction): Promise<void> {
       commandName = "submit";
     }
 
+    const ctx = { opId, userId: interaction.user.id, user: interaction.user.tag, cmd: commandName, event };
+    log.debug("Button received", ctx);
+
     const command = commands.get(commandName);
     if (!command) {
-      console.warn(`⚠️ Unknown command attempted: /${commandName} by ${interaction.user.tag}`);
+      log.warn("Unknown button command", ctx);
       return;
     }
 
     assert(command.buttonHandler, `Command /${commandName} does not have a button handler`);
 
     await command.buttonHandler(interaction, event, data);
+    log.info("Button completed", { ...ctx, ms: Date.now() - start });
     end({
       command: commandName,
       subcommand: "",
@@ -45,13 +54,28 @@ export async function execute(interaction: Interaction): Promise<void> {
 
   if (!interaction.isChatInputCommand() && !interaction.isAutocomplete() && !interaction.isButton()) return;
 
-  logCommandExecution(interaction);
+  const channelName = getChannelName(interaction);
+  const subcommand = interaction.options.getSubcommand(false) ?? undefined;
+  const ctx = {
+    opId,
+    userId: interaction.user.id,
+    user: interaction.user.tag,
+    cmd: interaction.commandName,
+    sub: subcommand,
+    channel: channelName,
+  };
+
+  if (interaction.isAutocomplete()) {
+    log.debug("Autocomplete", { ...ctx, focused: interaction.options.getFocused() });
+  } else {
+    log.debug("Received", ctx);
+  }
 
   await ensureUserExists(interaction.member as GuildMember, interaction.user.id, interaction.user.username);
 
   const command = commands.get(interaction.commandName);
   if (!command) {
-    console.warn(`⚠️ Unknown command attempted: /${interaction.commandName} by ${interaction.user.tag}`);
+    log.warn("Unknown command", ctx);
     return;
   }
 
@@ -63,6 +87,7 @@ export async function execute(interaction: Interaction): Promise<void> {
       await command.execute(interaction, { activeVoiceTimers });
     }
   } catch (error) {
+    log.error("Execution failed", ctx, error);
     await alertOwner(
       `💥 Command execution failed: /${interaction.commandName} isAutocomplete=${interaction.isAutocomplete()}\n${error instanceof Error ? error : "Unknown error"}`,
     );
@@ -70,30 +95,21 @@ export async function execute(interaction: Interaction): Promise<void> {
 
     await handleException(error, interaction);
   }
-  console.debug("-".repeat(5));
+
+  log.info("Completed", { ...ctx, ms: Date.now() - start });
   end({
     command: interaction.commandName,
-    subcommand: interaction.options.getSubcommand(false) ?? "",
+    subcommand: subcommand ?? "",
     is_autocomplete: interaction.isAutocomplete() ? "autocomplete" : "",
   });
 }
 
-function logCommandExecution(interaction: ChatInputCommandInteraction | AutocompleteInteraction) {
+function getChannelName(interaction: ChatInputCommandInteraction | AutocompleteInteraction): string {
   const channel = interaction.channel;
-  let channelName;
   if (channel !== null && !channel.isDMBased()) {
-    channelName = `#${channel.name}`;
-  } else {
-    channelName = "DM";
+    return `#${channel.name}`;
   }
-
-  let commandString =
-    interaction.commandName +
-    (interaction.options.getSubcommand(false) ? ` ${interaction.options.getSubcommand()}` : "");
-  if (interaction.isAutocomplete()) {
-    commandString += ` ${interaction.options.getFocused()}`;
-  }
-  console.debug("+".repeat(5) + ` /${commandString} by ${interaction.user.tag} in ${channelName}`);
+  return "DM";
 }
 
 async function handleException(error: unknown, interaction: ChatInputCommandInteraction) {

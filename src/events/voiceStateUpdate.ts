@@ -3,17 +3,29 @@ import { db, ensureUserExists } from "../db/db.ts";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { voiceSessionExecutionTimer } from "../monitoring.ts";
+import { createLogger, OpId } from "../utils/logger.ts";
+
+const log = createLogger("VoiceEvent");
 
 export async function execute(oldState: VoiceState, newState: VoiceState) {
   const member = newState.member ?? oldState.member;
   if (!member || member.user.bot) return; // Ignore bots
 
   const end = voiceSessionExecutionTimer.startTimer();
+  const opId = OpId.vc();
 
   const discordId = member.id;
   const username = member.user.username;
   const oldChannel = oldState.channel;
   const newChannel = newState.channel;
+
+  const ctx = {
+    opId,
+    userId: discordId,
+    user: username,
+    from: oldChannel?.name ?? null,
+    to: newChannel?.name ?? null,
+  };
 
   const oldVoiceSession = {
     discordId,
@@ -28,28 +40,26 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
     channelName: newChannel?.name ?? null,
   };
 
-  console.debug(
-    "+".repeat(5) + ` Voice state update for ${username} (${oldChannel?.name ?? ""} -> ${newChannel?.name ?? ""})`,
-  );
+  log.debug("Received", ctx);
   await ensureUserExists(member, discordId, username);
   let event = "unknown";
 
   await wrapWithAlerting(async () => {
     // User joined a voice channel
     if (!oldChannel && newChannel) {
-      await startVoiceSession(newVoiceSession, db);
+      await startVoiceSession(newVoiceSession, db, opId);
       event = "join";
     } else if (oldChannel && !newChannel) {
-      await endVoiceSession(oldVoiceSession, db, true, member);
+      await endVoiceSession(oldVoiceSession, db, opId, true, member);
       event = "leave";
     } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
       // For channel switches, end the old session and start new one immediately
-      await endVoiceSession(oldVoiceSession, db, true, member);
-      await startVoiceSession(newVoiceSession, db);
+      await endVoiceSession(oldVoiceSession, db, opId, true, member);
+      await startVoiceSession(newVoiceSession, db, opId);
       event = "switch";
     }
   }, `Voice state update for ${username} (${discordId})`);
 
-  console.debug("-".repeat(5));
+  log.info(event, ctx);
   end({ event });
 }

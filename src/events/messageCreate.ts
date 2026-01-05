@@ -5,6 +5,9 @@ import { eq, sql } from "drizzle-orm";
 import { MIN_DAILY_MESSAGES_FOR_STREAK } from "../utils/constants.ts";
 import assert from "assert";
 import { updateMessageStreakInNickname } from "../utils/utils.ts";
+import { createLogger } from "../utils/logger.ts";
+
+const log = createLogger("Message");
 
 export async function execute(message: OmitPartialGroupDMChannel<Message>): Promise<void> {
   // Ignore messages from bots, Ignore messages not in a guild and system messages
@@ -21,8 +24,9 @@ export async function execute(message: OmitPartialGroupDMChannel<Message>): Prom
     return;
 
   const discordId = message.author.id;
+  const ctx = { opId: "msg", userId: discordId, user: message.author.tag, guild: message.guild.name };
 
-  console.log(`Message received from ${message.author.tag} in guild ${message.guild.name}: ${message.content}`);
+  log.debug("Received", ctx);
   await ensureUserExists(message.member, discordId, message.author.username);
 
   // Receive counter from the db
@@ -51,6 +55,8 @@ export async function execute(message: OmitPartialGroupDMChannel<Message>): Prom
         .where(eq(userTable.discordId, discordId))
         .returning({ messageStreak: userTable.messageStreak })
         .then(([row]) => row?.messageStreak ?? user.messageStreak + 1);
+
+      log.info("Streak updated", { ...ctx, newStreak, dailyMessages: newDailyMessages });
     } else {
       await db.update(userTable).set({ dailyMessages: newDailyMessages }).where(eq(userTable.discordId, discordId));
     }

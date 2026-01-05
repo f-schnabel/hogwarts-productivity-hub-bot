@@ -20,6 +20,7 @@ import { alertOwner } from "./utils/alerting.ts";
 import { interactionExecutionTimer, resetExecutionTimer, server, voiceSessionExecutionTimer } from "./monitoring.ts";
 import { commands } from "./commands.ts";
 import { promisify } from "node:util";
+import { OpId } from "./utils/logger.ts";
 
 dayjs.extend(advancedFormat);
 dayjs.extend(utc);
@@ -49,10 +50,11 @@ function registerEvents(client: Client) {
 
 function registerShutdownHandlers() {
   async function shutdown() {
+    const opId = OpId.shtdwn();
     console.log("Closing any existing voice sessions");
     await db.transaction(async (db) => {
       const openVoiceSessions = await fetchOpenVoiceSessions(db);
-      await Promise.all(openVoiceSessions.map((session) => endVoiceSession(session, db)));
+      await Promise.all(openVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
     });
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
