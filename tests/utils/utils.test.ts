@@ -65,9 +65,7 @@ describe("updateMessageStreakInNickname", () => {
     mockMember.nickname = "VeryLongNicknameThatExceeds32Characters ⚡5";
     await utils.updateMessageStreakInNickname(mockMember, 999);
     expect(mockMember.setNickname).not.toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalledExactlyOnceWith(
-      expect.stringContaining("Nickname for TestUser#1234 is too long"),
-    );
+    expect(consoleWarnSpy).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("Nickname too long"));
   });
 
   it.each([
