@@ -43,7 +43,9 @@ async function announceYearPromotion(member: GuildMember, year: YEAR): Promise<v
   const hours = YEAR_THRESHOLDS_HOURS[year - 1];
   assert(hours, `No hours threshold configured for year ${year}`);
 
-  const message = YEAR_MESSAGES[house].replace("{ROLE}", roleMention(roleId)).replace("{HOURS}", hours.toString() + (hours === 1 ? " hour" : " hours"));
+  const message = YEAR_MESSAGES[house]
+    .replace("{ROLE}", roleMention(roleId))
+    .replace("{HOURS}", hours.toString() + (hours === 1 ? " hour" : " hours"));
   try {
     const channel = await client.channels.fetch(YEAR_ANNOUNCEMENT_CHANNEL_ID);
     if (channel?.isTextBased()) {
