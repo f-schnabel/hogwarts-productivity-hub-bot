@@ -4,6 +4,7 @@ import { awardPoints, hasAnyRole, replyError, Role } from "../utils/utils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { settingsTable, userTable } from "../db/schema.ts";
 import { SETTINGS_KEYS } from "../utils/constants.ts";
+import { refreshAllYearRoles } from "../utils/yearRoleUtils.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -25,6 +26,11 @@ export default {
     )
     .addSubcommand((subcommand) =>
       subcommand.setName("reset-total-points").setDescription("Resets total points for all users"),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("refresh-ranks")
+        .setDescription("Refreshes year roles for all users based on monthly voice time"),
     ),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     await interaction.deferReply();
@@ -45,12 +51,11 @@ export default {
       case "reset-total-points":
         await resetTotalPoints(interaction);
         break;
+      case "refresh-ranks":
+        await refreshYearRoles(interaction);
+        break;
       default:
-        await replyError(
-          interaction,
-          "Invalid Subcommand",
-          "Please use `/admin adjust-points`, `/admin reset-monthly-points`, or `/admin reset-total-points`.",
-        );
+        await replyError(interaction, "Invalid Subcommand", "Unknown subcommand.");
         return;
     }
   },
@@ -66,12 +71,22 @@ async function adjustPoints(interaction: ChatInputCommandInteraction) {
 }
 
 async function resetMonthlyPoints(interaction: ChatInputCommandInteraction) {
+  const guild = interaction.guild;
+  if (!guild) {
+    await replyError(interaction, "Error", "This command can only be used in a server.");
+    return;
+  }
+
   await wrapWithAlerting(async () => {
     const result = await db.update(userTable).set({
       monthlyPoints: 0,
       monthlyVoiceTime: 0,
     });
     console.log("Monthly reset edited this many users:", result.rowCount);
+
+    // Refresh year roles after resetting (removes all year roles since voice time is 0)
+    const rolesUpdated = await refreshAllYearRoles(guild);
+    console.log("Year roles refreshed for", rolesUpdated, "users");
 
     // Store reset timestamp
     await db
@@ -94,4 +109,17 @@ async function resetTotalPoints(interaction: ChatInputCommandInteraction) {
     console.log("Total reset edited this many users:", result.rowCount);
   }, "Total reset processing");
   await interaction.editReply("Total points have been reset for all users.");
+}
+
+async function refreshYearRoles(interaction: ChatInputCommandInteraction) {
+  const guild = interaction.guild;
+  if (!guild) {
+    await replyError(interaction, "Error", "This command can only be used in a server.");
+    return;
+  }
+
+  await wrapWithAlerting(async () => {
+    const count = await refreshAllYearRoles(guild);
+    await interaction.editReply(`Year Ranks refreshed for ${count} users.`);
+  }, "Refresh Year Ranks processing");
 }

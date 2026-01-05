@@ -40,11 +40,11 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
       await startVoiceSession(newVoiceSession, db);
       event = "join";
     } else if (oldChannel && !newChannel) {
-      await endVoiceSession(oldVoiceSession, db);
+      await endVoiceSession(oldVoiceSession, db, true, member);
       event = "leave";
     } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
       // For channel switches, end the old session and start new one immediately
-      await endVoiceSession(oldVoiceSession, db);
+      await endVoiceSession(oldVoiceSession, db, true, member);
       await startVoiceSession(newVoiceSession, db);
       event = "switch";
     }

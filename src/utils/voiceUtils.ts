@@ -5,8 +5,10 @@ import { FIRST_HOUR_POINTS, REST_HOURS_POINTS, MAX_HOURS_PER_DAY } from "../util
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgDatabase, NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import type { VoiceSession } from "../types.ts";
+import type { GuildMember } from "discord.js";
 import assert from "node:assert/strict";
 import { awardPoints } from "./utils.ts";
+import { updateYearRole } from "./yearRoleUtils.ts";
 
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
@@ -41,11 +43,13 @@ export async function startVoiceSession(
 
 /** End a voice session when user leaves VC
  *  @param isTracked - If false, do not update user stats (for deleting old sessions)
+ *  @param member - GuildMember to update year role (optional)
  */
 export async function endVoiceSession(
   session: VoiceSession,
   db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | NodePgDatabase<Schema>,
   isTracked = true,
+  member?: GuildMember,
 ) {
   const channelId = session.channelId;
   if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
@@ -106,6 +110,7 @@ export async function endVoiceSession(
       .where(eq(userTable.discordId, session.discordId))
       .returning({
         dailyVoiceTime: userTable.dailyVoiceTime,
+        monthlyVoiceTime: userTable.monthlyVoiceTime,
       });
     assert(user !== undefined, `User not found for Discord ID ${session.discordId}`);
 
@@ -125,6 +130,11 @@ export async function endVoiceSession(
       .update(voiceSessionTable)
       .set({ points: pointsEarned })
       .where(eq(voiceSessionTable.id, voiceSessionWithDuration.id));
+
+    // Update year role based on monthly voice time
+    if (member) {
+      await updateYearRole(member, user.monthlyVoiceTime);
+    }
   });
 }
 
