@@ -135,14 +135,14 @@ async function resetNicknameStreaks(client: Client, opId: string) {
 
     await Promise.all([
       ...membersToReset.values().map(async (m) => {
-        await updateMessageStreakInNickname(m, 0);
+        await updateMessageStreakInNickname(m, 0, opId);
       }),
       ...membersToUpdate.values().map(async (m) => {
         const streak = discordIdsToStreak[m.id];
         if (typeof streak === "undefined") {
           throw new Error(`unreachable: Streak for member ${m.id} does not exist`);
         }
-        await updateMessageStreakInNickname(m, streak);
+        await updateMessageStreakInNickname(m, streak, opId);
       }),
     ]);
   }

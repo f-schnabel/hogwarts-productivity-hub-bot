@@ -100,7 +100,7 @@ async function processDailyResets() {
             const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
             await Promise.all(
               members.map(async (m) => {
-                await updateMessageStreakInNickname(await m, 0);
+                await updateMessageStreakInNickname(await m, 0, opId);
               }),
             );
           }
