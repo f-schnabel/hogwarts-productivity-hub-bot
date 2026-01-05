@@ -33,6 +33,7 @@ export default {
     ),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const member = interaction.member as GuildMember;
+    await interaction.deferReply();
     if (!hasAnyRole(member, Role.OWNER) && !SUBMISSION_CHANNEL_IDS.includes(interaction.channelId)) {
       await replyError(interaction, "Invalid Channel", "You cannot use this command in this channel.");
       return;
@@ -60,7 +61,7 @@ export default {
         .returning();
 
       assert(submission, "Failed to create submission");
-      await interaction.reply(submissionMessage(submission));
+      await interaction.editReply(submissionMessage(submission));
     });
   },
 
