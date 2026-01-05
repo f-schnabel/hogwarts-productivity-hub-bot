@@ -31,7 +31,7 @@ export async function updateYearRole(member: GuildMember, monthlyVoiceTimeSecond
 
   // Add target role if needed
   if (targetRoleId && !member.roles.cache.has(targetRoleId)) {
-    console.log(`Adding year role ${targetRoleId} to ${member.user.displayName}`);
+    console.log(`Adding year role ${targetRoleId} (Year ${targetYear ?? "unknown"}) to ${member.user.displayName}`);
     await member.roles.add(targetRoleId);
   }
 }

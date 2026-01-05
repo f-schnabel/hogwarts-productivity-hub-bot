@@ -64,7 +64,7 @@ export async function execute(interaction: Interaction): Promise<void> {
     }
   } catch (error) {
     await alertOwner(
-      `💥 Command execution failed: /${interaction.commandName}\n${error instanceof Error ? error : "Unknown error"}`,
+      `💥 Command execution failed: /${interaction.commandName} isAutocomplete=${interaction.isAutocomplete()}\n${error instanceof Error ? error : "Unknown error"}`,
     );
     if (interaction.isAutocomplete()) return;
 

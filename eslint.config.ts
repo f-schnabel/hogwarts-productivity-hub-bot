@@ -19,7 +19,7 @@ export default defineConfig([
         "error",
         {
           allowAny: false,
-          allowBoolean: false,
+          allowBoolean: true,
           allowNever: false,
           allowNullish: false,
           allowNumber: true,

@@ -85,6 +85,7 @@ export async function awardPoints(
 }
 
 export async function replyError(interaction: ChatInputCommandInteraction, title: string, ...messages: string[]) {
+  console.warn(`Error reply to ${interaction.user.username}: ${title} - ${messages.join("; ")}`);
   await interaction.editReply({
     embeds: [
       {
