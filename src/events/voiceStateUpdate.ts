@@ -48,22 +48,24 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
     async () => {
       // User joined a voice channel
       if (!oldChannel && newChannel) {
-        await startVoiceSession(newVoiceSession, db, opId);
         event = "join";
+        log.info(event, ctx);
+        await startVoiceSession(newVoiceSession, db, opId);
       } else if (oldChannel && !newChannel) {
-        await endVoiceSession(oldVoiceSession, db, opId, true, member);
         event = "leave";
+        log.info(event, ctx);
+        await endVoiceSession(oldVoiceSession, db, opId, true, member);
       } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
+        event = "switch";
+        log.info(event, ctx);
         // For channel switches, end the old session and start new one immediately
         await endVoiceSession(oldVoiceSession, db, opId, true, member);
         await startVoiceSession(newVoiceSession, db, opId);
-        event = "switch";
       }
     },
     `Voice state update for ${username} (${discordId})`,
     opId,
   );
 
-  log.info(event, ctx);
   end({ event });
 }
