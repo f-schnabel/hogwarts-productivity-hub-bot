@@ -42,7 +42,7 @@ export async function execute(interaction: Interaction): Promise<void> {
 
     assert(command.buttonHandler, `Command /${commandName} does not have a button handler`);
 
-    await command.buttonHandler(interaction, event, data);
+    await command.buttonHandler(interaction, event, data, opId);
     log.info("Button completed", { ...ctx, ms: Date.now() - start });
     end({
       command: commandName,
@@ -84,12 +84,13 @@ export async function execute(interaction: Interaction): Promise<void> {
       assert(command.autocomplete, `Command /${interaction.commandName} does not support autocomplete`);
       await command.autocomplete(interaction);
     } else {
-      await command.execute(interaction, { activeVoiceTimers });
+      await command.execute(interaction, { activeVoiceTimers, opId });
     }
   } catch (error) {
     log.error("Execution failed", ctx, error);
     await alertOwner(
       `💥 Command execution failed: /${interaction.commandName} isAutocomplete=${interaction.isAutocomplete()}\n${error instanceof Error ? error : "Unknown error"}`,
+      opId,
     );
     if (interaction.isAutocomplete()) return;
 

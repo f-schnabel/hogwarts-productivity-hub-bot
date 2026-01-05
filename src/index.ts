@@ -75,10 +75,10 @@ function registerShutdownHandlers() {
   process.on("SIGTERM", () => void shutdown());
 
   process.on("uncaughtException", (error) => {
-    void alertOwner(`Uncaught Exception: ${error}`);
+    void alertOwner(`Uncaught Exception: ${error}`, "exception");
   });
   process.on("unhandledRejection", (reason) => {
-    void alertOwner(`Unhandled Rejection, reason: ${reason instanceof Error ? reason : "Unknown Error"}`);
+    void alertOwner(`Unhandled Rejection, reason: ${reason instanceof Error ? reason : "Unknown Error"}`, "rejection");
   });
 }
 

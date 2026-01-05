@@ -5,7 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { MIN_DAILY_MESSAGES_FOR_STREAK } from "../utils/constants.ts";
 import assert from "assert";
 import { updateMessageStreakInNickname } from "../utils/utils.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger, OpId } from "../utils/logger.ts";
 
 const log = createLogger("Message");
 
@@ -24,7 +24,8 @@ export async function execute(message: OmitPartialGroupDMChannel<Message>): Prom
     return;
 
   const discordId = message.author.id;
-  const ctx = { opId: "msg", userId: discordId, user: message.author.tag, guild: message.guild.name };
+  const opId = OpId.msg();
+  const ctx = { opId, userId: discordId, user: message.author.tag, guild: message.guild.name };
 
   log.debug("Received", ctx);
   await ensureUserExists(message.member, discordId, message.author.username);
@@ -62,7 +63,7 @@ export async function execute(message: OmitPartialGroupDMChannel<Message>): Prom
     }
 
     if (newDailyMessages >= MIN_DAILY_MESSAGES_FOR_STREAK) {
-      await updateMessageStreakInNickname(message.member, newStreak);
+      await updateMessageStreakInNickname(message.member, newStreak, opId);
     }
   });
 }

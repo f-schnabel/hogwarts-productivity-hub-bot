@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, type Mes
 import { db, type Schema } from "../db/db.ts";
 import { and, desc, eq, gt, type ExtractTablesWithRelations } from "drizzle-orm";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
-import type { Command, House } from "../types.ts";
+import type { Command, CommandOptions, House } from "../types.ts";
 import { HOUSE_COLORS } from "../utils/constants.ts";
 import { client } from "../client.ts";
 import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
@@ -25,12 +25,12 @@ export default {
           { name: "Ravenclaw", value: "Ravenclaw" },
         ),
     ),
-  async execute(interaction: ChatInputCommandInteraction) {
+  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
     await interaction.deferReply();
     const member = interaction.member as GuildMember;
 
     if (!hasAnyRole(member, Role.OWNER | Role.PROFESSOR)) {
-      await replyError(interaction, "Access Denied", "You do not have permission to use this command.");
+      await replyError(opId, interaction, "Access Denied", "You do not have permission to use this command.");
       return;
     }
 

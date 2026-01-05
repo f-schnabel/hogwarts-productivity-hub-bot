@@ -43,83 +43,89 @@ async function processDailyResets() {
 
   log.debug("Daily reset start", ctx);
 
-  await wrapWithAlerting(async () => {
-    await db.transaction(async (db) => {
-      const usersNeedingPotentialReset = await db
-        .select({
-          discordId: userTable.discordId,
-          timezone: userTable.timezone,
-          lastDailyReset: userTable.lastDailyReset,
-        })
-        .from(userTable);
+  await wrapWithAlerting(
+    async () => {
+      await db.transaction(async (db) => {
+        const usersNeedingPotentialReset = await db
+          .select({
+            discordId: userTable.discordId,
+            timezone: userTable.timezone,
+            lastDailyReset: userTable.lastDailyReset,
+          })
+          .from(userTable);
 
-      // Filter to only include users who are actually past their local midnight
-      const usersNeedingReset = [];
-      for (const user of usersNeedingPotentialReset) {
-        const userTime = dayjs().tz(user.timezone);
-        const lastReset = dayjs(user.lastDailyReset).tz(user.timezone);
+        // Filter to only include users who are actually past their local midnight
+        const usersNeedingReset = [];
+        for (const user of usersNeedingPotentialReset) {
+          const userTime = dayjs().tz(user.timezone);
+          const lastReset = dayjs(user.lastDailyReset).tz(user.timezone);
 
-        if (!userTime.isSame(lastReset, "day")) {
-          usersNeedingReset.push(user.discordId);
+          if (!userTime.isSame(lastReset, "day")) {
+            usersNeedingReset.push(user.discordId);
+          }
         }
-      }
 
-      if (usersNeedingReset.length === 0) {
-        log.debug("No users need reset", ctx);
-        return;
-      }
+        if (usersNeedingReset.length === 0) {
+          log.debug("No users need reset", ctx);
+          return;
+        }
 
-      const usersInVoiceSessions = await fetchOpenVoiceSessions(db, usersNeedingReset);
-      log.info("Users identified", {
-        ...ctx,
-        total: usersNeedingReset.length,
-        inVoice: usersInVoiceSessions.map((s) => s.discordId).join(", "),
-      });
-
-      await Promise.all(usersInVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
-
-      const boostersUpdated = await setBoosterPerk(db, usersNeedingReset);
-      if (boostersUpdated > 0) {
-        log.debug("Boosters auto-credited", { ...ctx, count: boostersUpdated });
-      }
-
-      const usersLosingStreak = await db
-        .select({ discordId: userTable.discordId })
-        .from(userTable)
-        .where(and(inArray(userTable.discordId, usersNeedingReset), eq(userTable.isMessageStreakUpdatedToday, false)));
-
-      if (usersLosingStreak.length > 0) {
-        log.debug("Streaks being reset", {
+        const usersInVoiceSessions = await fetchOpenVoiceSessions(db, usersNeedingReset);
+        log.info("Users identified", {
           ...ctx,
-          usersLosingStreak: usersLosingStreak.map((u) => u.discordId).join(", "),
+          total: usersNeedingReset.length,
+          inVoice: usersInVoiceSessions.map((s) => s.discordId).join(", "),
         });
-        for (const row of usersLosingStreak) {
-          const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
-          await Promise.all(
-            members.map(async (m) => {
-              await updateMessageStreakInNickname(await m, 0);
-            }),
-          );
+
+        await Promise.all(usersInVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
+
+        const boostersUpdated = await setBoosterPerk(db, usersNeedingReset);
+        if (boostersUpdated > 0) {
+          log.debug("Boosters auto-credited", { ...ctx, count: boostersUpdated });
         }
-      }
 
-      const result = await db
-        .update(userTable)
-        .set({
-          dailyPoints: 0,
-          dailyVoiceTime: 0,
-          lastDailyReset: new Date(),
-          messageStreak: sql`CASE WHEN ${userTable.isMessageStreakUpdatedToday} = false THEN 0 ELSE ${userTable.messageStreak} END`,
-          isMessageStreakUpdatedToday: false,
-          dailyMessages: 0,
-        })
-        .where(inArray(userTable.discordId, usersNeedingReset));
+        const usersLosingStreak = await db
+          .select({ discordId: userTable.discordId })
+          .from(userTable)
+          .where(
+            and(inArray(userTable.discordId, usersNeedingReset), eq(userTable.isMessageStreakUpdatedToday, false)),
+          );
 
-      await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db, opId)));
+        if (usersLosingStreak.length > 0) {
+          log.debug("Streaks being reset", {
+            ...ctx,
+            usersLosingStreak: usersLosingStreak.map((u) => u.discordId).join(", "),
+          });
+          for (const row of usersLosingStreak) {
+            const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
+            await Promise.all(
+              members.map(async (m) => {
+                await updateMessageStreakInNickname(await m, 0);
+              }),
+            );
+          }
+        }
 
-      log.info("Daily reset complete", { ...ctx, usersReset: result.rowCount, ms: Date.now() - start });
-    });
-  }, "Daily reset processing");
+        const result = await db
+          .update(userTable)
+          .set({
+            dailyPoints: 0,
+            dailyVoiceTime: 0,
+            lastDailyReset: new Date(),
+            messageStreak: sql`CASE WHEN ${userTable.isMessageStreakUpdatedToday} = false THEN 0 ELSE ${userTable.messageStreak} END`,
+            isMessageStreakUpdatedToday: false,
+            dailyMessages: 0,
+          })
+          .where(inArray(userTable.discordId, usersNeedingReset));
+
+        await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db, opId)));
+
+        log.info("Daily reset complete", { ...ctx, usersReset: result.rowCount, ms: Date.now() - start });
+      });
+    },
+    "Daily reset processing",
+    opId,
+  );
   end({ action: "daily" });
 }
 

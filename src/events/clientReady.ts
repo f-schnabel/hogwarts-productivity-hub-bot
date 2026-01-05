@@ -28,7 +28,7 @@ export async function execute(c: Client<true>): Promise<void> {
     process.exit(1);
   }
   log.info("Bot ready", ctx);
-  await alertOwner("Bot deployed successfully.");
+  await alertOwner("Bot deployed successfully.", opId);
 }
 
 async function logDbUserRetention(client: Client, opId: string) {
@@ -81,7 +81,7 @@ async function refreshScoreboardMessages(client: Client, opId: string) {
 
   if (brokenIds.length > 0) {
     await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
-    await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`);
+    await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`, opId);
   }
   log.info("Scoreboards refreshed", {
     ...ctx,

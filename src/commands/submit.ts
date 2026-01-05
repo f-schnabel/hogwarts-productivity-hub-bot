@@ -18,6 +18,7 @@ import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";
 import { count, eq } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS } from "../utils/constants.ts";
+import type { CommandOptions } from "../types.ts";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS?.split(",") ?? [];
 
@@ -31,11 +32,11 @@ export default {
     .addIntegerOption((option) =>
       option.setName("points").setDescription(`The number of points to submit (default: ${DEFAULT_SUBMISSION_POINTS})`),
     ),
-  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
     const member = interaction.member as GuildMember;
     await interaction.deferReply();
     if (!hasAnyRole(member, Role.OWNER) && !SUBMISSION_CHANNEL_IDS.includes(interaction.channelId)) {
-      await replyError(interaction, "Invalid Channel", "You cannot use this command in this channel.");
+      await replyError(opId, interaction, "Invalid Channel", "You cannot use this command in this channel.");
       return;
     }
     const points = interaction.options.getInteger("points") ?? DEFAULT_SUBMISSION_POINTS;
@@ -65,7 +66,12 @@ export default {
     });
   },
 
-  async buttonHandler(interaction: ButtonInteraction, event: string, submissionId: string | undefined): Promise<void> {
+  async buttonHandler(
+    interaction: ButtonInteraction,
+    event: string,
+    submissionId: string | undefined,
+    opId: string,
+  ): Promise<void> {
     const member = interaction.member as GuildMember;
     if (!hasAnyRole(member, Role.PREFECT)) {
       await interaction.reply({
@@ -123,7 +129,7 @@ export default {
     await interaction.message.fetch().then((m) => m.edit(submissionMessage(submission, reason)));
 
     if (event === "approve") {
-      await awardPoints(db, submission.discordId, submission.points);
+      await awardPoints(db, submission.discordId, submission.points, opId);
     }
   },
 };

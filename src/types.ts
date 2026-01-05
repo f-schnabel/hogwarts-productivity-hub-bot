@@ -5,14 +5,21 @@ import type {
   SharedSlashCommand,
 } from "discord.js";
 
+export interface CommandOptions {
+  activeVoiceTimers: Map<string, VoiceTimer>;
+  opId: string;
+}
+
 export interface Command {
   data: SharedSlashCommand;
-  execute: (
-    interaction: ChatInputCommandInteraction,
-    options: { activeVoiceTimers: Map<string, VoiceTimer> },
-  ) => Promise<void>;
+  execute: (interaction: ChatInputCommandInteraction, options: CommandOptions) => Promise<void>;
   autocomplete?: (interaction: AutocompleteInteraction) => Promise<void>;
-  buttonHandler?: (interaction: ButtonInteraction, event: string, data: string | undefined) => Promise<void>;
+  buttonHandler?: (
+    interaction: ButtonInteraction,
+    event: string,
+    data: string | undefined,
+    opId: string,
+  ) => Promise<void>;
 }
 
 export type House = "Gryffindor" | "Hufflepuff" | "Ravenclaw" | "Slytherin";

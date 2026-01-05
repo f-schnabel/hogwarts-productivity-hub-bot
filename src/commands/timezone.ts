@@ -5,6 +5,7 @@ import { db, fetchUserTimezone } from "../db/db.ts";
 import { userTable } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
 import { replyError } from "../utils/utils.ts";
+import type { CommandOptions } from "../types.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -17,7 +18,7 @@ export default {
         .setAutocomplete(true),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
+  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
     await interaction.deferReply();
 
     const newTimezone = interaction.options.getString("timezone");
@@ -25,7 +26,7 @@ export default {
     if (!newTimezone) {
       await viewTimezone(interaction, interaction.user.id);
     } else {
-      await setTimezone(interaction, interaction.user.id, newTimezone);
+      await setTimezone(interaction, interaction.user.id, newTimezone, opId);
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
@@ -58,13 +59,19 @@ async function viewTimezone(interaction: ChatInputCommandInteraction, discordId:
   });
 }
 
-async function setTimezone(interaction: ChatInputCommandInteraction, discordId: string, newTimezone: string) {
+async function setTimezone(
+  interaction: ChatInputCommandInteraction,
+  discordId: string,
+  newTimezone: string,
+  opId: string,
+) {
   // Validate timezone
   try {
     dayjs().tz(newTimezone);
   } catch (e) {
     console.error("Invalid timezone provided:", newTimezone, e);
     await replyError(
+      opId,
       interaction,
       "Invalid Timezone",
       `The timezone \`${newTimezone}\` is not valid.`,
@@ -97,7 +104,12 @@ async function setTimezone(interaction: ChatInputCommandInteraction, discordId: 
     .where(eq(userTable.discordId, discordId));
 
   if (result.rowCount === 0) {
-    await replyError(interaction, `Timezone Update Failed`, `Failed to update your timezone. Please try again later.`);
+    await replyError(
+      opId,
+      interaction,
+      `Timezone Update Failed`,
+      `Failed to update your timezone. Please try again later.`,
+    );
     return;
   }
 

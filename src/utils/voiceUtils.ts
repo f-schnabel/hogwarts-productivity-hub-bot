@@ -140,7 +140,7 @@ export async function endVoiceSession(
 
     if (pointsEarned > 0) {
       // Award points to user
-      await awardPoints(db, session.discordId, pointsEarned);
+      await awardPoints(db, session.discordId, pointsEarned, opId);
     }
     await db
       .update(voiceSessionTable)

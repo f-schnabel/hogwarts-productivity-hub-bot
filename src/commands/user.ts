@@ -6,6 +6,7 @@ import { and, asc, eq, gte } from "drizzle-orm";
 import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
 import { BOT_COLORS, SETTINGS_KEYS } from "../utils/constants.ts";
 import { calculatePointsHelper, formatDuration } from "../utils/voiceUtils.ts";
+import type { CommandOptions } from "../types.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -28,29 +29,29 @@ export default {
         ),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction) {
+  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
     await interaction.deferReply();
 
     switch (interaction.options.getSubcommand()) {
       case "time":
-        await time(interaction);
+        await time(interaction, opId);
         break;
       case "points":
-        await points(interaction);
+        await points(interaction, opId);
         break;
       default:
-        await replyError(interaction, "Invalid Subcommand", "Please use `/user time` or `/user points`.");
+        await replyError(opId, interaction, "Invalid Subcommand", "Please use `/user time` or `/user points`.");
         return;
     }
   },
 };
 
-async function time(interaction: ChatInputCommandInteraction) {
+async function time(interaction: ChatInputCommandInteraction, opId: string) {
   const user = interaction.options.getUser("user", true);
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
 
   if (!userData?.timezone) {
-    await replyError(interaction, "Timezone Not Set", `${user.username} has not set their timezone.`);
+    await replyError(opId, interaction, "Timezone Not Set", `${user.username} has not set their timezone.`);
     return;
   }
   await interaction.editReply(
@@ -58,10 +59,10 @@ async function time(interaction: ChatInputCommandInteraction) {
   );
 }
 
-async function points(interaction: ChatInputCommandInteraction) {
+async function points(interaction: ChatInputCommandInteraction, opId: string) {
   const member = interaction.member as GuildMember;
   if (!hasAnyRole(member, Role.OWNER | Role.PREFECT)) {
-    await replyError(interaction, "Insufficient Permissions", "Only OWNER or PREFECT can use this command.");
+    await replyError(opId, interaction, "Insufficient Permissions", "Only OWNER or PREFECT can use this command.");
     return;
   }
 
@@ -69,7 +70,7 @@ async function points(interaction: ChatInputCommandInteraction) {
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
 
   if (!userData) {
-    await replyError(interaction, "User Not Found", `${user.username} is not registered.`);
+    await replyError(opId, interaction, "User Not Found", `${user.username} is not registered.`);
     return;
   }
 

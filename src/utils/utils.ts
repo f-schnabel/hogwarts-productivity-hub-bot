@@ -49,6 +49,7 @@ export async function awardPoints(
   db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | typeof import("../db/db.ts").db,
   discordId: string,
   points: number,
+  opId: string,
 ) {
   // Update user's total points
   const house = await db
@@ -78,21 +79,29 @@ export async function awardPoints(
       } catch (e) {
         log.error(
           "Failed to update housepoints message",
-          { opId: "points", messageId: msg.messageId, channelId: msg.channelId },
+          { opId, messageId: msg.messageId, channelId: msg.channelId },
           e,
         );
         brokenMessages.push(msg.id);
       }
     }
     if (brokenMessages.length > 0) {
-      await alertOwner(`Removed ${brokenMessages.length} broken house scoreboard message entries for house ${house}.`);
+      await alertOwner(
+        `Removed ${brokenMessages.length} broken house scoreboard message entries for house ${house}.`,
+        opId,
+      );
       await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenMessages));
     }
   }
 }
 
-export async function replyError(interaction: ChatInputCommandInteraction, title: string, ...messages: string[]) {
-  log.warn("Error reply", { opId: "reply", user: interaction.user.username, title, msg: messages.join("; ") });
+export async function replyError(
+  opId: string,
+  interaction: ChatInputCommandInteraction,
+  title: string,
+  ...messages: string[]
+) {
+  log.warn("Error reply", { opId, user: interaction.user.username, title, msg: messages.join("; ") });
   await interaction.editReply({
     embeds: [
       {
@@ -104,7 +113,11 @@ export async function replyError(interaction: ChatInputCommandInteraction, title
   });
 }
 
-export async function updateMessageStreakInNickname(member: GuildMember | null, newStreak: number): Promise<void> {
+export async function updateMessageStreakInNickname(
+  member: GuildMember | null,
+  newStreak: number,
+  opId: string,
+): Promise<void> {
   // Can't update nickname of guild owner
   if (!member || member.guild.ownerId === member.user.id || hasAnyRole(member, Role.PROFESSOR)) return;
 
@@ -122,13 +135,13 @@ export async function updateMessageStreakInNickname(member: GuildMember | null, 
   }
 
   if (newNickname.length > 32) {
-    log.debug("Nickname too long", { opId: "nick", user: member.user.tag, nickname: newNickname });
+    log.debug("Nickname too long", { opId, user: member.user.tag, nickname: newNickname });
     return;
   }
 
   if (newNickname !== member.nickname) {
     log.debug("Updating nickname", {
-      opId: "nick",
+      opId,
       user: member.user.tag,
       from: member.nickname ?? "NO_NICKNAME",
       to: newNickname,
