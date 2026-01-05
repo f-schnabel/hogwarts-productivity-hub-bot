@@ -76,7 +76,11 @@ export async function awardPoints(
         const messageData = await getHousepointMessage(db, house);
         await message.edit(messageData);
       } catch (e) {
-        log.error("Failed to update housepoints message", { opId: "points", messageId: msg.messageId, channelId: msg.channelId }, e);
+        log.error(
+          "Failed to update housepoints message",
+          { opId: "points", messageId: msg.messageId, channelId: msg.channelId },
+          e,
+        );
         brokenMessages.push(msg.id);
       }
     }
@@ -123,7 +127,12 @@ export async function updateMessageStreakInNickname(member: GuildMember | null, 
   }
 
   if (newNickname !== member.nickname) {
-    log.debug("Updating nickname", { opId: "nick", user: member.user.tag, from: member.nickname ?? "NO_NICKNAME", to: newNickname });
+    log.debug("Updating nickname", {
+      opId: "nick",
+      user: member.user.tag,
+      from: member.nickname ?? "NO_NICKNAME",
+      to: newNickname,
+    });
     await member.setNickname(newNickname);
   }
 }

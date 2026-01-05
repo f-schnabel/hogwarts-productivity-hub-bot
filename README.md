@@ -2,7 +2,6 @@
 
 ## Quick Start
 
-
 **Step 1:** [Create a Discord Bot](https://discord.com/developers/applications)
 **Step 2:** Download & Configure
 **Step 3:** Start the Bot

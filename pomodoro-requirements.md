@@ -10,8 +10,8 @@ Edit message based on current state of the session and what users are in the voi
 
 When switching stages, delete the message and recreate it so it will ping the users. Also the bot joins the voice channel, changes the name suffix to BREAK and then leaves again.
 
-Also add a "Present" button to confirm that I'm still active. 
-Bot will respond with an ephemeral message that the present check was successful. 
+Also add a "Present" button to confirm that I'm still active.
+Bot will respond with an ephemeral message that the present check was successful.
 
 If I'm not present, kick me out of the voice channel after two stages of inactivity.
 

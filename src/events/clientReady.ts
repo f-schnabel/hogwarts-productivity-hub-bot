@@ -70,7 +70,11 @@ async function refreshScoreboardMessages(client: Client, opId: string) {
       const messageData = await getHousepointMessage(db, scoreboard.house as House);
       await message.edit(messageData);
     } catch (e) {
-      log.error("Scoreboard refresh failed", { ...ctx, messageId: scoreboard.messageId, channelId: scoreboard.channelId }, e);
+      log.error(
+        "Scoreboard refresh failed",
+        { ...ctx, messageId: scoreboard.messageId, channelId: scoreboard.channelId },
+        e,
+      );
       brokenIds.push(scoreboard.id);
     }
   }
@@ -79,7 +83,11 @@ async function refreshScoreboardMessages(client: Client, opId: string) {
     await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
     await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`);
   }
-  log.info("Scoreboards refreshed", { ...ctx, refreshed: scoreboards.length - brokenIds.length, broken: brokenIds.length });
+  log.info("Scoreboards refreshed", {
+    ...ctx,
+    refreshed: scoreboards.length - brokenIds.length,
+    broken: brokenIds.length,
+  });
 }
 
 async function resetNicknameStreaks(client: Client, opId: string) {
