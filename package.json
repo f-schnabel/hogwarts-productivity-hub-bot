@@ -29,7 +29,7 @@
     "dayjs": "^1.11.19",
     "discord.js": "^14.25.1",
     "dotenv": "^17.2.3",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "beta",
     "express": "^5.2.1",
     "node-cron": "^4.2.1",
     "pg": "^8.16.3",
