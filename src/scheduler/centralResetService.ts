@@ -2,7 +2,7 @@ import cron from "node-cron";
 import dayjs from "dayjs";
 import { db, fetchOpenVoiceSessions, type Schema } from "../db/db.ts";
 import { userTable } from "../db/schema.ts";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql, type ExtractTablesWithRelations } from "drizzle-orm";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { resetExecutionTimer } from "../monitoring.ts";
@@ -130,7 +130,7 @@ async function processDailyResets() {
 }
 
 async function setBoosterPerk(
-  db: PgTransaction<NodePgQueryResultHKT, Schema>,
+  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>,
   usersNeedingReset: string[],
 ): Promise<number> {
   const boosters = await client.guilds

@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, type MessageEditOptions } from "discord.js";
 import { db, type Schema } from "../db/db.ts";
-import { and, desc, eq, gt } from "drizzle-orm";
+import { and, desc, eq, gt, type ExtractTablesWithRelations } from "drizzle-orm";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import type { Command, CommandOptions, House } from "../types.ts";
 import { HOUSE_COLORS } from "../utils/constants.ts";
@@ -49,7 +49,7 @@ export default {
 } as Command;
 
 export async function getHousepointMessage(
-  db: PgTransaction<NodePgQueryResultHKT, Schema> | typeof import("../db/db.ts").db,
+  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | typeof import("../db/db.ts").db,
   house: House,
 ): Promise<MessageEditOptions> {
   const leaderboard = await db
