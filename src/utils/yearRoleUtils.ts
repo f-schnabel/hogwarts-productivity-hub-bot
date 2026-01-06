@@ -1,11 +1,10 @@
 import { roleMention, userMention, type Guild, type GuildMember, type TextChannel } from "discord.js";
 import { db } from "../db/db.ts";
 import { userTable } from "../db/schema.ts";
-import { createLogger } from "./logger.ts";
+import { createLogger, type Ctx } from "./logger.ts";
 import assert from "node:assert";
 import { client } from "../client.ts";
 import type { House } from "../types.ts";
-import { getHouseFromMember } from "./utils.ts";
 import { HOUSE_COLORS } from "./constants.ts";
 
 const log = createLogger("YearRole");
@@ -15,6 +14,7 @@ type YEAR = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 const YEAR_THRESHOLDS_HOURS = [1, 10, 20, 40, 80, 100, 120] as const;
 const YEAR_ROLE_IDS = process.env["YEAR_ROLE_IDS"]?.split(",") ?? [];
 const YEAR_ANNOUNCEMENT_CHANNEL_ID = process.env["YEAR_ANNOUNCEMENT_CHANNEL_ID"];
+let CACHED_YEAR_CHANNEL: null | TextChannel = null;
 
 const YEAR_MESSAGES: Record<House, string> = {
   Gryffindor: "🦁 True courage lies in perseverance. You rise to {ROLE} with **{HOURS}** of steadfast effort.",
@@ -33,11 +33,9 @@ export function getYearFromMonthlyVoiceTime(seconds: number): YEAR | null {
   return null;
 }
 
-async function announceYearPromotion(member: GuildMember, year: YEAR): Promise<void> {
+async function announceYearPromotion(member: GuildMember, house: House, year: YEAR, ctx: Ctx): Promise<void> {
   if (!YEAR_ANNOUNCEMENT_CHANNEL_ID) return;
 
-  const house = getHouseFromMember(member);
-  if (!house) return;
   const roleId = YEAR_ROLE_IDS[year - 1];
   assert(roleId, `No role ID configured for year ${year}`);
   const hours = YEAR_THRESHOLDS_HOURS[year - 1];
@@ -47,9 +45,9 @@ async function announceYearPromotion(member: GuildMember, year: YEAR): Promise<v
     .replace("{ROLE}", roleMention(roleId))
     .replace("{HOURS}", hours.toString() + (hours === 1 ? " hour" : " hours"));
   try {
-    const channel = await client.channels.fetch(YEAR_ANNOUNCEMENT_CHANNEL_ID);
-    if (channel?.isTextBased()) {
-      await (channel as TextChannel).send({
+    const channel = CACHED_YEAR_CHANNEL ?? ((await client.channels.fetch(YEAR_ANNOUNCEMENT_CHANNEL_ID)) as TextChannel);
+    if (channel.isTextBased()) {
+      await channel.send({
         embeds: [
           {
             title: "New Activity Rank Attained!",
@@ -58,15 +56,19 @@ async function announceYearPromotion(member: GuildMember, year: YEAR): Promise<v
           },
         ],
       });
+      CACHED_YEAR_CHANNEL = channel;
+    } else {
+      log.error("Year announcement channel is not text-based", ctx);
     }
   } catch (error) {
-    console.error("Failed to send year promotion announcement:", error);
+    log.error("Failed to send year promotion announcement:", { error, ...ctx });
   }
 }
 
 export async function updateYearRole(
   member: GuildMember,
   monthlyVoiceTimeSeconds: number,
+  house: House,
   opId: string,
 ): Promise<void> {
   if (YEAR_ROLE_IDS.length !== 7) return; // Skip if not configured
@@ -87,7 +89,7 @@ export async function updateYearRole(
     assert(targetYear !== null, "Target year should be defined if target role ID exists");
     log.info("Adding year role", { ...ctx, roleId: targetRoleId, year: targetYear });
     await member.roles.add(targetRoleId);
-    await announceYearPromotion(member, targetYear);
+    await announceYearPromotion(member, house, targetYear, ctx);
   }
 }
 
@@ -95,14 +97,15 @@ export async function refreshAllYearRoles(guild: Guild, opId: string): Promise<n
   if (YEAR_ROLE_IDS.length !== 7) return 0;
 
   const users = await db
-    .select({ discordId: userTable.discordId, monthlyVoiceTime: userTable.monthlyVoiceTime })
+    .select({ discordId: userTable.discordId, monthlyVoiceTime: userTable.monthlyVoiceTime, house: userTable.house })
     .from(userTable);
   let updated = 0;
 
   for (const user of users) {
+    if (!user.house) continue;
     try {
       const member = await guild.members.fetch(user.discordId);
-      await updateYearRole(member, user.monthlyVoiceTime, opId);
+      await updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
       updated++;
     } catch {
       // Member not in guild, skip

@@ -14,7 +14,7 @@ export const OpId = {
 };
 
 // Context formatter: [opId] key=val key2="val with spaces"
-type Ctx = { opId: string } & Record<string, unknown>;
+export type Ctx = { opId: string } & Record<string, unknown>;
 const fmtVal = (v: unknown): string => {
   const s = String(v);
   return s.includes(" ") ? `"${s}"` : s;

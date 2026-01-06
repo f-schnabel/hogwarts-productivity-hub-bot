@@ -122,6 +122,7 @@ export async function endVoiceSession(
       .returning({
         dailyVoiceTime: userTable.dailyVoiceTime,
         monthlyVoiceTime: userTable.monthlyVoiceTime,
+        house: userTable.house,
       });
     assert(user !== undefined, `User not found for Discord ID ${session.discordId}`);
 
@@ -148,8 +149,8 @@ export async function endVoiceSession(
       .where(eq(voiceSessionTable.id, voiceSessionWithDuration.id));
 
     // Update year role based on monthly voice time
-    if (member) {
-      await updateYearRole(member, user.monthlyVoiceTime, opId);
+    if (member && user.house) {
+      await updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
     }
   });
 }
