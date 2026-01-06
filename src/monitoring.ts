@@ -1,7 +1,6 @@
 import client from "prom-client";
 import express from "express";
 import { createLogger } from "./utils/logger.ts";
-import Pyroscope from "@pyroscope/nodejs";
 
 const log = createLogger("Monitoring");
 const app = express();
@@ -41,13 +40,3 @@ app.get("/metrics", async (_req, res) => {
 export const server = app.listen(8080, "127.0.0.1", () => {
   log.info("Metrics server started", { opId: "monitor", url: "http://localhost:8080/metrics" });
 });
-
-Pyroscope.init({
-  serverAddress: "http://localhost:4040",
-  appName: "hogwarts-productivity-hub-bot",
-  wall: {
-    collectCpuTime: true,
-  },
-});
-
-Pyroscope.start();

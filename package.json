@@ -25,7 +25,6 @@
   "license": "ISC",
   "description": "Discord Productivity Bot with task management, Pomodoro timers, and gamified points system",
   "dependencies": {
-    "@pyroscope/nodejs": "^0.4.8",
     "dayjs": "^1.11.19",
     "discord.js": "^14.25.1",
     "dotenv": "^17.2.3",
