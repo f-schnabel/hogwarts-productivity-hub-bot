@@ -45,7 +45,7 @@ export async function execute(interaction: Interaction): Promise<void> {
     await command.buttonHandler(interaction, event, data, opId);
     log.info("Button completed", { ...ctx, ms: Date.now() - start });
     end({
-      command: commandName,
+      command: commandName + "_button",
       subcommand: "",
       is_autocomplete: "",
     });
