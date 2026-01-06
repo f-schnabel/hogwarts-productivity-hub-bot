@@ -51,9 +51,9 @@ function registerEvents(client: Client) {
 }
 
 function registerShutdownHandlers() {
-  async function shutdown() {
+  async function shutdown(signal: string) {
     const opId = OpId.shtdwn();
-    const ctx = { opId };
+    const ctx = { opId, signal };
     log.info("Shutdown initiated", ctx);
 
     await db.transaction(async (db) => {
@@ -71,8 +71,8 @@ function registerShutdownHandlers() {
     process.exit(0);
   }
 
-  process.on("SIGINT", () => void shutdown());
-  process.on("SIGTERM", () => void shutdown());
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
   process.on("uncaughtException", (error) => {
     void alertOwner(`Uncaught Exception: ${error}`, "exception");
