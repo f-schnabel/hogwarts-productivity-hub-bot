@@ -1,5 +1,6 @@
 import {
   AutocompleteInteraction,
+  ButtonInteraction,
   ChatInputCommandInteraction,
   GuildMember,
   MessageFlags,
@@ -22,33 +23,11 @@ export async function execute(interaction: Interaction): Promise<void> {
   const opId = OpId.cmd();
 
   if (interaction.isButton()) {
-    // eslint-disable-next-line prefer-const
-    let [commandName, event, data] = interaction.customId.split("|", 3);
-    assert(commandName, "Button command name missing");
-    assert(typeof event === "string", "Button event missing");
-
-    const ctx = { opId, userId: interaction.user.id, user: interaction.user.tag, cmd: commandName, event };
-    log.debug("Button received", ctx);
-
-    const command = commands.get(commandName);
-    if (!command) {
-      log.warn("Unknown button command", ctx);
-      return;
-    }
-
-    assert(command.buttonHandler, `Command /${commandName} does not have a button handler`);
-
-    await command.buttonHandler(interaction, event, data, opId);
-    log.info("Button completed", { ...ctx, ms: Date.now() - start });
-    end({
-      command: commandName + "_button",
-      subcommand: "",
-      is_autocomplete: "",
-    });
+    await handleButton(interaction, start, end, opId);
     return;
   }
 
-  if (!interaction.isChatInputCommand() && !interaction.isAutocomplete() && !interaction.isButton()) return;
+  if (!interaction.isChatInputCommand() && !interaction.isAutocomplete()) return;
 
   const channelName = getChannelName(interaction);
   const subcommand = interaction.options.getSubcommand(false) ?? undefined;
@@ -107,6 +86,36 @@ function getChannelName(interaction: ChatInputCommandInteraction | AutocompleteI
     return `#${channel.name}`;
   }
   return "DM";
+}
+
+async function handleButton(
+  interaction: ButtonInteraction,
+  start: number,
+  end: ReturnType<typeof interactionExecutionTimer.startTimer>,
+  opId: string,
+) {
+  const [commandName, event, data] = interaction.customId.split("|", 3);
+  assert(commandName, "Button command name missing");
+  assert(typeof event === "string", "Button event missing");
+
+  const ctx = { opId, userId: interaction.user.id, user: interaction.user.tag, cmd: commandName, event };
+  log.debug("Button received", ctx);
+
+  const command = commands.get(commandName);
+  if (!command) {
+    log.warn("Unknown button command", ctx);
+    return;
+  }
+
+  assert(command.buttonHandler, `Command /${commandName} does not have a button handler`);
+
+  await command.buttonHandler(interaction, event, data, opId);
+  log.info("Button completed", { ...ctx, ms: Date.now() - start });
+  end({
+    command: commandName + "_button",
+    subcommand: "",
+    is_autocomplete: "",
+  });
 }
 
 async function handleException(error: unknown, interaction: ChatInputCommandInteraction) {
