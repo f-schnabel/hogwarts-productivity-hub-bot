@@ -14,8 +14,6 @@ import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 import relativeTime from "dayjs/plugin/relativeTime.js";
 import advancedFormat from "dayjs/plugin/advancedFormat.js";
-import { db, fetchOpenVoiceSessions } from "./db/db.ts";
-import { endVoiceSession } from "./utils/voiceUtils.ts";
 import { alertOwner } from "./utils/alerting.ts";
 import { interactionExecutionTimer, resetExecutionTimer, server, voiceSessionExecutionTimer } from "./monitoring.ts";
 import { commands } from "./commands.ts";
@@ -56,11 +54,8 @@ function registerShutdownHandlers() {
     const ctx = { opId, signal };
     log.info("Shutdown initiated", ctx);
 
-    await db.transaction(async (db) => {
-      const openVoiceSessions = await fetchOpenVoiceSessions(db);
-      log.debug("Closing voice sessions", { ...ctx, count: openVoiceSessions.length });
-      await Promise.all(openVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
-    });
+    // Voice sessions are intentionally left open on shutdown.
+    // They will be resumed on next startup if still valid (< 24h old).
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
     const closeServer = promisify(server.close).bind(server);
