@@ -208,3 +208,7 @@ export function hasAnyRole(member: GuildMember, roles: number): boolean {
   if (member.roles.cache.has(process.env.PROFESSOR_ROLE_ID)) memberRoles |= Role.PROFESSOR;
   return (memberRoles & roles) !== 0;
 }
+
+export async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

@@ -7,7 +7,7 @@ import type { NodePgDatabase, NodePgQueryResultHKT } from "drizzle-orm/node-post
 import type { VoiceSession } from "../types.ts";
 import type { GuildMember } from "discord.js";
 import assert from "node:assert/strict";
-import { awardPoints } from "./utils.ts";
+import { awardPoints, sleep } from "./utils.ts";
 import { updateYearRole } from "./yearRoleUtils.ts";
 import { createLogger } from "./logger.ts";
 
@@ -150,6 +150,7 @@ export async function endVoiceSession(
 
     // Update year role based on monthly voice time
     if (member && user.house) {
+      await sleep(1000); // We need this delay, otherwise we have race conditions with VC Roles
       await updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
     }
   });
