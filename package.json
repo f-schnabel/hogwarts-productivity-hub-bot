@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "bun run src/index.ts",
-    "build": "bun build src/index.ts --outfile dist/index.js --target bun",
+    "start": "node dist/index.js",
+    "build": "bun build src/index.ts --outfile dist/index.js --target node",
     "register": "bun run src/register-commands.ts",
     "format": "prettier --write .",
     "test": "vitest",
