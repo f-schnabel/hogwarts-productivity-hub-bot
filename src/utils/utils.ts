@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, type GuildMember, type Message, type MessageEditOptions } from "discord.js";
 import assert from "node:assert/strict";
 import type { House } from "../types.ts";
-import { eq, inArray, sql, type ExtractTablesWithRelations } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import type { Schema } from "../db/db.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
@@ -26,7 +26,7 @@ export interface ScoreboardEntry {
 
 /** Updates scoreboard messages, returns IDs of broken entries that should be deleted */
 export async function updateScoreboardMessages(
-  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | typeof import("../db/db.ts").db,
+  db: PgTransaction<NodePgQueryResultHKT, Schema> | typeof import("../db/db.ts").db,
   scoreboards: ScoreboardEntry[],
   opId: string,
 ): Promise<number[]> {
@@ -113,7 +113,7 @@ export function getHouseFromMember(member: GuildMember | null): House | undefine
 }
 
 export async function awardPoints(
-  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | typeof import("../db/db.ts").db,
+  db: PgTransaction<NodePgQueryResultHKT, Schema> | typeof import("../db/db.ts").db,
   discordId: string,
   points: number,
   opId: string,
