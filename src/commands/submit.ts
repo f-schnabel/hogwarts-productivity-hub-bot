@@ -121,7 +121,7 @@ export default {
     const [submission] = await db
       .update(submissionTable)
       .set({ status: event === "approve" ? "APPROVED" : "REJECTED", reviewedAt: new Date(), reviewedBy: member.id })
-      .where(eq(submissionTable.id, parseInt(submissionId)))
+      .where(eq(submissionTable.id, Number.parseInt(submissionId)))
       .returning();
 
     assert(submission, `Failed to update submission with ID ${submissionId}`);

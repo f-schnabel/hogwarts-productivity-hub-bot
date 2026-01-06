@@ -23,10 +23,10 @@ export default {
 
     const newTimezone = interaction.options.getString("timezone");
 
-    if (!newTimezone) {
-      await viewTimezone(interaction, interaction.user.id);
-    } else {
+    if (newTimezone) {
       await setTimezone(interaction, interaction.user.id, newTimezone, opId);
+    } else {
+      await viewTimezone(interaction, interaction.user.id);
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {

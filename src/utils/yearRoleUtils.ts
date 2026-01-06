@@ -2,7 +2,7 @@ import { roleMention, userMention, type Guild, type GuildMember, type TextChanne
 import { db } from "../db/db.ts";
 import { userTable } from "../db/schema.ts";
 import { createLogger } from "./logger.ts";
-import assert from "assert";
+import assert from "node:assert";
 import { client } from "../client.ts";
 import type { House } from "../types.ts";
 import { getHouseFromMember } from "./utils.ts";
@@ -72,7 +72,7 @@ export async function updateYearRole(
   if (YEAR_ROLE_IDS.length !== 7) return; // Skip if not configured
 
   const targetYear = getYearFromMonthlyVoiceTime(monthlyVoiceTimeSeconds);
-  const targetRoleId = targetYear !== null ? YEAR_ROLE_IDS[targetYear - 1] : null;
+  const targetRoleId = targetYear === null ? null : YEAR_ROLE_IDS[targetYear - 1];
   const ctx = { opId, userId: member.id, user: member.user.displayName };
 
   // Remove all year roles except target

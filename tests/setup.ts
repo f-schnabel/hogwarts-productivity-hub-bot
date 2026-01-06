@@ -10,7 +10,7 @@ process.env.DB_NAME = "discord_bot_test";
 process.env.DISCORD_TOKEN = "test-token";
 
 // Mock console methods in tests to reduce noise
-global.console = {
+globalThis.console = {
   ...console,
   log: vi.fn(),
   debug: vi.fn(),

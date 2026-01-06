@@ -60,7 +60,7 @@ export async function fetchOpenVoiceSessions(
     .from(schema.voiceSessionTable)
     .where(
       and(
-        usersNeedingReset !== null ? inArray(schema.voiceSessionTable.discordId, usersNeedingReset) : undefined,
+        usersNeedingReset === null ? undefined : inArray(schema.voiceSessionTable.discordId, usersNeedingReset),
         isNull(schema.voiceSessionTable.leftAt),
       ),
     )

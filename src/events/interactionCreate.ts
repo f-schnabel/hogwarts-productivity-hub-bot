@@ -26,10 +26,6 @@ export async function execute(interaction: Interaction): Promise<void> {
     let [commandName, event, data] = interaction.customId.split("|", 3);
     assert(commandName, "Button command name missing");
     assert(typeof event === "string", "Button event missing");
-    //TODO temporary fix
-    if (commandName === "testing") {
-      commandName = "submit";
-    }
 
     const ctx = { opId, userId: interaction.user.id, user: interaction.user.tag, cmd: commandName, event };
     log.debug("Button received", ctx);
