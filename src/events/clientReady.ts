@@ -5,9 +5,7 @@ import { alertOwner } from "../utils/alerting.ts";
 import { db } from "../db/db.ts";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
-import { updateMessageStreakInNickname } from "../utils/utils.ts";
-import { getHousepointMessage } from "../commands/scoreboard.ts";
-import type { House } from "../types.ts";
+import { updateMessageStreakInNickname, updateScoreboardMessages } from "../utils/utils.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 
 const log = createLogger("Startup");
@@ -22,7 +20,7 @@ export async function execute(c: Client<true>): Promise<void> {
     await VoiceStateScanner.scanAndStartTracking(opId);
     await resetNicknameStreaks(c, opId);
     await logDbUserRetention(c, opId);
-    await refreshScoreboardMessages(c, opId);
+    await refreshScoreboardMessages(opId);
   } catch (error) {
     log.error("Initialization failed", ctx, error);
     process.exit(1);
@@ -52,33 +50,12 @@ async function logDbUserRetention(client: Client, opId: string) {
   log.info("DB user retention", { ...ctx, found: foundCount, total: dbUserIds.size, pct: `${percentage}%` });
 }
 
-// TODO duplication with awardPoints in utils.ts
-async function refreshScoreboardMessages(client: Client, opId: string) {
+async function refreshScoreboardMessages(opId: string) {
   const ctx = { opId };
   const scoreboards = await db.select().from(houseScoreboardTable);
   if (scoreboards.length === 0) return;
 
-  const brokenIds: number[] = [];
-  for (const scoreboard of scoreboards) {
-    try {
-      const channel = await client.channels.fetch(scoreboard.channelId);
-      if (!channel?.isTextBased()) {
-        brokenIds.push(scoreboard.id);
-        continue;
-      }
-      const message = await channel.messages.fetch(scoreboard.messageId);
-      const messageData = await getHousepointMessage(db, scoreboard.house as House);
-      await message.edit(messageData);
-    } catch (e) {
-      log.error(
-        "Scoreboard refresh failed",
-        { ...ctx, messageId: scoreboard.messageId, channelId: scoreboard.channelId },
-        e,
-      );
-      brokenIds.push(scoreboard.id);
-    }
-  }
-
+  const brokenIds = await updateScoreboardMessages(db, scoreboards, opId);
   if (brokenIds.length > 0) {
     await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
     await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`, opId);

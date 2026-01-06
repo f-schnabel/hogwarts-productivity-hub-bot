@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, type GuildMember } from "discord.js";
+import { ChatInputCommandInteraction, type GuildMember, type Message, type MessageEditOptions } from "discord.js";
 import assert from "node:assert/strict";
 import type { House } from "../types.ts";
 import { eq, inArray, sql, type ExtractTablesWithRelations } from "drizzle-orm";
@@ -13,6 +13,73 @@ import { alertOwner } from "./alerting.ts";
 import { createLogger } from "./logger.ts";
 
 const log = createLogger("Utils");
+
+// Cache for message fetches (persists between awardPoints calls)
+const messageCache = new Map<string, Message>();
+
+export interface ScoreboardEntry {
+  id: number;
+  channelId: string;
+  messageId: string;
+  house: House;
+}
+
+/** Updates scoreboard messages, returns IDs of broken entries that should be deleted */
+export async function updateScoreboardMessages(
+  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | typeof import("../db/db.ts").db,
+  scoreboards: ScoreboardEntry[],
+  opId: string,
+): Promise<number[]> {
+  const brokenIds: number[] = [];
+  const houseScoreboardCache = new Map<House, MessageEditOptions>();
+
+  for (const scoreboard of scoreboards) {
+    // Compute house message data once per house
+    if (!houseScoreboardCache.has(scoreboard.house)) {
+      houseScoreboardCache.set(scoreboard.house, await getHousepointMessage(db, scoreboard.house));
+    }
+    const scoreboardText = houseScoreboardCache.get(scoreboard.house);
+    assert(scoreboardText, "House message data should be cached at this point");
+
+    // Try cached message first
+    const cachedMessage = messageCache.get(scoreboard.messageId);
+    if (cachedMessage) {
+      try {
+        await cachedMessage.edit(scoreboardText);
+        continue;
+      } catch {
+        log.warn("Cached message edit failed, refetching", {
+          opId,
+          messageId: scoreboard.messageId,
+          channelId: scoreboard.channelId,
+        });
+        messageCache.delete(scoreboard.messageId);
+      }
+    }
+
+    // Fetch fresh and retry
+    try {
+      const channel = await client.channels.fetch(scoreboard.channelId);
+      if (!channel?.isTextBased()) {
+        brokenIds.push(scoreboard.id);
+        continue;
+      }
+      const message = await channel.messages.fetch(scoreboard.messageId);
+      messageCache.set(scoreboard.messageId, message);
+      await message.edit(scoreboardText);
+    } catch (e) {
+      log.error(
+        "Failed to update scoreboard message",
+        { opId, messageId: scoreboard.messageId, channelId: scoreboard.channelId },
+        e,
+      );
+      brokenIds.push(scoreboard.id);
+      messageCache.delete(scoreboard.messageId);
+    }
+  }
+
+  return brokenIds;
+}
 
 export function getHouseFromMember(member: GuildMember | null): House | undefined {
   let house: House | undefined = undefined;
@@ -64,33 +131,11 @@ export async function awardPoints(
     .then(([row]) => row?.house);
 
   if (house) {
-    const messages = await db.select().from(houseScoreboardTable).where(eq(houseScoreboardTable.house, house));
-    const brokenMessages = [];
-    for (const msg of messages) {
-      try {
-        const channel = await client.channels.fetch(msg.channelId);
-        if (!channel?.isTextBased()) {
-          brokenMessages.push(msg.id);
-          continue;
-        }
-        const message = await channel.messages.fetch(msg.messageId);
-        const messageData = await getHousepointMessage(db, house);
-        await message.edit(messageData);
-      } catch (e) {
-        log.error(
-          "Failed to update housepoints message",
-          { opId, messageId: msg.messageId, channelId: msg.channelId },
-          e,
-        );
-        brokenMessages.push(msg.id);
-      }
-    }
-    if (brokenMessages.length > 0) {
-      await alertOwner(
-        `Removed ${brokenMessages.length} broken house scoreboard message entries for house ${house}.`,
-        opId,
-      );
-      await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenMessages));
+    const scoreboards = await db.select().from(houseScoreboardTable).where(eq(houseScoreboardTable.house, house));
+    const brokenIds = await updateScoreboardMessages(db, scoreboards, opId);
+    if (brokenIds.length > 0) {
+      await alertOwner(`Removed ${brokenIds.length} broken house scoreboard message entries for house ${house}.`, opId);
+      await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
     }
   }
 }
