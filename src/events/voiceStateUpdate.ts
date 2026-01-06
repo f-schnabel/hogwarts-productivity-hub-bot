@@ -50,15 +50,12 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
       // User joined a voice channel
       if (!oldChannel && newChannel) {
         event = "join";
-        log.info(event, ctx);
         await startVoiceSession(newVoiceSession, db, opId);
       } else if (oldChannel && !newChannel) {
         event = "leave";
-        log.info(event, ctx);
         await endVoiceSession(oldVoiceSession, db, opId, true, member);
       } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
         event = "switch";
-        log.info(event, ctx);
         // For channel switches, end the old session and start new one immediately
         await endVoiceSession(oldVoiceSession, db, opId, true, member);
         await startVoiceSession(newVoiceSession, db, opId);
@@ -68,6 +65,6 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
     opId,
   );
 
-  log.info("Completed", { ...ctx, ms: Date.now() - start });
+  log.info("Completed", { ...ctx, event, ms: Date.now() - start });
   end({ event });
 }
