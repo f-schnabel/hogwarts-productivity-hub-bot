@@ -12,6 +12,7 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
   if (!member || member.user.bot) return; // Ignore bots
 
   const end = voiceSessionExecutionTimer.startTimer();
+  const start = Date.now();
   const opId = OpId.vc();
 
   const discordId = member.id;
@@ -67,5 +68,6 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
     opId,
   );
 
+  log.info("Completed", { ...ctx, ms: Date.now() - start });
   end({ event });
 }
