@@ -53,7 +53,7 @@ async function announceYearPromotion(member: GuildMember, year: YEAR): Promise<v
         embeds: [
           {
             title: "New Activity Rank Attained!",
-            description: `Congratulations ${userMention(member.id)}!\n${message}`,
+            description: `Congratulations ${userMention(member.id)}!\n\n${message}`,
             color: HOUSE_COLORS[house],
           },
         ],
