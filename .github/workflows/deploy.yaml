@@ -25,6 +25,8 @@ jobs:
             cd hogwarts-productivity-hub-bot && 
             git pull &&
             pnpm install &&
+            pnpm typecheck &&
+            pnpm build &&
             pnpm register &&
             npx drizzle-kit migrate &&
             systemctl --user restart discord-bot.service
