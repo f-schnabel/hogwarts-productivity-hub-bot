@@ -8,6 +8,9 @@ import { client } from "../client.ts";
 import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
+import { createLogger } from "../utils/logger.ts";
+
+const log = createLogger("Scoreboard");
 
 export default {
   data: new SlashCommandBuilder()
@@ -36,7 +39,7 @@ export default {
 
     const house = interaction.options.getString("house", true) as House;
     await db.transaction(async (db) => {
-      const scoreboardMessage = await getHousepointMessage(db, house);
+      const scoreboardMessage = await getHousepointMessage(db, house, opId);
       const message = await interaction.editReply(scoreboardMessage);
 
       await db.insert(houseScoreboardTable).values({
@@ -51,6 +54,7 @@ export default {
 export async function getHousepointMessage(
   db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | typeof import("../db/db.ts").db,
   house: House,
+  opId: string,
 ): Promise<MessageEditOptions> {
   const leaderboard = await db
     .select()
@@ -58,6 +62,7 @@ export async function getHousepointMessage(
     .where(and(eq(userTable.house, house), gt(userTable.monthlyPoints, 0)))
     .orderBy(desc(userTable.monthlyPoints));
 
+  const fetchStart = Date.now();
   for (const row of leaderboard) {
     const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
     await Promise.all(
@@ -68,6 +73,7 @@ export async function getHousepointMessage(
       }),
     );
   }
+  log.debug("Member fetch", { opId, house, users: leaderboard.length, ms: Date.now() - fetchStart });
 
   const medalPadding = leaderboard.length.toString().length + 1;
   const longestNameLength = leaderboard.length

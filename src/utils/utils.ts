@@ -30,13 +30,14 @@ export async function updateScoreboardMessages(
   scoreboards: ScoreboardEntry[],
   opId: string,
 ): Promise<number[]> {
+  const start = Date.now();
   const brokenIds: number[] = [];
   const houseScoreboardCache = new Map<House, MessageEditOptions>();
 
   for (const scoreboard of scoreboards) {
     // Compute house message data once per house
     if (!houseScoreboardCache.has(scoreboard.house)) {
-      houseScoreboardCache.set(scoreboard.house, await getHousepointMessage(db, scoreboard.house));
+      houseScoreboardCache.set(scoreboard.house, await getHousepointMessage(db, scoreboard.house, opId));
     }
     const scoreboardText = houseScoreboardCache.get(scoreboard.house);
     assert(scoreboardText, "House message data should be cached at this point");
@@ -78,6 +79,7 @@ export async function updateScoreboardMessages(
     }
   }
 
+  log.debug("updateScoreboardMessages", { opId, count: scoreboards.length, ms: Date.now() - start });
   return brokenIds;
 }
 
