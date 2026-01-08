@@ -46,7 +46,9 @@ export async function updateScoreboardMessages(
     const cachedMessage = messageCache.get(scoreboard.messageId);
     if (cachedMessage) {
       try {
+        const editStart = Date.now();
         await cachedMessage.edit(scoreboardText);
+        log.debug("Message edit (cached)", { opId, msgId: scoreboard.messageId, ms: Date.now() - editStart });
         continue;
       } catch {
         log.warn("Cached message edit failed, refetching", {
@@ -60,6 +62,7 @@ export async function updateScoreboardMessages(
 
     // Fetch fresh and retry
     try {
+      const fetchStart = Date.now();
       const channel = await client.channels.fetch(scoreboard.channelId);
       if (!channel?.isTextBased()) {
         brokenIds.push(scoreboard.id);
@@ -68,6 +71,7 @@ export async function updateScoreboardMessages(
       const message = await channel.messages.fetch(scoreboard.messageId);
       messageCache.set(scoreboard.messageId, message);
       await message.edit(scoreboardText);
+      log.debug("Message edit (fetched)", { opId, msgId: scoreboard.messageId, ms: Date.now() - fetchStart });
     } catch (e) {
       log.error(
         "Failed to update scoreboard message",
