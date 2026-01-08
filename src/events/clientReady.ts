@@ -1,4 +1,5 @@
 import type { Client } from "discord.js";
+import dayjs from "dayjs";
 import { commands } from "../commands.ts";
 import * as VoiceStateScanner from "../utils/voiceStateScanner.ts";
 import { alertOwner } from "../utils/alerting.ts";
@@ -19,7 +20,8 @@ export async function execute(c: Client<true>): Promise<void> {
   try {
     await VoiceStateScanner.scanAndStartTracking(opId);
     await resetNicknameStreaks(c, opId);
-    await logDbUserRetention(c, opId);
+    const { staleUserIds, totalDbUsers } = await logDbUserRetention(c, opId);
+    await deleteStaleUsers(staleUserIds, totalDbUsers, opId);
     await refreshScoreboardMessages(opId);
   } catch (error) {
     log.error("Initialization failed", ctx, error);
@@ -29,12 +31,11 @@ export async function execute(c: Client<true>): Promise<void> {
   await alertOwner("Bot deployed successfully.", opId);
 }
 
-async function logDbUserRetention(client: Client, opId: string) {
+async function logDbUserRetention(client: Client, opId: string): Promise<{ staleUserIds: string[]; totalDbUsers: number }> {
   const ctx = { opId };
-  const dbUserIds = await db
-    .select({ discordId: userTable.discordId })
-    .from(userTable)
-    .then((rows) => new Set(rows.map((r) => r.discordId)));
+  const oneMonthAgo = dayjs().subtract(1, "month").toDate();
+
+  const dbUsers = await db.select({ discordId: userTable.discordId, updatedAt: userTable.updatedAt }).from(userTable);
 
   // Use cache since resetNicknameStreaks already fetched all members
   const guildMemberIds = new Set<string>();
@@ -44,10 +45,40 @@ async function logDbUserRetention(client: Client, opId: string) {
     }
   }
 
-  const foundCount = [...dbUserIds].filter((id) => guildMemberIds.has(id)).length;
-  const percentage = dbUserIds.size > 0 ? ((foundCount / dbUserIds.size) * 100).toFixed(1) : "0";
+  const foundCount = dbUsers.filter((u) => guildMemberIds.has(u.discordId)).length;
+  const percentage = dbUsers.length > 0 ? ((foundCount / dbUsers.length) * 100).toFixed(1) : "0";
+  log.info("DB user retention", { ...ctx, found: foundCount, total: dbUsers.length, pct: `${percentage}%` });
 
-  log.info("DB user retention", { ...ctx, found: foundCount, total: dbUserIds.size, pct: `${percentage}%` });
+  // If less than 100 users found, alert and skip deletion (likely guild cache is broken)
+  if (foundCount < 100) {
+    await alertOwner(
+      `Aborting stale user deletion: only ${foundCount}/${dbUsers.length} (${percentage}%) users found in guild cache.`,
+      opId,
+    );
+    return { staleUserIds: [], totalDbUsers: dbUsers.length };
+  }
+
+  // Return users not in server and not updated in over a month
+  const staleUserIds = dbUsers
+    .filter((u) => !guildMemberIds.has(u.discordId) && u.updatedAt < oneMonthAgo)
+    .map((u) => u.discordId);
+  return { staleUserIds, totalDbUsers: dbUsers.length };
+}
+
+async function deleteStaleUsers(staleUserIds: string[], totalDbUsers: number, opId: string) {
+  if (staleUserIds.length === 0) return;
+
+  // Safety: don't delete if stale users are >50% of db (likely means guild cache is broken)
+  const staleRatio = staleUserIds.length / totalDbUsers;
+  if (staleRatio > 0.5) {
+    log.warn("Skipping stale user deletion - too many stale", { opId, stale: staleUserIds.length, total: totalDbUsers });
+    await alertOwner(`Skipped stale user deletion: ${staleUserIds.length}/${totalDbUsers} users stale (>50%)`, opId);
+    return;
+  }
+
+  // Cascades to voice_session, submission
+  await db.delete(userTable).where(inArray(userTable.discordId, staleUserIds));
+  log.info("Deleted stale users", { opId, count: staleUserIds.length });
 }
 
 async function refreshScoreboardMessages(opId: string) {

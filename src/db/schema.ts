@@ -40,7 +40,7 @@ export const voiceSessionTable = pgTable(
     id: serial().primaryKey(),
     discordId: varchar({ length: 255 })
       .notNull()
-      .references(() => userTable.discordId),
+      .references(() => userTable.discordId, { onDelete: "cascade" }),
 
     joinedAt: timestamp().notNull().defaultNow(),
     leftAt: timestamp(),
@@ -63,7 +63,7 @@ export const submissionTable = pgTable("submission", {
   id: serial().primaryKey(),
   discordId: varchar({ length: 255 })
     .notNull()
-    .references(() => userTable.discordId),
+    .references(() => userTable.discordId, { onDelete: "cascade" }),
   submittedAt: timestamp().notNull().defaultNow(),
   reviewedAt: timestamp(),
   reviewedBy: varchar({ length: 255 }),
