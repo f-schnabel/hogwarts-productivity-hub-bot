@@ -54,9 +54,22 @@ async function processDailyResets() {
           })
           .from(userTable);
 
-        // Filter to only include users who are actually past their local midnight
+        // Get guild members to filter out users who left
+        const guildMemberIds = new Set<string>();
+        for (const guild of client.guilds.cache.values()) {
+          log.debug("Cache size before fetch", { guildId: guild.id, size: guild.members.cache.size, opId });
+          const members = await guild.members.fetch();
+          log.debug("Cache size after fetch", { guildId: guild.id, size: guild.members.cache.size, opId });
+          for (const memberId of members.keys()) {
+            guildMemberIds.add(memberId);
+          }
+        }
+
+        // Filter to only include users who are still in guild and past their local midnight
         const usersNeedingReset = [];
         for (const user of usersNeedingPotentialReset) {
+          if (!guildMemberIds.has(user.discordId)) continue;
+
           const userTime = dayjs().tz(user.timezone);
           const lastReset = dayjs(user.lastDailyReset).tz(user.timezone);
 
@@ -77,50 +90,31 @@ async function processDailyResets() {
           inVoice: usersInVoiceSessions.map((s) => s.discordId).join(", "),
         });
 
-        await Promise.all(usersInVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
+        try {
+          await Promise.all(usersInVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
 
-        const boostersUpdated = await setBoosterPerk(db, usersNeedingReset);
-        if (boostersUpdated > 0) {
-          log.debug("Boosters auto-credited", { ...ctx, count: boostersUpdated });
-        }
-
-        const usersLosingStreak = await db
-          .select({ discordId: userTable.discordId })
-          .from(userTable)
-          .where(
-            and(inArray(userTable.discordId, usersNeedingReset), eq(userTable.isMessageStreakUpdatedToday, false)),
-          );
-
-        if (usersLosingStreak.length > 0) {
-          log.debug("Streaks being reset", {
-            ...ctx,
-            usersLosingStreak: usersLosingStreak.map((u) => u.discordId).join(", "),
-          });
-          for (const row of usersLosingStreak) {
-            const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
-            await Promise.all(
-              members.map(async (m) => {
-                await updateMessageStreakInNickname(await m, 0, opId);
-              }),
-            );
+          const boostersUpdated = await setBoosterPerk(db, usersNeedingReset);
+          if (boostersUpdated > 0) {
+            log.debug("Boosters auto-credited", { ...ctx, count: boostersUpdated });
           }
+
+          await loseMessageStreakInNickname(db, opId, ctx, usersNeedingReset);
+
+          const result = await db
+            .update(userTable)
+            .set({
+              dailyPoints: 0,
+              dailyVoiceTime: 0,
+              lastDailyReset: new Date(),
+              messageStreak: sql`CASE WHEN ${userTable.isMessageStreakUpdatedToday} = false THEN 0 ELSE ${userTable.messageStreak} END`,
+              isMessageStreakUpdatedToday: false,
+              dailyMessages: 0,
+            })
+            .where(inArray(userTable.discordId, usersNeedingReset));
+          log.info("Daily reset complete", { ...ctx, usersReset: result.rowCount, ms: Date.now() - start });
+        } finally {
+          await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db, opId)));
         }
-
-        const result = await db
-          .update(userTable)
-          .set({
-            dailyPoints: 0,
-            dailyVoiceTime: 0,
-            lastDailyReset: new Date(),
-            messageStreak: sql`CASE WHEN ${userTable.isMessageStreakUpdatedToday} = false THEN 0 ELSE ${userTable.messageStreak} END`,
-            isMessageStreakUpdatedToday: false,
-            dailyMessages: 0,
-          })
-          .where(inArray(userTable.discordId, usersNeedingReset));
-
-        await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db, opId)));
-
-        log.info("Daily reset complete", { ...ctx, usersReset: result.rowCount, ms: Date.now() - start });
       });
     },
     "Daily reset processing",
@@ -152,4 +146,31 @@ async function setBoosterPerk(
     .where(inArray(userTable.discordId, boosters));
 
   return boosters.length;
+}
+
+async function loseMessageStreakInNickname(
+  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>,
+  opId: string,
+  ctx: { opId: string },
+  usersNeedingReset: string[],
+) {
+  const usersLosingStreak = await db
+    .select({ discordId: userTable.discordId })
+    .from(userTable)
+    .where(and(inArray(userTable.discordId, usersNeedingReset), eq(userTable.isMessageStreakUpdatedToday, false)));
+
+  if (usersLosingStreak.length > 0) {
+    log.debug("Streaks being reset", {
+      ...ctx,
+      usersLosingStreak: usersLosingStreak.map((u) => u.discordId).join(", "),
+    });
+    for (const row of usersLosingStreak) {
+      const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
+      await Promise.all(
+        members.map(async (m) => {
+          await updateMessageStreakInNickname(await m, 0, opId);
+        }),
+      );
+    }
+  }
 }

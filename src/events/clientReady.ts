@@ -31,7 +31,10 @@ export async function execute(c: Client<true>): Promise<void> {
   await alertOwner("Bot deployed successfully.", opId);
 }
 
-async function logDbUserRetention(client: Client, opId: string): Promise<{ staleUserIds: string[]; totalDbUsers: number }> {
+async function logDbUserRetention(
+  client: Client,
+  opId: string,
+): Promise<{ staleUserIds: string[]; totalDbUsers: number }> {
   const ctx = { opId };
   const oneMonthAgo = dayjs().subtract(1, "month").toDate();
 
@@ -71,7 +74,11 @@ async function deleteStaleUsers(staleUserIds: string[], totalDbUsers: number, op
   // Safety: don't delete if stale users are >50% of db (likely means guild cache is broken)
   const staleRatio = staleUserIds.length / totalDbUsers;
   if (staleRatio > 0.5) {
-    log.warn("Skipping stale user deletion - too many stale", { opId, stale: staleUserIds.length, total: totalDbUsers });
+    log.warn("Skipping stale user deletion - too many stale", {
+      opId,
+      stale: staleUserIds.length,
+      total: totalDbUsers,
+    });
     await alertOwner(`Skipped stale user deletion: ${staleUserIds.length}/${totalDbUsers} users stale (>50%)`, opId);
     return;
   }
