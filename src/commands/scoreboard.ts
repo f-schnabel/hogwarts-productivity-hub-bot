@@ -1,4 +1,10 @@
-import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, type MessageEditOptions } from "discord.js";
+import {
+  ChatInputCommandInteraction,
+  Collection,
+  GuildMember,
+  SlashCommandBuilder,
+  type MessageEditOptions,
+} from "discord.js";
 import { db, type Schema } from "../db/db.ts";
 import { and, desc, eq, gt, type ExtractTablesWithRelations } from "drizzle-orm";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
@@ -63,16 +69,24 @@ export async function getHousepointMessage(
     .orderBy(desc(userTable.monthlyPoints));
 
   const fetchStart = Date.now();
-  for (const row of leaderboard) {
-    const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
-    await Promise.all(
-      members.map(async (m) => {
-        const member = await m;
-        if (!member) return;
-        row.username = member.nickname ?? member.user.globalName ?? member.user.username;
-      }),
+  const discordIds = leaderboard.map((user) => user.discordId);
+  let members = new Collection<string, GuildMember>();
+  for (const [, guild] of client.guilds.cache) {
+    members = members.merge(
+      await guild.members.fetch({ user: discordIds }),
+      (x) => ({ keep: true, value: x }),
+      (x) => ({ keep: true, value: x }),
+      (x) => ({ keep: true, value: x }),
     );
   }
+
+  for (const user of leaderboard) {
+    const member = members.get(user.discordId);
+    if (member) {
+      user.username = member.nickname ?? member.user.globalName ?? member.user.username;
+    }
+  }
+
   log.debug("Member fetch", { opId, house, users: leaderboard.length, ms: Date.now() - fetchStart });
 
   const medalPadding = leaderboard.length.toString().length + 1;
