@@ -46,7 +46,7 @@ export default {
     const screenshot = interaction.options.getAttachment("screenshot", true);
     const house = getHouseFromMember(member);
     assert(house, "User does not have a house role assigned");
-    await db.transaction(async (db) => {
+    const submission = await db.transaction(async (db) => {
       const [houseId] = await db
         .select({ value: count() })
         .from(submissionTable)
@@ -63,10 +63,11 @@ export default {
           houseId: houseId.value + 1,
         })
         .returning();
-
       assert(submission, "Failed to create submission");
-      await interaction.editReply(submissionMessage(submission));
+      return submission;
     });
+
+    await interaction.editReply(submissionMessage(submission));
   },
 
   async buttonHandler(
