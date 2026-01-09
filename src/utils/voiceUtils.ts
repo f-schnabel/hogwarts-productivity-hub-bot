@@ -6,10 +6,11 @@ import type { NodePgDatabase, NodePgQueryResultHKT } from "drizzle-orm/node-post
 import type { VoiceSession } from "../types.ts";
 import type { GuildMember } from "discord.js";
 import assert from "node:assert/strict";
-import { awardPoints, calculatePoints } from "../services/pointsService.ts";
 import { updateYearRole } from "./yearRoleUtils.ts";
 import { createLogger } from "./logger.ts";
 import { formatDuration } from "./interactionUtils.ts";
+import { alertOwner } from "./alerting.ts";
+import { awardPoints, calculatePoints } from "../services/pointsService.ts";
 
 const log = createLogger("Voice");
 
@@ -39,6 +40,10 @@ export async function startVoiceSession(
 
     if (existingVoiceSessions.length > 0) {
       log.warn("Existing session found, closing first", { ...ctx, existingSessions: existingVoiceSessions.length });
+      await alertOwner(
+        `Existing voice session(s) found when starting new voice session for user ${session.username} (${session.discordId}) in channel ${channelName} (${channelId}). Closing existing session(s).`,
+        opId,
+      );
       await endVoiceSession(session, db, opId, false); // End existing session without tracking
     }
 
@@ -80,6 +85,10 @@ export async function endVoiceSession(
       );
     if (isTracked && existingVoiceSession.length !== 1) {
       log.error("Unexpected session count", { ...ctx, found: existingVoiceSession.length, expected: 1 });
+      await alertOwner(
+        `Unexpected session count when ending voice session for user ${session.username} (${session.discordId}) in channel ${session.channelName ?? "Unknown"} (${channelId}). Found ${existingVoiceSession.length}, expected 1.`,
+        opId,
+      );
       return;
     }
 

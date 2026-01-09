@@ -7,6 +7,27 @@ import { createLogger, OpId } from "../utils/logger.ts";
 
 const log = createLogger("VoiceEvent");
 
+// Per-user locks to serialize voice events and prevent race conditions on fast channel switches
+const userLocks = new Map<string, Promise<void>>();
+
+async function withUserLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+  const existingLock = userLocks.get(userId) ?? Promise.resolve();
+  let resolve: (() => void) | undefined;
+  const newLock = new Promise<void>((r) => (resolve = r));
+  userLocks.set(userId, newLock);
+
+  try {
+    await existingLock;
+    return await fn();
+  } finally {
+    if (resolve) resolve();
+    // Clean up if this is still the current lock
+    if (userLocks.get(userId) === newLock) {
+      userLocks.delete(userId);
+    }
+  }
+}
+
 export async function execute(oldState: VoiceState, newState: VoiceState) {
   const member = newState.member ?? oldState.member;
   if (!member || member.user.bot) return; // Ignore bots
@@ -45,21 +66,24 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
   await ensureUserExists(member, discordId, username);
   let event = "unknown";
 
+  // Serialize voice events per user to prevent race conditions on fast channel switches
   await wrapWithAlerting(
     async () => {
-      // User joined a voice channel
-      if (!oldChannel && newChannel) {
-        event = "join";
-        await startVoiceSession(newVoiceSession, db, opId);
-      } else if (oldChannel && !newChannel) {
-        event = "leave";
-        await endVoiceSession(oldVoiceSession, db, opId, true, member);
-      } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
-        event = "switch";
-        // For channel switches, end the old session and start new one immediately
-        await endVoiceSession(oldVoiceSession, db, opId, true, member);
-        await startVoiceSession(newVoiceSession, db, opId);
-      }
+      await withUserLock(discordId, async () => {
+        // User joined a voice channel
+        if (!oldChannel && newChannel) {
+          event = "join";
+          await startVoiceSession(newVoiceSession, db, opId);
+        } else if (oldChannel && !newChannel) {
+          event = "leave";
+          await endVoiceSession(oldVoiceSession, db, opId, true, member);
+        } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
+          event = "switch";
+          // For channel switches, end the old session and start new one immediately
+          await endVoiceSession(oldVoiceSession, db, opId, true, member);
+          await startVoiceSession(newVoiceSession, db, opId);
+        }
+      });
     },
     `Voice state update for ${username} (${discordId})`,
     opId,
