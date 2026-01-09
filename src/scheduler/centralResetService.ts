@@ -1,15 +1,13 @@
 import cron from "node-cron";
 import dayjs from "dayjs";
-import { db, fetchOpenVoiceSessions, type Schema } from "../db/db.ts";
+import { db, fetchOpenVoiceSessions, type Tx } from "../db/db.ts";
 import { userTable } from "../db/schema.ts";
-import { and, eq, inArray, sql, type ExtractTablesWithRelations } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { resetExecutionTimer } from "../monitoring.ts";
 import { client } from "../client.ts";
 import { updateMessageStreakInNickname } from "../utils/streakUtils.ts";
-import type { PgTransaction } from "drizzle-orm/pg-core";
-import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import { createLogger, OpId } from "../utils/logger.ts";
 
 const log = createLogger("Reset");
@@ -120,10 +118,7 @@ async function processDailyResets() {
   end({ action: "daily" });
 }
 
-async function setBoosterPerk(
-  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>,
-  usersNeedingReset: string[],
-): Promise<number> {
+async function setBoosterPerk(db: Tx, usersNeedingReset: string[]): Promise<number> {
   let boosters: string[] = [];
   client.guilds.cache.forEach((guild) => {
     if (guild.id === process.env.GUILD_ID) {
@@ -144,12 +139,7 @@ async function setBoosterPerk(
   return boosters.length;
 }
 
-async function loseMessageStreakInNickname(
-  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>,
-  opId: string,
-  ctx: { opId: string },
-  usersNeedingReset: string[],
-) {
+async function loseMessageStreakInNickname(db: Tx, opId: string, ctx: { opId: string }, usersNeedingReset: string[]) {
   const usersLosingStreak = await db
     .select({ discordId: userTable.discordId })
     .from(userTable)

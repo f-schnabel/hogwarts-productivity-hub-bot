@@ -1,8 +1,6 @@
-import { type Schema } from "../db/db.ts";
+import { type Tx } from "../db/db.ts";
 import { userTable, voiceSessionTable } from "../db/schema.ts";
-import { and, eq, inArray, isNull, sql, type ExtractTablesWithRelations } from "drizzle-orm";
-import type { PgTransaction } from "drizzle-orm/pg-core";
-import type { NodePgDatabase, NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { VoiceSession } from "../types.ts";
 import type { GuildMember } from "discord.js";
 import assert from "node:assert/strict";
@@ -17,11 +15,7 @@ const log = createLogger("Voice");
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
 // Start a voice session when user joins VC (timezone-aware)
-export async function startVoiceSession(
-  session: VoiceSession,
-  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | NodePgDatabase<Schema>,
-  opId: string,
-) {
+export async function startVoiceSession(session: VoiceSession, db: Tx, opId: string) {
   const channelId = session.channelId;
   const channelName = session.channelName;
   const ctx = { opId, userId: session.discordId, user: session.username, channel: channelName };
@@ -60,7 +54,7 @@ export async function startVoiceSession(
  */
 export async function endVoiceSession(
   session: VoiceSession,
-  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | NodePgDatabase<Schema>,
+  db: Tx,
   opId: string,
   isTracked = true,
   member?: GuildMember,

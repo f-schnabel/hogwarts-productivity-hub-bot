@@ -1,19 +1,12 @@
-import { eq, inArray, type ExtractTablesWithRelations } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import type { PgTransaction } from "drizzle-orm/pg-core";
-import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
-import type { Schema } from "../db/db.ts";
+import { db as globalDb, type DbOrTx } from "../db/db.ts";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
-import { updateScoreboardMessages } from "./scoreboardService.ts";
+import { getHousepointMessages, updateScoreboardMessages } from "./scoreboardService.ts";
 import { alertOwner } from "../utils/alerting.ts";
 import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "../utils/constants.ts";
 
-export async function awardPoints(
-  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | typeof import("../db/db.ts").db,
-  discordId: string,
-  points: number,
-  opId: string,
-) {
+export async function awardPoints(db: DbOrTx, discordId: string, points: number, opId: string) {
   // Update user's total points
   const house = await db
     .update(userTable)
@@ -28,10 +21,14 @@ export async function awardPoints(
 
   if (house) {
     const scoreboards = await db.select().from(houseScoreboardTable).where(eq(houseScoreboardTable.house, house));
-    const brokenIds = await updateScoreboardMessages(db, scoreboards, opId);
-    if (brokenIds.length > 0) {
-      await alertOwner(`Removed ${brokenIds.length} broken house scoreboard message entries for house ${house}.`, opId);
-      await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
+    if (scoreboards.length > 0) {
+      // fire-and-forget: don't block transaction on Discord API calls
+      void updateScoreboardMessages(await getHousepointMessages(db, scoreboards), opId).then(async (brokenIds) => {
+        if (brokenIds.length > 0) {
+          await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries for ${house}.`, opId);
+          await globalDb.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
+        }
+      });
     }
   }
 }

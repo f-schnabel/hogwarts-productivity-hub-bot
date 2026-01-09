@@ -7,7 +7,7 @@ import { db } from "../db/db.ts";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
 import { updateMessageStreakInNickname } from "../utils/streakUtils.ts";
-import { updateScoreboardMessages } from "../services/scoreboardService.ts";
+import { getHousepointMessages, updateScoreboardMessages } from "../services/scoreboardService.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 
 const log = createLogger("Startup");
@@ -99,7 +99,8 @@ async function refreshScoreboardMessages(opId: string) {
   const scoreboards = await db.select().from(houseScoreboardTable);
   if (scoreboards.length === 0) return;
 
-  const brokenIds = await updateScoreboardMessages(db, scoreboards, opId);
+  const brokenIds = await updateScoreboardMessages(await getHousepointMessages(db, scoreboards), opId);
+
   if (brokenIds.length > 0) {
     await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
     await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`, opId);

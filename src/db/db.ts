@@ -7,6 +7,9 @@ import type { PgTransaction } from "drizzle-orm/pg-core";
 
 export type Schema = typeof schema;
 
+export type Tx = PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>;
+export type DbOrTx = Tx | typeof import("../db/db.ts").db;
+
 class MyLogWriter implements LogWriter {
   write(message: string): void {
     console.debug(message);
@@ -46,10 +49,7 @@ export async function fetchUserTimezone(discordId: string) {
     .then((rows) => rows[0]?.timezone ?? "UTC");
 }
 
-export async function fetchOpenVoiceSessions(
-  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>,
-  usersNeedingReset: string[] | null = null,
-) {
+export async function fetchOpenVoiceSessions(db: Tx, usersNeedingReset: string[] | null = null) {
   return await db
     .select({
       discordId: schema.voiceSessionTable.discordId,
