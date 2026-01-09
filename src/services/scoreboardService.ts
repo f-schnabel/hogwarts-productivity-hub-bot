@@ -17,12 +17,11 @@ export interface ScoreboardEntry {
   message: MessageEditOptions;
 }
 
-export async function getHousepointMessages(
+export async function getHousepointMessages<T extends { house: House }>(
   db: DbOrTx,
-  scoreboards: Omit<ScoreboardEntry, "message">[],
-): Promise<ScoreboardEntry[]> {
-  const result: ScoreboardEntry[] = [];
-
+  scoreboards: T[],
+): Promise<(T & { message: MessageEditOptions })[]> {
+  const result: (T & { message: MessageEditOptions })[] = [];
   for (const scoreboard of scoreboards) {
     const leaderboard = await db
       .select()

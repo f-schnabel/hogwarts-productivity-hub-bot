@@ -4,7 +4,8 @@ import { houseScoreboardTable } from "../db/schema.ts";
 import type { Command, CommandOptions, House } from "../types.ts";
 import { hasAnyRole, Role } from "../utils/roleUtils.ts";
 import { replyError } from "../utils/interactionUtils.ts";
-import { getHousepointMessage } from "../services/scoreboardService.ts";
+import { getHousepointMessages } from "../services/scoreboardService.ts";
+import assert from "node:assert";
 
 export default {
   data: new SlashCommandBuilder()
@@ -33,8 +34,9 @@ export default {
 
     const house = interaction.options.getString("house", true) as House;
     await db.transaction(async (db) => {
-      const scoreboardMessage = await getHousepointMessage(db, house);
-      const message = await interaction.editReply(scoreboardMessage);
+      const [scoreboardMessage] = await getHousepointMessages(db, [{ house }]);
+      assert(scoreboardMessage, `No scoreboard found for house ${house}`);
+      const message = await interaction.editReply(scoreboardMessage.message);
 
       await db.insert(houseScoreboardTable).values({
         house,
