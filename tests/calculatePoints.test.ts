@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculatePoints, calculatePointsHelper } from "../src/utils/voiceUtils.ts";
+import { calculatePoints, calculatePointsHelper } from "../src/services/pointsService.ts";
 import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "../src/utils/constants.ts";
 
 describe("Calculate Points Tests", () => {
