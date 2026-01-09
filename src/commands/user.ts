@@ -3,10 +3,11 @@ import dayjs from "dayjs";
 import { db } from "../db/db.ts";
 import { settingsTable, submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, asc, eq, gte } from "drizzle-orm";
-import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
+import { hasAnyRole, Role } from "../utils/roleUtils.ts";
+import { formatDuration, replyError } from "../utils/interactionUtils.ts";
 import { BOT_COLORS, SETTINGS_KEYS } from "../utils/constants.ts";
-import { calculatePointsHelper, formatDuration } from "../utils/voiceUtils.ts";
 import type { CommandOptions } from "../types.ts";
+import { calculatePointsHelper } from "../services/pointsService.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -51,7 +52,12 @@ export default {
         await pointsDetailed(interaction, opId);
         break;
       default:
-        await replyError(opId, interaction, "Invalid Subcommand", "Please use `/user time`, `/user points`, or `/user points-detailed`.");
+        await replyError(
+          opId,
+          interaction,
+          "Invalid Subcommand",
+          "Please use `/user time`, `/user points`, or `/user points-detailed`.",
+        );
         return;
     }
   },

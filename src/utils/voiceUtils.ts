@@ -1,15 +1,15 @@
 import { type Schema } from "../db/db.ts";
 import { userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, eq, inArray, isNull, sql, type ExtractTablesWithRelations } from "drizzle-orm";
-import { FIRST_HOUR_POINTS, REST_HOURS_POINTS, MAX_HOURS_PER_DAY } from "../utils/constants.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgDatabase, NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import type { VoiceSession } from "../types.ts";
 import type { GuildMember } from "discord.js";
 import assert from "node:assert/strict";
-import { awardPoints } from "./utils.ts";
+import { awardPoints, calculatePoints } from "../services/pointsService.ts";
 import { updateYearRole } from "./yearRoleUtils.ts";
 import { createLogger } from "./logger.ts";
+import { formatDuration } from "./interactionUtils.ts";
 
 const log = createLogger("Voice");
 
@@ -153,44 +153,4 @@ export async function endVoiceSession(
       await updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
     }
   });
-}
-
-export function calculatePointsHelper(voiceTime: number): number {
-  const ONE_HOUR = 60 * 60;
-  const FIVE_MINUTES = 5 * 60;
-
-  // 5 min grace period
-  voiceTime += FIVE_MINUTES;
-  // Convert seconds to hours
-  voiceTime = Math.floor(voiceTime / ONE_HOUR);
-
-  if (voiceTime < 1) {
-    return 0; // No points for less than an hour
-  }
-
-  let points = FIRST_HOUR_POINTS;
-
-  if (voiceTime >= 2) {
-    const hoursCapped = Math.min(voiceTime, MAX_HOURS_PER_DAY) - 1;
-
-    points += REST_HOURS_POINTS * hoursCapped;
-  }
-
-  return points;
-}
-
-export function calculatePoints(oldDailyVoiceTime: number, newDailyVoiceTime: number): number {
-  return calculatePointsHelper(newDailyVoiceTime) - calculatePointsHelper(oldDailyVoiceTime);
-}
-
-export function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-
-  const parts = [];
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}min`);
-  if (secs > 0 || parts.length === 0) parts.push(`${secs}sec`);
-  return parts.join(" ");
 }

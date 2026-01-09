@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import { db, fetchUserTimezone } from "../db/db.ts";
 import { userTable } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
-import { replyError } from "../utils/utils.ts";
+import { replyError } from "../utils/interactionUtils.ts";
 import type { CommandOptions } from "../types.ts";
 
 export default {

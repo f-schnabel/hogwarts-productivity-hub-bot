@@ -7,7 +7,7 @@ import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { resetExecutionTimer } from "../monitoring.ts";
 import { client } from "../client.ts";
-import { updateMessageStreakInNickname } from "../utils/utils.ts";
+import { updateMessageStreakInNickname } from "../utils/streakUtils.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import { createLogger, OpId } from "../utils/logger.ts";

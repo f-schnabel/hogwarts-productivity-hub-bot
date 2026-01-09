@@ -12,7 +12,10 @@ import {
   userMention,
   type InteractionReplyOptions,
 } from "discord.js";
-import { awardPoints, getHouseFromMember, hasAnyRole, replyError, Role } from "../utils/utils.ts";
+import { awardPoints } from "../services/pointsService.ts";
+import { getHouseFromMember } from "../utils/houseUtils.ts";
+import { hasAnyRole, Role } from "../utils/roleUtils.ts";
+import { replyError } from "../utils/interactionUtils.ts";
 import assert from "node:assert";
 import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";

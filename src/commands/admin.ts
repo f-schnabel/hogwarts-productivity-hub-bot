@@ -1,6 +1,8 @@
 import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from "discord.js";
 import { db } from "../db/db.ts";
-import { awardPoints, hasAnyRole, replyError, Role } from "../utils/utils.ts";
+import { awardPoints } from "../services/pointsService.ts";
+import { hasAnyRole, Role } from "../utils/roleUtils.ts";
+import { replyError } from "../utils/interactionUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { settingsTable, userTable } from "../db/schema.ts";
 import { SETTINGS_KEYS } from "../utils/constants.ts";

@@ -1,12 +1,13 @@
 import type { Client } from "discord.js";
 import dayjs from "dayjs";
 import { commands } from "../commands.ts";
-import * as VoiceStateScanner from "../utils/voiceStateScanner.ts";
+import * as VoiceStateScanner from "../services/voiceStateScanner.ts";
 import { alertOwner } from "../utils/alerting.ts";
 import { db } from "../db/db.ts";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
-import { updateMessageStreakInNickname, updateScoreboardMessages } from "../utils/utils.ts";
+import { updateMessageStreakInNickname } from "../utils/streakUtils.ts";
+import { updateScoreboardMessages } from "../services/scoreboardService.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 
 const log = createLogger("Startup");

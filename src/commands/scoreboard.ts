@@ -1,13 +1,10 @@
-import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, type MessageEditOptions } from "discord.js";
-import { db, type Schema } from "../db/db.ts";
-import { and, desc, eq, gt, type ExtractTablesWithRelations } from "drizzle-orm";
-import { houseScoreboardTable, userTable } from "../db/schema.ts";
+import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from "discord.js";
+import { db } from "../db/db.ts";
+import { houseScoreboardTable } from "../db/schema.ts";
 import type { Command, CommandOptions, House } from "../types.ts";
-import { HOUSE_COLORS } from "../utils/constants.ts";
-import { client } from "../client.ts";
-import { hasAnyRole, replyError, Role } from "../utils/utils.ts";
-import type { PgTransaction } from "drizzle-orm/pg-core";
-import type { NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
+import { hasAnyRole, Role } from "../utils/roleUtils.ts";
+import { replyError } from "../utils/interactionUtils.ts";
+import { getHousepointMessage } from "../services/scoreboardService.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -47,68 +44,3 @@ export default {
     });
   },
 } as Command;
-
-export async function getHousepointMessage(
-  db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>> | typeof import("../db/db.ts").db,
-  house: House,
-): Promise<MessageEditOptions> {
-  const leaderboard = await db
-    .select()
-    .from(userTable)
-    .where(and(eq(userTable.house, house), gt(userTable.monthlyPoints, 0)))
-    .orderBy(desc(userTable.monthlyPoints));
-
-  for (const [, guild] of client.guilds.cache) {
-    if (guild.id !== process.env.GUILD_ID) continue;
-
-    for (const user of leaderboard) {
-      const member = guild.members.cache.get(user.discordId);
-      if (member) {
-        user.username = member.nickname ?? member.user.globalName ?? member.user.username;
-      }
-    }
-  }
-
-  const medalPadding = leaderboard.length.toString().length + 1;
-  const longestNameLength = leaderboard.length
-    ? Math.min(Math.max(...leaderboard.map((user) => user.username.length)), 32)
-    : 0;
-
-  // Create table header
-  let description = "```\n";
-  description += `${"#".padStart(medalPadding)} ${"Points".padStart(6)}  Name\n`;
-  description += "━".repeat(medalPadding + 6 + 2 + longestNameLength) + "\n";
-
-  // Add each user row
-  leaderboard.forEach((user, index) => {
-    const position = index + 1;
-
-    const medals = ["🥇", "🥈", "🥉"];
-    const medal = medals[position - 1] ?? `${position}`;
-    const points = user.monthlyPoints.toString().padStart(6);
-    const name = user.username.substring(0, 32);
-
-    description += `${medal.padStart(medalPadding)} ${points}  ${name}\n`;
-  });
-
-  description += "```";
-
-  return {
-    embeds: [
-      {
-        color: HOUSE_COLORS[house],
-        title: house.toUpperCase(),
-        description: description,
-        footer: {
-          text: `Last updated • ${new Date().toLocaleString("en-US", {
-            month: "long",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })} UTC`,
-        },
-      },
-    ],
-  };
-}

@@ -7,11 +7,11 @@
 
 import { client } from "../client.ts";
 import { BaseGuildVoiceChannel, ChannelType, Collection, type Guild } from "discord.js";
-import { endVoiceSession, startVoiceSession } from "./voiceUtils.ts";
+import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { db, ensureUserExists } from "../db/db.ts";
 import { voiceSessionTable } from "../db/schema.ts";
 import { isNull } from "drizzle-orm";
-import { createLogger, OpId } from "./logger.ts";
+import { createLogger, OpId } from "../utils/logger.ts";
 
 const log = createLogger("VoiceScan");
 

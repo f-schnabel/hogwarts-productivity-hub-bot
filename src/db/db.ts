@@ -2,7 +2,7 @@ import { drizzle, type NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import * as schema from "./schema.ts";
 import type { GuildMember } from "discord.js";
 import { eq, and, type ExtractTablesWithRelations, isNull, inArray, DefaultLogger, type LogWriter } from "drizzle-orm";
-import { getHouseFromMember } from "../utils/utils.ts";
+import { getHouseFromMember } from "../utils/houseUtils.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 
 export type Schema = typeof schema;
