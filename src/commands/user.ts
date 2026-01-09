@@ -276,9 +276,7 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: st
       : "No sessions";
 
   // Truncate if too long for embed
-  const maxLen = 4000;
-  const truncatedLines =
-    sessionLines.length > maxLen ? sessionLines.slice(0, maxLen) + "\n... (truncated)" : sessionLines;
+  const truncatedLines = sessionLines;
 
   await interaction.editReply({
     embeds: [
