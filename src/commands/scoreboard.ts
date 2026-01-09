@@ -69,21 +69,14 @@ export async function getHousepointMessage(
     .orderBy(desc(userTable.monthlyPoints));
 
   const fetchStart = Date.now();
-  const discordIds = leaderboard.map((user) => user.discordId);
-  let members = new Collection<string, GuildMember>();
   for (const [, guild] of client.guilds.cache) {
-    members = members.merge(
-      await guild.members.fetch({ user: discordIds }),
-      (x) => ({ keep: true, value: x }),
-      (x) => ({ keep: true, value: x }),
-      (x) => ({ keep: true, value: x }),
-    );
-  }
+    if (guild.id !== process.env.GUILD_ID) continue;
 
-  for (const user of leaderboard) {
-    const member = members.get(user.discordId);
-    if (member) {
-      user.username = member.nickname ?? member.user.globalName ?? member.user.username;
+    for (const user of leaderboard) {
+      const member = guild.members.cache.get(user.discordId);
+      if (member) {
+        user.username = member.nickname ?? member.user.globalName ?? member.user.username;
+      }
     }
   }
 

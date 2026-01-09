@@ -57,10 +57,7 @@ async function processDailyResets() {
         // Get guild members to filter out users who left
         const guildMemberIds = new Set<string>();
         for (const guild of client.guilds.cache.values()) {
-          log.debug("Cache size before fetch", { guildId: guild.id, size: guild.members.cache.size, opId });
-          const members = await guild.members.fetch();
-          log.debug("Cache size after fetch", { guildId: guild.id, size: guild.members.cache.size, opId });
-          for (const memberId of members.keys()) {
+          for (const memberId of guild.members.cache.keys()) {
             guildMemberIds.add(memberId);
           }
         }
@@ -127,15 +124,14 @@ async function setBoosterPerk(
   db: PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>,
   usersNeedingReset: string[],
 ): Promise<number> {
-  const boosters = await client.guilds
-    .fetch(process.env.GUILD_ID)
-    .then((guild) => guild.members.fetch())
-    .then((members) =>
-      members
+  let boosters: string[] = [];
+  client.guilds.cache.forEach((guild) => {
+    if (guild.id === process.env.GUILD_ID) {
+      boosters = guild.members.cache
         .filter((member) => member.premiumSince !== null && usersNeedingReset.includes(member.id))
-        .map((member) => member.id),
-    );
-
+        .map((member) => member.id);
+    }
+  });
   if (boosters.length === 0) return 0;
 
   await db
@@ -164,13 +160,14 @@ async function loseMessageStreakInNickname(
       ...ctx,
       usersLosingStreak: usersLosingStreak.map((u) => u.discordId).join(", "),
     });
-    for (const row of usersLosingStreak) {
-      const members = client.guilds.cache.map((guild) => guild.members.fetch(row.discordId).catch(() => null));
-      await Promise.all(
-        members.map(async (m) => {
-          await updateMessageStreakInNickname(await m, 0, opId);
-        }),
-      );
+    for (const guild of client.guilds.cache.values()) {
+      if (guild.id !== process.env.GUILD_ID) continue;
+
+      for (const row of usersLosingStreak) {
+        const member = guild.members.cache.get(row.discordId);
+        if (!member) continue;
+        await updateMessageStreakInNickname(member, 0, opId);
+      }
     }
   }
 }

@@ -6,6 +6,7 @@ import assert from "node:assert";
 import { client } from "../client.ts";
 import type { House } from "../types.ts";
 import { HOUSE_COLORS } from "./constants.ts";
+import { isNotNull } from "drizzle-orm";
 
 const log = createLogger("YearRole");
 
@@ -98,13 +99,15 @@ export async function refreshAllYearRoles(guild: Guild, opId: string): Promise<n
 
   const users = await db
     .select({ discordId: userTable.discordId, monthlyVoiceTime: userTable.monthlyVoiceTime, house: userTable.house })
-    .from(userTable);
+    .from(userTable)
+    .where(isNotNull(userTable.house));
   let updated = 0;
 
   for (const user of users) {
-    if (!user.house) continue;
     try {
-      const member = await guild.members.fetch(user.discordId);
+      assert(user.house, "User house should be defined");
+      const member = guild.members.cache.get(user.discordId);
+      if (!member) continue;
       await updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
       updated++;
     } catch {
