@@ -69,7 +69,6 @@ export async function getHousepointMessage(
     }
   }
 
-
   const medalPadding = leaderboard.length.toString().length + 1;
   const longestNameLength = leaderboard.length
     ? Math.min(Math.max(...leaderboard.map((user) => user.username.length)), 32)
