@@ -37,9 +37,8 @@ async function processDailyResets() {
   const start = Date.now();
   const end = resetExecutionTimer.startTimer();
   const opId = OpId.rst();
-  const ctx = { opId };
 
-  log.debug("Daily reset start", ctx);
+  log.debug("Daily reset start", { opId });
 
   await wrapWithAlerting(
     async () => {
@@ -74,13 +73,13 @@ async function processDailyResets() {
         }
 
         if (usersNeedingReset.length === 0) {
-          log.debug("No users need reset", ctx);
+          log.debug("No users need reset", { opId });
           return;
         }
 
         const usersInVoiceSessions = await fetchOpenVoiceSessions(db, usersNeedingReset);
         log.info("Users identified", {
-          ...ctx,
+          opId,
           total: usersNeedingReset.length,
           inVoice: usersInVoiceSessions.map((s) => s.discordId).join(", "),
         });
@@ -90,10 +89,10 @@ async function processDailyResets() {
 
           const boostersUpdated = await setBoosterPerk(db, usersNeedingReset);
           if (boostersUpdated > 0) {
-            log.debug("Boosters auto-credited", { ...ctx, count: boostersUpdated });
+            log.debug("Boosters auto-credited", { opId, count: boostersUpdated });
           }
 
-          await loseMessageStreakInNickname(db, opId, ctx, usersNeedingReset);
+          await loseMessageStreakInNickname(db, opId, usersNeedingReset);
 
           const result = await db
             .update(userTable)
@@ -106,7 +105,7 @@ async function processDailyResets() {
               dailyMessages: 0,
             })
             .where(inArray(userTable.discordId, usersNeedingReset));
-          log.info("Daily reset complete", { ...ctx, usersReset: result.rowCount, ms: Date.now() - start });
+          log.info("Daily reset complete", { opId, usersReset: result.rowCount, ms: Date.now() - start });
         } finally {
           await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db, opId)));
         }
@@ -139,7 +138,7 @@ async function setBoosterPerk(db: Tx, usersNeedingReset: string[]): Promise<numb
   return boosters.length;
 }
 
-async function loseMessageStreakInNickname(db: Tx, opId: string, ctx: { opId: string }, usersNeedingReset: string[]) {
+async function loseMessageStreakInNickname(db: Tx, opId: string, usersNeedingReset: string[]) {
   const usersLosingStreak = await db
     .select({ discordId: userTable.discordId })
     .from(userTable)
@@ -147,7 +146,7 @@ async function loseMessageStreakInNickname(db: Tx, opId: string, ctx: { opId: st
 
   if (usersLosingStreak.length > 0) {
     log.debug("Streaks being reset", {
-      ...ctx,
+      opId,
       usersLosingStreak: usersLosingStreak.map((u) => u.discordId).join(", "),
     });
     for (const guild of client.guilds.cache.values()) {

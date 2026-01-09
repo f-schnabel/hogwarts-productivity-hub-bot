@@ -14,9 +14,8 @@ const log = createLogger("Startup");
 
 export async function execute(c: Client<true>): Promise<void> {
   const opId = OpId.start();
-  const ctx = { opId };
 
-  log.info("Bot starting", { ...ctx, user: c.user.tag, clientId: c.user.id, commands: commands.size });
+  log.info("Bot starting", { opId, user: c.user.tag, clientId: c.user.id, commands: commands.size });
 
   try {
     // fetch all members to ensure cache is populated
@@ -30,10 +29,10 @@ export async function execute(c: Client<true>): Promise<void> {
     await deleteStaleUsers(staleUserIds, totalDbUsers, opId);
     await refreshScoreboardMessages(opId);
   } catch (error) {
-    log.error("Initialization failed", ctx, error);
+    log.error("Initialization failed", { opId }, error);
     process.exit(1);
   }
-  log.info("Bot ready", ctx);
+  log.info("Bot ready", { opId });
   await alertOwner("Bot deployed successfully.", opId);
 }
 
@@ -41,7 +40,6 @@ async function logDbUserRetention(
   client: Client,
   opId: string,
 ): Promise<{ staleUserIds: string[]; totalDbUsers: number }> {
-  const ctx = { opId };
   const oneMonthAgo = dayjs().subtract(1, "month").toDate();
 
   const dbUsers = await db.select({ discordId: userTable.discordId, updatedAt: userTable.updatedAt }).from(userTable);
@@ -56,7 +54,7 @@ async function logDbUserRetention(
 
   const foundCount = dbUsers.filter((u) => guildMemberIds.has(u.discordId)).length;
   const percentage = dbUsers.length > 0 ? ((foundCount / dbUsers.length) * 100).toFixed(1) : "0";
-  log.info("DB user retention", { ...ctx, found: foundCount, total: dbUsers.length, pct: `${percentage}%` });
+  log.info("DB user retention", { opId, found: foundCount, total: dbUsers.length, pct: `${percentage}%` });
 
   // If less than 100 users found, alert and skip deletion (likely guild cache is broken)
   if (foundCount < 100) {
@@ -95,7 +93,6 @@ async function deleteStaleUsers(staleUserIds: string[], totalDbUsers: number, op
 }
 
 async function refreshScoreboardMessages(opId: string) {
-  const ctx = { opId };
   const scoreboards = await db.select().from(houseScoreboardTable);
   if (scoreboards.length === 0) return;
 
@@ -106,15 +103,14 @@ async function refreshScoreboardMessages(opId: string) {
     await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`, opId);
   }
   log.info("Scoreboards refreshed", {
-    ...ctx,
+    opId,
     refreshed: scoreboards.length - brokenIds.length,
     broken: brokenIds.length,
   });
 }
 
 async function resetNicknameStreaks(client: Client, opId: string) {
-  const ctx = { opId };
-  log.debug("Resetting nickname streaks", { ...ctx, guildsCache: client.guilds.cache.size });
+  log.debug("Resetting nickname streaks", { opId, guildsCache: client.guilds.cache.size });
 
   const discordIdsToStreak = await db
     .select({
@@ -132,6 +128,8 @@ async function resetNicknameStreaks(client: Client, opId: string) {
   const discordIds = new Set(Object.keys(discordIdsToStreak));
 
   for (const guild of client.guilds.cache.values()) {
+    if (guild.id !== process.env.GUILD_ID) continue;
+
     const membersToReset = guild.members.cache.filter(
       (member) =>
         !discordIds.has(member.id) && member.guild.ownerId !== member.user.id && member.nickname?.match(/⚡\d+$/),
@@ -144,7 +142,7 @@ async function resetNicknameStreaks(client: Client, opId: string) {
     );
 
     log.debug("Processing guild nicknames", {
-      ...ctx,
+      opId,
       guild: guild.name,
       membersCache: guild.members.cache.size,
       toReset: membersToReset.size,
