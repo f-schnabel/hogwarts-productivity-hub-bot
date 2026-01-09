@@ -267,10 +267,10 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: st
     mergedSessions.length > 0
       ? mergedSessions
           .map((s) => {
-            const joinStr = dayjs(s.joinedAt).tz(tz).format("MMM D HH:mm");
+            const joinStr = dayjs(s.joinedAt).tz(tz).format("D HH:mm");
             const leftStr = s.leftAt ? dayjs(s.leftAt).tz(tz).format("HH:mm") : "ongoing";
             const channel = s.channelName ?? "Unknown";
-            return `• ${joinStr}-${leftStr} **${channel}** (${formatDuration(s.duration)})`;
+            return `• ${joinStr}-${leftStr} **${channel.slice(0, 3)}** (${formatDuration(s.duration)})`;
           })
           .join("\n")
       : "No sessions";
