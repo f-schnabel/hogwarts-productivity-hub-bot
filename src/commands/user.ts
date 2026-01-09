@@ -27,6 +27,14 @@ export default {
         .addUserOption((option) =>
           option.setName("user").setDescription("The user to view points for").setRequired(true),
         ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("points-detailed")
+        .setDescription("View all individual sessions this month (OWNER/PREFECT only)")
+        .addUserOption((option) =>
+          option.setName("user").setDescription("The user to view sessions for").setRequired(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
@@ -39,8 +47,11 @@ export default {
       case "points":
         await points(interaction, opId);
         break;
+      case "points-detailed":
+        await pointsDetailed(interaction, opId);
+        break;
       default:
-        await replyError(opId, interaction, "Invalid Subcommand", "Please use `/user time` or `/user points`.");
+        await replyError(opId, interaction, "Invalid Subcommand", "Please use `/user time`, `/user points`, or `/user points-detailed`.");
         return;
     }
   },
@@ -169,6 +180,113 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
           },
         ],
         footer: { text: `Month: ${dayjs().format("MMMM YYYY")}` },
+      },
+    ],
+  });
+}
+
+async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: string) {
+  const member = interaction.member as GuildMember;
+  if (!hasAnyRole(member, Role.OWNER | Role.PREFECT)) {
+    await replyError(opId, interaction, "Insufficient Permissions", "Only OWNER or PREFECT can use this command.");
+    return;
+  }
+
+  const user = interaction.options.getUser("user", true);
+  const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
+
+  if (!userData) {
+    await replyError(opId, interaction, "User Not Found", `${user.username} is not registered.`);
+    return;
+  }
+
+  // Get last monthly reset timestamp from settings
+  const [setting] = await db
+    .select()
+    .from(settingsTable)
+    .where(eq(settingsTable.key, SETTINGS_KEYS.LAST_MONTHLY_RESET));
+  const startOfMonth = setting ? new Date(setting.value) : dayjs().startOf("month").toDate();
+
+  // Get tracked voice sessions this month, ordered by joinedAt for merging
+  const voiceSessions = await db
+    .select({
+      duration: voiceSessionTable.duration,
+      channelName: voiceSessionTable.channelName,
+      joinedAt: voiceSessionTable.joinedAt,
+      leftAt: voiceSessionTable.leftAt,
+      points: voiceSessionTable.points,
+    })
+    .from(voiceSessionTable)
+    .where(
+      and(
+        eq(voiceSessionTable.discordId, user.id),
+        eq(voiceSessionTable.isTracked, true),
+        gte(voiceSessionTable.leftAt, startOfMonth),
+      ),
+    )
+    .orderBy(asc(voiceSessionTable.joinedAt));
+
+  const tz = userData.timezone;
+
+  // Merge consecutive sessions (same channel, leftAt == joinedAt of next, not at midnight boundary)
+  interface MergedSession {
+    channelName: string | null;
+    joinedAt: Date;
+    leftAt: Date | null;
+    duration: number;
+  }
+  const mergedSessions: MergedSession[] = [];
+
+  for (const session of voiceSessions) {
+    const last = mergedSessions[mergedSessions.length - 1];
+    const sessionJoinedAt = session.joinedAt;
+    const sessionLeftAt = session.leftAt;
+
+    // Check if should merge: same channel, consecutive (within 2 sec tolerance), not crossing midnight
+    const shouldMerge =
+      last?.channelName === session.channelName &&
+      last.leftAt &&
+      Math.abs(last.leftAt.getTime() - sessionJoinedAt.getTime()) < 2000 &&
+      dayjs(last.leftAt).tz(tz).format("YYYY-MM-DD") === dayjs(sessionJoinedAt).tz(tz).format("YYYY-MM-DD");
+
+    if (shouldMerge) {
+      last.leftAt = sessionLeftAt;
+      last.duration += session.duration ?? 0;
+    } else {
+      mergedSessions.push({
+        channelName: session.channelName,
+        joinedAt: sessionJoinedAt,
+        leftAt: sessionLeftAt,
+        duration: session.duration ?? 0,
+      });
+    }
+  }
+
+  // Build session lines
+  const sessionLines =
+    mergedSessions.length > 0
+      ? mergedSessions
+          .map((s) => {
+            const joinStr = dayjs(s.joinedAt).tz(tz).format("MMM D HH:mm");
+            const leftStr = s.leftAt ? dayjs(s.leftAt).tz(tz).format("HH:mm") : "ongoing";
+            const channel = s.channelName ?? "Unknown";
+            return `• ${joinStr}-${leftStr} **${channel}** (${formatDuration(s.duration)})`;
+          })
+          .join("\n")
+      : "No sessions";
+
+  // Truncate if too long for embed
+  const maxLen = 4000;
+  const truncatedLines =
+    sessionLines.length > maxLen ? sessionLines.slice(0, maxLen) + "\n... (truncated)" : sessionLines;
+
+  await interaction.editReply({
+    embeds: [
+      {
+        color: BOT_COLORS.INFO,
+        title: `${user.displayName}'s Detailed Sessions`,
+        description: truncatedLines,
+        footer: { text: `Month: ${dayjs().format("MMMM YYYY")} | TZ: ${tz}` },
       },
     ],
   });
