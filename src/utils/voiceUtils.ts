@@ -1,4 +1,4 @@
-import { type Tx } from "../db/db.ts";
+import { type DbOrTx } from "../db/db.ts";
 import { userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { VoiceSession } from "../types.ts";
@@ -15,7 +15,7 @@ const log = createLogger("Voice");
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
 // Start a voice session when user joins VC (timezone-aware)
-export async function startVoiceSession(session: VoiceSession, db: Tx, opId: string) {
+export async function startVoiceSession(session: VoiceSession, db: DbOrTx, opId: string) {
   const channelId = session.channelId;
   const channelName = session.channelName;
   const ctx = { opId, userId: session.discordId, user: session.username, channel: channelName };
@@ -54,7 +54,7 @@ export async function startVoiceSession(session: VoiceSession, db: Tx, opId: str
  */
 export async function endVoiceSession(
   session: VoiceSession,
-  db: Tx,
+  db: DbOrTx,
   opId: string,
   isTracked = true,
   member?: GuildMember,

@@ -8,7 +8,7 @@ import type { PgTransaction } from "drizzle-orm/pg-core";
 export type Schema = typeof schema;
 
 export type Tx = PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>;
-export type DbOrTx = Tx | typeof import("../db/db.ts").db;
+export type DbOrTx = Tx | typeof db;
 
 class MyLogWriter implements LogWriter {
   write(message: string): void {
