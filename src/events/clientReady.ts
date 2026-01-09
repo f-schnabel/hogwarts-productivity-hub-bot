@@ -18,6 +18,11 @@ export async function execute(c: Client<true>): Promise<void> {
   log.info("Bot starting", { ...ctx, user: c.user.tag, clientId: c.user.id, commands: commands.size });
 
   try {
+    // fetch all members to ensure cache is populated
+    for (const guild of c.guilds.cache.values()) {
+      await guild.members.fetch();
+    }
+
     await VoiceStateScanner.scanAndStartTracking(opId);
     await resetNicknameStreaks(c, opId);
     const { staleUserIds, totalDbUsers } = await logDbUserRetention(c, opId);
@@ -125,14 +130,10 @@ async function resetNicknameStreaks(client: Client, opId: string) {
   const discordIds = new Set(Object.keys(discordIdsToStreak));
 
   for (const guild of client.guilds.cache.values()) {
-    const membersToReset = await guild.members
-      .fetch()
-      .then((members) =>
-        members.filter(
-          (member) =>
-            !discordIds.has(member.id) && member.guild.ownerId !== member.user.id && member.nickname?.match(/⚡\d+$/),
-        ),
-      );
+    const membersToReset = guild.members.cache.filter(
+      (member) =>
+        !discordIds.has(member.id) && member.guild.ownerId !== member.user.id && member.nickname?.match(/⚡\d+$/),
+    );
     const membersToUpdate = guild.members.cache.filter(
       (member) =>
         discordIds.has(member.id) &&
