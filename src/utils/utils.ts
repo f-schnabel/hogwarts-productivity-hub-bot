@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, type GuildMember, type Message, type MessageEditOptions } from "discord.js";
+import { ChatInputCommandInteraction, type GuildMember, type MessageEditOptions } from "discord.js";
 import assert from "node:assert/strict";
 import type { House } from "../types.ts";
 import { eq, inArray, sql, type ExtractTablesWithRelations } from "drizzle-orm";
@@ -13,9 +13,6 @@ import { alertOwner } from "./alerting.ts";
 import { createLogger } from "./logger.ts";
 
 const log = createLogger("Utils");
-
-// Cache for message fetches (persists between awardPoints calls)
-const messageCache = new Map<string, Message>();
 
 export interface ScoreboardEntry {
   id: number;
@@ -32,35 +29,15 @@ export async function updateScoreboardMessages(
 ): Promise<number[]> {
   const start = Date.now();
   const brokenIds: number[] = [];
-  const houseScoreboardCache = new Map<House, MessageEditOptions>();
+  const houseScoreboard = new Map<House, MessageEditOptions>();
+  for (const house of new Set(scoreboards.map((s) => s.house))) {
+    houseScoreboard.set(house, await getHousepointMessage(db, house));
+  }
 
   for (const scoreboard of scoreboards) {
-    // Compute house message data once per house
-    if (!houseScoreboardCache.has(scoreboard.house)) {
-      houseScoreboardCache.set(scoreboard.house, await getHousepointMessage(db, scoreboard.house, opId));
-    }
-    const scoreboardText = houseScoreboardCache.get(scoreboard.house);
+    const scoreboardText = houseScoreboard.get(scoreboard.house);
     assert(scoreboardText, "House message data should be cached at this point");
 
-    // Try cached message first
-    const cachedMessage = messageCache.get(scoreboard.messageId);
-    if (cachedMessage) {
-      try {
-        const editStart = Date.now();
-        await cachedMessage.edit(scoreboardText);
-        log.debug("Message edit (cached)", { opId, msgId: scoreboard.messageId, ms: Date.now() - editStart });
-        continue;
-      } catch {
-        log.warn("Cached message edit failed, refetching", {
-          opId,
-          messageId: scoreboard.messageId,
-          channelId: scoreboard.channelId,
-        });
-        messageCache.delete(scoreboard.messageId);
-      }
-    }
-
-    // Fetch fresh and retry
     try {
       const fetchStart = Date.now();
       const channel = await client.channels.fetch(scoreboard.channelId);
@@ -69,9 +46,8 @@ export async function updateScoreboardMessages(
         continue;
       }
       const message = await channel.messages.fetch(scoreboard.messageId);
-      messageCache.set(scoreboard.messageId, message);
       await message.edit(scoreboardText);
-      log.debug("Message edit (fetched)", { opId, msgId: scoreboard.messageId, ms: Date.now() - fetchStart });
+      log.debug("Message edit", { opId, msgId: scoreboard.messageId, ms: Date.now() - fetchStart });
     } catch (e) {
       log.error(
         "Failed to update scoreboard message",
@@ -79,7 +55,6 @@ export async function updateScoreboardMessages(
         e,
       );
       brokenIds.push(scoreboard.id);
-      messageCache.delete(scoreboard.messageId);
     }
   }
 
