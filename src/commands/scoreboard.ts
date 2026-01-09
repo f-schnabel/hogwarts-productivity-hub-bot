@@ -1,10 +1,4 @@
-import {
-  ChatInputCommandInteraction,
-  Collection,
-  GuildMember,
-  SlashCommandBuilder,
-  type MessageEditOptions,
-} from "discord.js";
+import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, type MessageEditOptions } from "discord.js";
 import { db, type Schema } from "../db/db.ts";
 import { and, desc, eq, gt, type ExtractTablesWithRelations } from "drizzle-orm";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
