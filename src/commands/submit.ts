@@ -19,7 +19,7 @@ import { replyError } from "../utils/interactionUtils.ts";
 import assert from "node:assert";
 import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";
-import { count, eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "../utils/constants.ts";
 import type { CommandOptions } from "../types.ts";
 
@@ -36,39 +36,41 @@ export default {
       option.setName("points").setDescription(`The number of points to submit (default: ${DEFAULT_SUBMISSION_POINTS})`),
     ),
 
+  /**
+   * Submit a score for approval.
+   * Does not use deferReply as the initial processing is quick.
+   */
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
-    const member = interaction.member as GuildMember;
-    await interaction.deferReply();
-    if (!hasAnyRole(member, Role.OWNER) && !SUBMISSION_CHANNEL_IDS.includes(interaction.channelId)) {
+    if (!interaction.inCachedGuild()) {
+      await replyError(opId, interaction, "Invalid Context", "This command can only be used in a server.");
+      return;
+    }
+
+    if (!hasAnyRole(interaction.member, Role.OWNER) && !SUBMISSION_CHANNEL_IDS.includes(interaction.channelId)) {
       await replyError(opId, interaction, "Invalid Channel", "You cannot use this command in this channel.");
       return;
     }
+
     const points = interaction.options.getInteger("points") ?? DEFAULT_SUBMISSION_POINTS;
     const screenshot = interaction.options.getAttachment("screenshot", true);
-    const house = getHouseFromMember(member);
+
+    const house = getHouseFromMember(interaction.member);
     assert(house, "User does not have a house role assigned");
-    const submission = await db.transaction(async (db) => {
-      const [houseId] = await db
-        .select({ value: count() })
-        .from(submissionTable)
-        .where(eq(submissionTable.house, house));
-      assert(houseId, "Failed to retrieve house submission count");
 
-      const [submission] = await db
-        .insert(submissionTable)
-        .values({
-          discordId: member.id,
-          points,
-          screenshotUrl: screenshot.url,
-          house: house,
-          houseId: houseId.value + 1,
-        })
-        .returning();
-      assert(submission, "Failed to create submission");
-      return submission;
-    });
+    const [submission] = await db
+      .insert(submissionTable)
+      .values({
+        discordId: interaction.member.id,
+        points,
+        screenshotUrl: screenshot.url,
+        house: house,
+        // Calculate next house submission ID by counting existing submissions
+        houseId: sql`(SELECT COUNT(*) + 1 FROM ${submissionTable} WHERE ${submissionTable.house} = ${house})`,
+      })
+      .returning();
+    assert(submission, "Failed to create submission");
 
-    await interaction.editReply(submissionMessage(submission));
+    await interaction.reply(submissionMessage(submission));
   },
 
   async buttonHandler(

@@ -18,9 +18,12 @@ export default {
         .setAutocomplete(true),
     ),
 
+  /**
+   * View or set your timezone.
+   *
+   * Does not use deferReply as this command is expected to be quick.
+   */
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
-    await interaction.deferReply();
-
     const newTimezone = interaction.options.getString("timezone");
 
     if (newTimezone) {
@@ -29,6 +32,7 @@ export default {
       await viewTimezone(interaction, interaction.user.id);
     }
   },
+
   async autocomplete(interaction: AutocompleteInteraction) {
     const timezones = [];
     const query = interaction.options.getFocused().toLowerCase();
@@ -49,7 +53,7 @@ async function viewTimezone(interaction: ChatInputCommandInteraction, discordId:
   const userTimezone = await fetchUserTimezone(discordId);
   const userLocalTime = dayjs().tz(userTimezone).format("HH:mm");
 
-  await interaction.editReply({
+  await interaction.reply({
     embeds: [
       {
         color: BOT_COLORS.SUCCESS,
@@ -83,7 +87,7 @@ async function setTimezone(
   // Get current timezone for comparison
   const oldTimezone = await fetchUserTimezone(discordId);
   if (oldTimezone === newTimezone) {
-    await interaction.editReply({
+    await interaction.reply({
       embeds: [
         {
           color: BOT_COLORS.WARNING,
@@ -113,7 +117,7 @@ async function setTimezone(
     return;
   }
 
-  await interaction.editReply({
+  await interaction.reply({
     embeds: [
       {
         color: BOT_COLORS.SUCCESS,

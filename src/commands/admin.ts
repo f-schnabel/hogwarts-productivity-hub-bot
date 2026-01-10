@@ -1,8 +1,8 @@
-import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { db } from "../db/db.ts";
 import { awardPoints } from "../services/pointsService.ts";
 import { hasAnyRole } from "../utils/roleUtils.ts";
-import { replyError } from "../utils/interactionUtils.ts";
+import { editReplyError, replyError } from "../utils/interactionUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { settingsTable, userTable } from "../db/schema.ts";
 import { Role, SETTINGS_KEYS } from "../utils/constants.ts";
@@ -38,12 +38,17 @@ export default {
         .setName("refresh-ranks")
         .setDescription("Refreshes year roles for all users based on monthly voice time"),
     ),
-  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
-    await interaction.deferReply();
-    const member = interaction.member as GuildMember;
 
-    if (!hasAnyRole(member, Role.PROFESSOR)) {
-      await replyError(
+  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
+    if (!interaction.inCachedGuild()) {
+      await replyError(opId, interaction, "Invalid Context", "This command can only be used in a server.");
+      return;
+    }
+
+    await interaction.deferReply();
+
+    if (!hasAnyRole(interaction.member, Role.PROFESSOR)) {
+      await editReplyError(
         opId,
         interaction,
         "Insufficient Permissions",
@@ -66,7 +71,7 @@ export default {
         await refreshYearRoles(interaction, opId);
         break;
       default:
-        await replyError(opId, interaction, "Invalid Subcommand", "Unknown subcommand.");
+        await editReplyError(opId, interaction, "Invalid Subcommand", "Unknown subcommand.");
         return;
     }
   },
@@ -84,7 +89,7 @@ async function adjustPoints(interaction: ChatInputCommandInteraction, opId: stri
 async function resetMonthlyPoints(interaction: ChatInputCommandInteraction, opId: string) {
   const guild = interaction.guild;
   if (!guild) {
-    await replyError(opId, interaction, "Error", "This command can only be used in a server.");
+    await editReplyError(opId, interaction, "Error", "This command can only be used in a server.");
     return;
   }
 
@@ -133,7 +138,7 @@ async function resetTotalPoints(interaction: ChatInputCommandInteraction, opId: 
 async function refreshYearRoles(interaction: ChatInputCommandInteraction, opId: string) {
   const guild = interaction.guild;
   if (!guild) {
-    await replyError(opId, interaction, "Error", "This command can only be used in a server.");
+    await editReplyError(opId, interaction, "Error", "This command can only be used in a server.");
     return;
   }
 

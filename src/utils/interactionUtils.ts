@@ -4,7 +4,7 @@ import { createLogger } from "./logger.ts";
 
 const log = createLogger("Interaction");
 
-export async function replyError(
+export async function editReplyError(
   opId: string,
   interaction: ChatInputCommandInteraction,
   title: string,
@@ -12,6 +12,24 @@ export async function replyError(
 ) {
   log.warn("Error reply", { opId, user: interaction.user.username, title, msg: messages.join("; ") });
   await interaction.editReply({
+    embeds: [
+      {
+        color: BOT_COLORS.ERROR,
+        title: `❌ ${title}`,
+        description: messages.join("\n"),
+      },
+    ],
+  });
+}
+
+export async function replyError(
+  opId: string,
+  interaction: ChatInputCommandInteraction,
+  title: string,
+  ...messages: string[]
+) {
+  log.warn("Error reply", { opId, user: interaction.user.username, title, msg: messages.join("; ") });
+  await interaction.reply({
     embeds: [
       {
         color: BOT_COLORS.ERROR,

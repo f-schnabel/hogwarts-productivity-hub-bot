@@ -1,9 +1,9 @@
-import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { db } from "../db/db.ts";
 import { houseScoreboardTable } from "../db/schema.ts";
 import type { Command, CommandOptions, House } from "../types.ts";
 import { hasAnyRole } from "../utils/roleUtils.ts";
-import { replyError } from "../utils/interactionUtils.ts";
+import { editReplyError, replyError } from "../utils/interactionUtils.ts";
 import { getHousepointMessages } from "../services/scoreboardService.ts";
 import assert from "node:assert";
 import { Role } from "../utils/constants.ts";
@@ -25,11 +25,14 @@ export default {
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
+    if (!interaction.inCachedGuild()) {
+      await replyError(opId, interaction, "Invalid Context", "This command can only be used in a server.");
+      return;
+    }
     await interaction.deferReply();
-    const member = interaction.member as GuildMember;
 
-    if (!hasAnyRole(member, Role.OWNER | Role.PROFESSOR)) {
-      await replyError(opId, interaction, "Access Denied", "You do not have permission to use this command.");
+    if (!hasAnyRole(interaction.member, Role.OWNER | Role.PROFESSOR)) {
+      await editReplyError(opId, interaction, "Access Denied", "You do not have permission to use this command.");
       return;
     }
 

@@ -1,10 +1,10 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, GuildMember } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import dayjs from "dayjs";
 import { db } from "../db/db.ts";
 import { settingsTable, submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, asc, eq, gte } from "drizzle-orm";
 import { hasAnyRole } from "../utils/roleUtils.ts";
-import { formatDuration, replyError } from "../utils/interactionUtils.ts";
+import { formatDuration, editReplyError, replyError } from "../utils/interactionUtils.ts";
 import { BOT_COLORS, Role, SETTINGS_KEYS } from "../utils/constants.ts";
 import type { CommandOptions } from "../types.ts";
 import { calculatePointsHelper } from "../services/pointsService.ts";
@@ -40,8 +40,6 @@ export default {
     ),
 
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
-    await interaction.deferReply();
-
     switch (interaction.options.getSubcommand()) {
       case "time":
         await time(interaction, opId);
@@ -66,21 +64,29 @@ export default {
 
 async function time(interaction: ChatInputCommandInteraction, opId: string) {
   const user = interaction.options.getUser("user", true);
-  const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
+  const [userData] = await db
+    .select({ timezone: userTable.timezone })
+    .from(userTable)
+    .where(eq(userTable.discordId, user.id));
 
   if (!userData?.timezone) {
     await replyError(opId, interaction, "Timezone Not Set", `${user.username} has not set their timezone.`);
     return;
   }
-  await interaction.editReply(
+  await interaction.reply(
     `${user.displayName}'s current time is ${dayjs().tz(userData.timezone).format("YYYY-MM-DD hh:mm:ss A")}`,
   );
 }
 
 async function points(interaction: ChatInputCommandInteraction, opId: string) {
-  const member = interaction.member as GuildMember;
-  if (!hasAnyRole(member, Role.OWNER | Role.PREFECT)) {
-    await replyError(opId, interaction, "Insufficient Permissions", "Only OWNER or PREFECT can use this command.");
+  if (!interaction.inCachedGuild()) {
+    await replyError(opId, interaction, "Invalid Context", "This command can only be used in a server.");
+    return;
+  }
+  await interaction.deferReply();
+
+  if (!hasAnyRole(interaction.member, Role.OWNER | Role.PREFECT)) {
+    await editReplyError(opId, interaction, "Insufficient Permissions", "Only OWNER or PREFECT can use this command.");
     return;
   }
 
@@ -88,7 +94,7 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
 
   if (!userData) {
-    await replyError(opId, interaction, "User Not Found", `${user.username} is not registered.`);
+    await editReplyError(opId, interaction, "User Not Found", `${user.username} is not registered.`);
     return;
   }
 
@@ -196,9 +202,14 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
 }
 
 async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: string) {
-  const member = interaction.member as GuildMember;
-  if (!hasAnyRole(member, Role.OWNER | Role.PREFECT)) {
-    await replyError(opId, interaction, "Insufficient Permissions", "Only OWNER or PREFECT can use this command.");
+  if (!interaction.inCachedGuild()) {
+    await replyError(opId, interaction, "Invalid Context", "This command can only be used in a server.");
+    return;
+  }
+
+  await interaction.deferReply();
+  if (!hasAnyRole(interaction.member, Role.OWNER | Role.PREFECT)) {
+    await editReplyError(opId, interaction, "Insufficient Permissions", "Only OWNER or PREFECT can use this command.");
     return;
   }
 
@@ -206,7 +217,7 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: st
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
 
   if (!userData) {
-    await replyError(opId, interaction, "User Not Found", `${user.username} is not registered.`);
+    await editReplyError(opId, interaction, "User Not Found", `${user.username} is not registered.`);
     return;
   }
 
