@@ -259,7 +259,7 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: st
   const mergedSessions: MergedSession[] = [];
 
   for (const session of voiceSessions) {
-    const last = mergedSessions[mergedSessions.length - 1];
+    const last = mergedSessions.at(-1);
     const sessionJoinedAt = session.joinedAt;
     const sessionLeftAt = session.leftAt;
 

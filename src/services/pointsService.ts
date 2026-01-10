@@ -1,5 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db as globalDb, type DbOrTx } from "../db/db.ts";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "./scoreboardService.ts";
