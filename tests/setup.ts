@@ -8,6 +8,8 @@ import { afterEach, vi } from "vitest";
 process.env.NODE_ENV = "test";
 process.env.DB_NAME = "discord_bot_test";
 process.env.DISCORD_TOKEN = "test-token";
+process.env.SUBMISSION_CHANNEL_IDS = "";
+process.env.YEAR_ROLE_IDS = "";
 
 // Mock console methods in tests to reduce noise
 globalThis.console = {
@@ -71,6 +73,10 @@ vi.mock("discord.js", () => ({
       fn(new MockSlashCommandOption());
       return this;
     }
+    addAttachmentOption(fn: (opt: unknown) => unknown) {
+      fn(new MockSlashCommandOption());
+      return this;
+    }
     addSubcommand(fn: (opt: unknown) => unknown) {
       fn(new MockSlashCommandBuilder());
       return this;
@@ -119,6 +125,9 @@ class MockSlashCommandOption {
     return this;
   }
   setMaxValue() {
+    return this;
+  }
+  setAutocomplete() {
     return this;
   }
 }
