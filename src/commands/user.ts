@@ -3,11 +3,12 @@ import dayjs from "dayjs";
 import { db } from "../db/db.ts";
 import { settingsTable, submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, asc, eq, gte } from "drizzle-orm";
-import { hasAnyRole, Role } from "../utils/roleUtils.ts";
+import { hasAnyRole } from "../utils/roleUtils.ts";
 import { formatDuration, replyError } from "../utils/interactionUtils.ts";
-import { BOT_COLORS, SETTINGS_KEYS } from "../utils/constants.ts";
+import { BOT_COLORS, Role, SETTINGS_KEYS } from "../utils/constants.ts";
 import type { CommandOptions } from "../types.ts";
 import { calculatePointsHelper } from "../services/pointsService.ts";
+import { stripIndent } from "common-tags";
 
 export default {
   data: new SlashCommandBuilder()
@@ -182,7 +183,10 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
           },
           {
             name: "Monthly Totals",
-            value: `Study: ${formatDuration(totalVoiceSeconds)}\nSubmissions: ${totalSubmissionPoints} pts\n**Total: ${userData.monthlyPoints} pts**`,
+            value: stripIndent`
+              Study: ${formatDuration(totalVoiceSeconds)}
+              Submissions: ${totalSubmissionPoints} pts
+              **Total: ${userData.monthlyPoints} pts**`,
           },
         ],
         footer: { text: `Month: ${dayjs().format("MMMM YYYY")}` },
@@ -281,15 +285,12 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: st
           .join("\n")
       : "No sessions";
 
-  // Truncate if too long for embed
-  const truncatedLines = sessionLines;
-
   await interaction.editReply({
     embeds: [
       {
         color: BOT_COLORS.INFO,
         title: `${user.displayName}'s Detailed Sessions`,
-        description: truncatedLines,
+        description: sessionLines,
         footer: { text: `Month: ${dayjs().format("MMMM YYYY")} | TZ: ${tz}` },
       },
     ],

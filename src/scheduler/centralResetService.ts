@@ -6,9 +6,10 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { resetExecutionTimer } from "../monitoring.ts";
-import { client } from "../client.ts";
 import { updateMessageStreakInNickname } from "../utils/streakUtils.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
+import type { Guild } from "discord.js";
+import { getGuild } from "../events/clientReady.ts";
 
 const log = createLogger("Reset");
 const scheduledJobs = new Map<string, cron.ScheduledTask>();
@@ -37,6 +38,7 @@ async function processDailyResets() {
   const start = Date.now();
   const end = resetExecutionTimer.startTimer();
   const opId = OpId.rst();
+  const guild = getGuild();
 
   log.debug("Daily reset start", { opId });
 
@@ -52,15 +54,10 @@ async function processDailyResets() {
           .from(userTable);
 
         // Get guild members to filter out users who left
-        const guildMemberIds = new Set<string>();
-        for (const guild of client.guilds.cache.values()) {
-          for (const memberId of guild.members.cache.keys()) {
-            guildMemberIds.add(memberId);
-          }
-        }
+        const guildMemberIds = new Set(guild.members.cache.keys());
 
         // Filter to only include users who are still in guild and past their local midnight
-        const usersNeedingReset = [];
+        const usersNeedingReset: string[] = [];
         for (const user of usersNeedingPotentialReset) {
           if (!guildMemberIds.has(user.discordId)) continue;
 
@@ -87,12 +84,12 @@ async function processDailyResets() {
         try {
           await Promise.all(usersInVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
 
-          const boostersUpdated = await setBoosterPerk(db, usersNeedingReset);
+          const boostersUpdated = await setBoosterPerk(db, guild, new Set(usersNeedingReset));
           if (boostersUpdated > 0) {
             log.debug("Boosters auto-credited", { opId, count: boostersUpdated });
           }
 
-          await loseMessageStreakInNickname(db, opId, usersNeedingReset);
+          await loseMessageStreakInNickname(db, guild, opId, usersNeedingReset);
 
           const result = await db
             .update(userTable)
@@ -117,15 +114,11 @@ async function processDailyResets() {
   end({ action: "daily" });
 }
 
-async function setBoosterPerk(db: Tx, usersNeedingReset: string[]): Promise<number> {
-  let boosters: string[] = [];
-  client.guilds.cache.forEach((guild) => {
-    if (guild.id === process.env.GUILD_ID) {
-      boosters = guild.members.cache
-        .filter((member) => member.premiumSince !== null && usersNeedingReset.includes(member.id))
-        .map((member) => member.id);
-    }
-  });
+async function setBoosterPerk(db: Tx, guild: Guild, usersNeedingReset: Set<string>): Promise<number> {
+  const boosters = guild.members.cache
+    .filter((member) => member.premiumSince !== null && usersNeedingReset.has(member.id))
+    .map((member) => member.id);
+
   if (boosters.length === 0) return 0;
 
   await db
@@ -138,25 +131,24 @@ async function setBoosterPerk(db: Tx, usersNeedingReset: string[]): Promise<numb
   return boosters.length;
 }
 
-async function loseMessageStreakInNickname(db: Tx, opId: string, usersNeedingReset: string[]) {
+async function loseMessageStreakInNickname(db: Tx, guild: Guild, opId: string, usersNeedingReset: string[]) {
   const usersLosingStreak = await db
     .select({ discordId: userTable.discordId })
     .from(userTable)
     .where(and(inArray(userTable.discordId, usersNeedingReset), eq(userTable.isMessageStreakUpdatedToday, false)));
 
-  if (usersLosingStreak.length > 0) {
-    log.debug("Streaks being reset", {
-      opId,
-      usersLosingStreak: usersLosingStreak.map((u) => u.discordId).join(", "),
-    });
-    for (const guild of client.guilds.cache.values()) {
-      if (guild.id !== process.env.GUILD_ID) continue;
+  if (usersLosingStreak.length === 0) return;
 
-      for (const row of usersLosingStreak) {
-        const member = guild.members.cache.get(row.discordId);
-        if (!member) continue;
-        await updateMessageStreakInNickname(member, 0, opId);
-      }
-    }
-  }
+  log.debug("Streaks being reset", {
+    opId,
+    usersLosingStreak: usersLosingStreak.map((u) => u.discordId).join(", "),
+  });
+
+  await Promise.all(
+    usersLosingStreak.map(async (row) => {
+      const member = guild.members.cache.get(row.discordId);
+      if (!member) return;
+      await updateMessageStreakInNickname(member, 0, opId);
+    }),
+  );
 }

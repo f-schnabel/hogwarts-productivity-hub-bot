@@ -1,6 +1,7 @@
 import type { GuildMember } from "discord.js";
-import { hasAnyRole, Role } from "./roleUtils.ts";
+import { hasAnyRole } from "./roleUtils.ts";
 import { createLogger } from "./logger.ts";
+import { Role } from "./constants.ts";
 
 const log = createLogger("Streak");
 
@@ -25,18 +26,15 @@ export async function updateMessageStreakInNickname(
     newNickname += ` ⚡${newStreak}`;
   }
 
+  const ctx = { opId, user: member.user.tag, from: member.nickname ?? "NO_NICKNAME", to: newNickname };
+
   if (newNickname.length > 32) {
-    log.debug("Nickname too long", { opId, user: member.user.tag, nickname: newNickname });
+    log.debug("Nickname too long", ctx);
     return;
   }
 
   if (newNickname !== member.nickname) {
-    log.debug("Updating nickname", {
-      opId,
-      user: member.user.tag,
-      from: member.nickname ?? "NO_NICKNAME",
-      to: newNickname,
-    });
+    log.debug("Updating nickname", ctx);
     await member.setNickname(newNickname);
   }
 }

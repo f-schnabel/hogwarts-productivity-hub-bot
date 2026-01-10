@@ -41,7 +41,7 @@ export default {
       }
       if (timezones.length >= 25) break;
     }
-    await interaction.respond(timezones.slice(0, 25));
+    await interaction.respond(timezones);
   },
 };
 

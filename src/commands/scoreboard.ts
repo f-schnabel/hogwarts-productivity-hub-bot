@@ -2,10 +2,11 @@ import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from "d
 import { db } from "../db/db.ts";
 import { houseScoreboardTable } from "../db/schema.ts";
 import type { Command, CommandOptions, House } from "../types.ts";
-import { hasAnyRole, Role } from "../utils/roleUtils.ts";
+import { hasAnyRole } from "../utils/roleUtils.ts";
 import { replyError } from "../utils/interactionUtils.ts";
 import { getHousepointMessages } from "../services/scoreboardService.ts";
 import assert from "node:assert";
+import { Role } from "../utils/constants.ts";
 
 export default {
   data: new SlashCommandBuilder()

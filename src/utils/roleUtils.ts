@@ -1,10 +1,5 @@
 import type { GuildMember } from "discord.js";
-
-export const Role = {
-  OWNER: 1 << 0,
-  PREFECT: 1 << 1,
-  PROFESSOR: 1 << 2,
-} as const;
+import { Role } from "./constants.ts";
 
 export function hasAnyRole(member: GuildMember, roles: number): boolean {
   let memberRoles = 0;

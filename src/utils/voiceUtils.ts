@@ -9,6 +9,7 @@ import { createLogger } from "./logger.ts";
 import { formatDuration } from "./interactionUtils.ts";
 import { alertOwner } from "./alerting.ts";
 import { awardPoints, calculatePoints } from "../services/pointsService.ts";
+import { oneLine } from "common-tags";
 
 const log = createLogger("Voice");
 
@@ -16,9 +17,8 @@ const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split("
 
 // Start a voice session when user joins VC (timezone-aware)
 export async function startVoiceSession(session: VoiceSession, db: DbOrTx, opId: string) {
-  const channelId = session.channelId;
-  const channelName = session.channelName;
-  const ctx = { opId, userId: session.discordId, user: session.username, channel: channelName };
+  const { channelName, discordId, username, channelId } = session;
+  const ctx = { opId, discordId, username, channelName };
 
   if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
     log.debug("Skipped excluded channel", ctx);
@@ -30,18 +30,22 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx, opId:
     const existingVoiceSessions = await db
       .select()
       .from(voiceSessionTable)
-      .where(and(eq(voiceSessionTable.discordId, session.discordId), isNull(voiceSessionTable.leftAt)));
+      .where(and(eq(voiceSessionTable.discordId, discordId), isNull(voiceSessionTable.leftAt)));
 
     if (existingVoiceSessions.length > 0) {
       log.warn("Existing session found, closing first", { ...ctx, existingSessions: existingVoiceSessions.length });
       await alertOwner(
-        `Existing voice session(s) found when starting new voice session for user ${session.username} (${session.discordId}) in channel ${channelName} (${channelId}). Closing existing session(s).`,
+        oneLine`
+        Existing voice session(s) found 
+        when starting new voice session for user ${username} (${discordId}) 
+        in channel ${channelName} (${channelId}).
+        Closing existing session(s).`,
         opId,
       );
       await endVoiceSession(session, db, opId, false); // End existing session without tracking
     }
 
-    await db.insert(voiceSessionTable).values({ discordId: session.discordId, channelId, channelName });
+    await db.insert(voiceSessionTable).values({ discordId, channelId, channelName });
 
     log.info("Session started", ctx);
   });
@@ -80,7 +84,11 @@ export async function endVoiceSession(
     if (isTracked && existingVoiceSession.length !== 1) {
       log.error("Unexpected session count", { ...ctx, found: existingVoiceSession.length, expected: 1 });
       await alertOwner(
-        `Unexpected session count when ending voice session for user ${session.username} (${session.discordId}) in channel ${session.channelName ?? "Unknown"} (${channelId}). Found ${existingVoiceSession.length}, expected 1.`,
+        oneLine`
+        Unexpected session count when ending voice session 
+        for user ${session.username} (${session.discordId})
+        in channel ${session.channelName ?? "Unknown"} (${channelId}). 
+        Found ${existingVoiceSession.length}, expected 1.`,
         opId,
       );
       return;

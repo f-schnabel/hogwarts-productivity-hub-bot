@@ -6,6 +6,7 @@ import type { House } from "../types.ts";
 import { HOUSE_COLORS } from "../utils/constants.ts";
 import { client } from "../client.ts";
 import { createLogger } from "../utils/logger.ts";
+import { getGuild } from "../events/clientReady.ts";
 
 const log = createLogger("Scoreboard");
 
@@ -29,14 +30,12 @@ export async function getHousepointMessages<T extends { house: House }>(
       .where(and(eq(userTable.house, scoreboard.house), gt(userTable.monthlyPoints, 0)))
       .orderBy(desc(userTable.monthlyPoints));
 
-    for (const [, guild] of client.guilds.cache) {
-      if (guild.id !== process.env.GUILD_ID) continue;
+    const guild = getGuild();
 
-      for (const user of leaderboard) {
-        const member = guild.members.cache.get(user.discordId);
-        if (member) {
-          user.username = member.nickname ?? member.user.globalName ?? member.user.username;
-        }
+    for (const user of leaderboard) {
+      const member = guild.members.cache.get(user.discordId);
+      if (member) {
+        user.username = member.nickname ?? member.user.globalName ?? member.user.username;
       }
     }
 

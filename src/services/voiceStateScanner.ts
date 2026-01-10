@@ -5,18 +5,16 @@
  * less than 24 hours old, closes stale sessions for users no longer in voice.
  */
 
-import { client } from "../client.ts";
 import { BaseGuildVoiceChannel, ChannelType, Collection, type Guild } from "discord.js";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { db, ensureUserExists } from "../db/db.ts";
 import { voiceSessionTable } from "../db/schema.ts";
 import { isNull } from "drizzle-orm";
 import { createLogger, OpId } from "../utils/logger.ts";
+import { getGuild } from "../events/clientReady.ts";
+import { MAX_SESSION_AGE_MS } from "../utils/constants.ts";
 
 const log = createLogger("VoiceScan");
-
-// Max age for a session to be resumed (24 hours)
-const MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000;
 
 let isScanning = false;
 let scanResults = {
@@ -48,7 +46,7 @@ export async function scanAndStartTracking(parentOpId?: string) {
 
   if (isScanning) {
     log.warn("Scan already in progress, skipping", ctx);
-    return scanResults;
+    return;
   }
 
   isScanning = true;
@@ -81,20 +79,11 @@ export async function scanAndStartTracking(parentOpId?: string) {
   }
 
   try {
-    // Get all guilds (should be only one for this bot)
-    const guilds = client.guilds.cache;
-
-    if (guilds.size === 0) {
-      log.warn("No guilds found", ctx);
-      return scanResults;
-    }
-
     // Collect all users currently in voice channels
     const usersInVoice = new Set<string>();
 
-    for (const [, guild] of guilds) {
-      await scanGuildVoiceStates(guild, openSessionsByUser, usersInVoice, opId);
-    }
+    const guild = getGuild();
+    await scanGuildVoiceStates(guild, openSessionsByUser, usersInVoice, opId);
 
     // Close stale sessions: users with open sessions who are not in voice
     await closeStaleSessionsForMissingUsers(openSessionsByUser, usersInVoice, opId);
@@ -108,12 +97,9 @@ export async function scanAndStartTracking(parentOpId?: string) {
       errors: scanResults.errors,
       channels: scanResults.channels.map((c) => `${c.name}:${c.userCount}`).join(", ") || "none",
     });
-
-    return scanResults;
   } catch (error) {
     log.error("Scan failed", ctx, error);
     scanResults.errors++;
-    return scanResults;
   } finally {
     isScanning = false;
   }

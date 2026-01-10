@@ -1,4 +1,4 @@
-import type { Client } from "discord.js";
+import type { Client, Guild } from "discord.js";
 import dayjs from "dayjs";
 import { commands } from "../commands.ts";
 import * as VoiceStateScanner from "../services/voiceStateScanner.ts";
@@ -9,8 +9,17 @@ import { gt, inArray } from "drizzle-orm";
 import { updateMessageStreakInNickname } from "../utils/streakUtils.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../services/scoreboardService.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
+import assert from "node:assert";
+import { client } from "../client.ts";
+import { MIN_USERS_FOR_SAFE_DELETION } from "../utils/constants.ts";
 
 const log = createLogger("Startup");
+
+export function getGuild(): Guild {
+  const guild = client.guilds.cache.get(process.env.GUILD_ID);
+  assert(guild, "Guild not initialized yet");
+  return guild;
+}
 
 export async function execute(c: Client<true>): Promise<void> {
   const opId = OpId.start();
@@ -25,7 +34,7 @@ export async function execute(c: Client<true>): Promise<void> {
 
     await VoiceStateScanner.scanAndStartTracking(opId);
     await resetNicknameStreaks(c, opId);
-    const { staleUserIds, totalDbUsers } = await logDbUserRetention(c, opId);
+    const { staleUserIds, totalDbUsers } = await logDbUserRetention(opId);
     await deleteStaleUsers(staleUserIds, totalDbUsers, opId);
     await refreshScoreboardMessages(opId);
   } catch (error) {
@@ -36,28 +45,20 @@ export async function execute(c: Client<true>): Promise<void> {
   await alertOwner("Bot deployed successfully.", opId);
 }
 
-async function logDbUserRetention(
-  client: Client,
-  opId: string,
-): Promise<{ staleUserIds: string[]; totalDbUsers: number }> {
+async function logDbUserRetention(opId: string): Promise<{ staleUserIds: string[]; totalDbUsers: number }> {
   const oneMonthAgo = dayjs().subtract(1, "month").toDate();
 
   const dbUsers = await db.select({ discordId: userTable.discordId, updatedAt: userTable.updatedAt }).from(userTable);
 
   // Use cache since resetNicknameStreaks already fetched all members
-  const guildMemberIds = new Set<string>();
-  for (const guild of client.guilds.cache.values()) {
-    for (const memberId of guild.members.cache.keys()) {
-      guildMemberIds.add(memberId);
-    }
-  }
+  const guildMemberIds = new Set(getGuild().members.cache.keys());
 
   const foundCount = dbUsers.filter((u) => guildMemberIds.has(u.discordId)).length;
   const percentage = dbUsers.length > 0 ? ((foundCount / dbUsers.length) * 100).toFixed(1) : "0";
   log.info("DB user retention", { opId, found: foundCount, total: dbUsers.length, pct: `${percentage}%` });
 
   // If less than 100 users found, alert and skip deletion (likely guild cache is broken)
-  if (foundCount < 100) {
+  if (foundCount < MIN_USERS_FOR_SAFE_DELETION) {
     await alertOwner(
       `Aborting stale user deletion: only ${foundCount}/${dbUsers.length} (${percentage}%) users found in guild cache.`,
       opId,
@@ -127,39 +128,37 @@ async function resetNicknameStreaks(client: Client, opId: string) {
     );
   const discordIds = new Set(Object.keys(discordIdsToStreak));
 
-  for (const guild of client.guilds.cache.values()) {
-    if (guild.id !== process.env.GUILD_ID) continue;
+  const guild = getGuild();
 
-    const membersToReset = guild.members.cache.filter(
-      (member) =>
-        !discordIds.has(member.id) && member.guild.ownerId !== member.user.id && member.nickname?.match(/⚡\d+$/),
-    );
-    const membersToUpdate = guild.members.cache.filter(
-      (member) =>
-        discordIds.has(member.id) &&
-        (!member.nickname?.endsWith(`⚡${String(discordIdsToStreak[member.id])}`) ||
-          member.nickname.endsWith(` ⚡${String(discordIdsToStreak[member.id])}`)),
-    );
+  const membersToReset = guild.members.cache.filter(
+    (member) =>
+      !discordIds.has(member.id) && member.guild.ownerId !== member.user.id && member.nickname?.match(/⚡\d+$/),
+  );
+  const membersToUpdate = guild.members.cache.filter(
+    (member) =>
+      discordIds.has(member.id) &&
+      (!member.nickname?.endsWith(`⚡${String(discordIdsToStreak[member.id])}`) ||
+        member.nickname.endsWith(` ⚡${String(discordIdsToStreak[member.id])}`)),
+  );
 
-    log.debug("Processing guild nicknames", {
-      opId,
-      guild: guild.name,
-      membersCache: guild.members.cache.size,
-      toReset: membersToReset.size,
-      toUpdate: membersToUpdate.size,
-    });
+  log.debug("Processing guild nicknames", {
+    opId,
+    guild: guild.name,
+    membersCache: guild.members.cache.size,
+    toReset: membersToReset.size,
+    toUpdate: membersToUpdate.size,
+  });
 
-    await Promise.all([
-      ...membersToReset.values().map(async (m) => {
-        await updateMessageStreakInNickname(m, 0, opId);
-      }),
-      ...membersToUpdate.values().map(async (m) => {
-        const streak = discordIdsToStreak[m.id];
-        if (streak === undefined) {
-          throw new TypeError(`unreachable: Streak for member ${m.id} does not exist`);
-        }
-        await updateMessageStreakInNickname(m, streak, opId);
-      }),
-    ]);
-  }
+  await Promise.all([
+    ...membersToReset.values().map(async (m) => {
+      await updateMessageStreakInNickname(m, 0, opId);
+    }),
+    ...membersToUpdate.values().map(async (m) => {
+      const streak = discordIdsToStreak[m.id];
+      if (streak === undefined) {
+        throw new TypeError(`unreachable: Streak for member ${m.id} does not exist`);
+      }
+      await updateMessageStreakInNickname(m, streak, opId);
+    }),
+  ]);
 }

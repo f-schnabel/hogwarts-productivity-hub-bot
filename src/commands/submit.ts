@@ -14,16 +14,16 @@ import {
 } from "discord.js";
 import { awardPoints } from "../services/pointsService.ts";
 import { getHouseFromMember } from "../utils/houseUtils.ts";
-import { hasAnyRole, Role } from "../utils/roleUtils.ts";
+import { hasAnyRole } from "../utils/roleUtils.ts";
 import { replyError } from "../utils/interactionUtils.ts";
 import assert from "node:assert";
 import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";
 import { count, eq } from "drizzle-orm";
-import { DEFAULT_SUBMISSION_POINTS } from "../utils/constants.ts";
+import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "../utils/constants.ts";
 import type { CommandOptions } from "../types.ts";
 
-const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS?.split(",") ?? [];
+const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
 
 export default {
   data: new SlashCommandBuilder()
@@ -35,6 +35,7 @@ export default {
     .addIntegerOption((option) =>
       option.setName("points").setDescription(`The number of points to submit (default: ${DEFAULT_SUBMISSION_POINTS})`),
     ),
+
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
     const member = interaction.member as GuildMember;
     await interaction.deferReply();
@@ -136,12 +137,6 @@ export default {
       await awardPoints(db, submission.discordId, submission.points, opId);
     }
   },
-};
-
-const SUBMISSION_COLORS = {
-  PENDING: 0x979c9f,
-  APPROVED: 0x2ecc70,
-  REJECTED: 0xe74d3c,
 };
 
 function submissionMessage(submissionData: typeof submissionTable.$inferSelect, reason?: string) {

@@ -46,6 +46,16 @@ function registerEvents(client: Client) {
   client.on(Events.InteractionCreate, (i) => void InteractionCreate.execute(i));
   client.on(Events.VoiceStateUpdate, (a, b) => void VoiceStateUpdate.execute(a, b));
   client.on(Events.MessageCreate, (m) => void MessageCreate.execute(m));
+  client.on(Events.Debug, (info) => {
+    log.debug(info);
+  });
+  client.on(Events.Warn, (info) => {
+    log.warn(info);
+  });
+  client.on(Events.Error, (error) => {
+    log.error("Client error event", undefined, error);
+    void alertOwner(`Client error event: ${error}`, "discord-error-event");
+  });
 }
 
 function registerShutdownHandlers() {
