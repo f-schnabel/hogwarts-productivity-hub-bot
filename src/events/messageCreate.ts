@@ -36,40 +36,37 @@ export async function execute(message: OmitPartialGroupDMChannel<Message>): Prom
   log.debug("Received", ctx);
   await ensureUserExists(message.member, discordId, message.author.username);
 
-  // Receive counter from the db
-  await db.transaction(async (db) => {
-    const user = await db
-      .select({
-        dailyMessages: userTable.dailyMessages,
-        messageStreak: userTable.messageStreak,
-        ismessageStreakUpdatedToday: userTable.isMessageStreakUpdatedToday,
-      })
-      .from(userTable)
-      .where(eq(userTable.discordId, discordId))
-      .then((rows) => rows[0]);
-    assert(user !== undefined, "User should exist in DB by this point");
+  // Update message count and conditionally update streak in single query
+  const result = await db
+    .update(userTable)
+    .set({
+      dailyMessages: sql`${userTable.dailyMessages} + 1`,
+      messageStreak: sql`CASE
+        WHEN ${userTable.dailyMessages} + 1 >= ${MIN_DAILY_MESSAGES_FOR_STREAK}
+          AND NOT ${userTable.isMessageStreakUpdatedToday}
+        THEN ${userTable.messageStreak} + 1
+        ELSE ${userTable.messageStreak}
+      END`,
+      isMessageStreakUpdatedToday: sql`CASE
+        WHEN ${userTable.dailyMessages} + 1 >= ${MIN_DAILY_MESSAGES_FOR_STREAK}
+        THEN true
+        ELSE ${userTable.isMessageStreakUpdatedToday}
+      END`,
+    })
+    .where(eq(userTable.discordId, discordId))
+    .returning({
+      dailyMessages: userTable.dailyMessages,
+      messageStreak: userTable.messageStreak,
+      streakJustUpdated: sql<boolean>`${userTable.dailyMessages} = ${MIN_DAILY_MESSAGES_FOR_STREAK}`,
+    })
+    .then(([row]) => row);
+  assert(result !== undefined, "User should exist in DB by this point");
 
-    const newDailyMessages = user.dailyMessages + 1;
-    let newStreak = user.messageStreak;
-    if (newDailyMessages >= MIN_DAILY_MESSAGES_FOR_STREAK && !user.ismessageStreakUpdatedToday) {
-      newStreak = await db
-        .update(userTable)
-        .set({
-          dailyMessages: newDailyMessages,
-          messageStreak: sql`${userTable.messageStreak} + 1`,
-          isMessageStreakUpdatedToday: true,
-        })
-        .where(eq(userTable.discordId, discordId))
-        .returning({ messageStreak: userTable.messageStreak })
-        .then(([row]) => row?.messageStreak ?? user.messageStreak + 1);
+  if (result.streakJustUpdated) {
+    log.info("Streak updated", { ...ctx, ...result });
+  }
 
-      log.info("Streak updated", { ...ctx, newStreak, dailyMessages: newDailyMessages });
-    } else {
-      await db.update(userTable).set({ dailyMessages: newDailyMessages }).where(eq(userTable.discordId, discordId));
-    }
-
-    if (newDailyMessages >= MIN_DAILY_MESSAGES_FOR_STREAK) {
-      await updateMessageStreakInNickname(message.member, newStreak, opId);
-    }
-  });
+  if (result.dailyMessages >= MIN_DAILY_MESSAGES_FOR_STREAK) {
+    await updateMessageStreakInNickname(message.member, result.messageStreak, opId);
+  }
 }
