@@ -25,7 +25,13 @@ export async function execute(message: OmitPartialGroupDMChannel<Message>): Prom
 
   const discordId = message.author.id;
   const opId = OpId.msg();
-  const ctx = { opId, userId: discordId, user: message.author.tag, guild: message.guild.name };
+  const ctx = {
+    opId,
+    discordId,
+    user: message.author.tag,
+    message: message.content.slice(0, 100),
+    channelId: message.channelId,
+  };
 
   log.debug("Received", ctx);
   await ensureUserExists(message.member, discordId, message.author.username);
