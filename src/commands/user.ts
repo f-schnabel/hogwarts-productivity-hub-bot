@@ -1,11 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import dayjs from "dayjs";
-import { db } from "../db/db.ts";
-import { settingsTable, submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
+import { db, getMonthStartDate } from "../db/db.ts";
+import { submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, asc, eq, gte } from "drizzle-orm";
-import { hasAnyRole } from "../utils/roleUtils.ts";
-import { formatDuration, editReplyError, replyError } from "../utils/interactionUtils.ts";
-import { BOT_COLORS, Role, SETTINGS_KEYS } from "../utils/constants.ts";
+import { formatDuration, errorReply, requireRole } from "../utils/interactionUtils.ts";
+import { BOT_COLORS, Role } from "../utils/constants.ts";
 import type { CommandOptions } from "../types.ts";
 import { calculatePointsHelper } from "../services/pointsService.ts";
 import { stripIndent } from "common-tags";
@@ -51,7 +50,7 @@ export default {
         await pointsDetailed(interaction, opId);
         break;
       default:
-        await replyError(
+        await errorReply(
           opId,
           interaction,
           "Invalid Subcommand",
@@ -70,7 +69,7 @@ async function time(interaction: ChatInputCommandInteraction, opId: string) {
     .where(eq(userTable.discordId, user.id));
 
   if (!userData?.timezone) {
-    await replyError(opId, interaction, "Timezone Not Set", `${user.username} has not set their timezone.`);
+    await errorReply(opId, interaction, "Timezone Not Set", `${user.username} has not set their timezone.`);
     return;
   }
   await interaction.reply(
@@ -80,30 +79,21 @@ async function time(interaction: ChatInputCommandInteraction, opId: string) {
 
 async function points(interaction: ChatInputCommandInteraction, opId: string) {
   if (!interaction.inCachedGuild()) {
-    await replyError(opId, interaction, "Invalid Context", "This command can only be used in a server.");
+    await errorReply(opId, interaction, "Invalid Context", "This command can only be used in a server.");
     return;
   }
   await interaction.deferReply();
-
-  if (!hasAnyRole(interaction.member, Role.OWNER | Role.PREFECT)) {
-    await editReplyError(opId, interaction, "Insufficient Permissions", "Only OWNER or PREFECT can use this command.");
-    return;
-  }
+  if (!(await requireRole(interaction, opId, Role.OWNER | Role.PREFECT))) return;
 
   const user = interaction.options.getUser("user", true);
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
 
   if (!userData) {
-    await editReplyError(opId, interaction, "User Not Found", `${user.username} is not registered.`);
+    await errorReply(opId, interaction, "User Not Found", `${user.username} is not registered.`, { deferred: true });
     return;
   }
 
-  // Get last monthly reset timestamp from settings
-  const [setting] = await db
-    .select()
-    .from(settingsTable)
-    .where(eq(settingsTable.key, SETTINGS_KEYS.LAST_MONTHLY_RESET));
-  const startOfMonth = setting ? new Date(setting.value) : dayjs().startOf("month").toDate();
+  const startOfMonth = await getMonthStartDate();
 
   // Get approved submissions this month
   const submissions = await db
@@ -203,30 +193,21 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
 
 async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: string) {
   if (!interaction.inCachedGuild()) {
-    await replyError(opId, interaction, "Invalid Context", "This command can only be used in a server.");
+    await errorReply(opId, interaction, "Invalid Context", "This command can only be used in a server.");
     return;
   }
-
   await interaction.deferReply();
-  if (!hasAnyRole(interaction.member, Role.OWNER | Role.PREFECT)) {
-    await editReplyError(opId, interaction, "Insufficient Permissions", "Only OWNER or PREFECT can use this command.");
-    return;
-  }
+  if (!(await requireRole(interaction, opId, Role.OWNER | Role.PREFECT))) return;
 
   const user = interaction.options.getUser("user", true);
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
 
   if (!userData) {
-    await editReplyError(opId, interaction, "User Not Found", `${user.username} is not registered.`);
+    await errorReply(opId, interaction, "User Not Found", `${user.username} is not registered.`, { deferred: true });
     return;
   }
 
-  // Get last monthly reset timestamp from settings
-  const [setting] = await db
-    .select()
-    .from(settingsTable)
-    .where(eq(settingsTable.key, SETTINGS_KEYS.LAST_MONTHLY_RESET));
-  const startOfMonth = setting ? new Date(setting.value) : dayjs().startOf("month").toDate();
+  const startOfMonth = await getMonthStartDate();
 
   // Get tracked voice sessions this month, ordered by joinedAt for merging
   const voiceSessions = await db

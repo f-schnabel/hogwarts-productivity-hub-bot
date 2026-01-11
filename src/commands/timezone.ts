@@ -4,8 +4,9 @@ import dayjs from "dayjs";
 import { db, fetchUserTimezone } from "../db/db.ts";
 import { userTable } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
-import { replyError } from "../utils/interactionUtils.ts";
+import { errorReply } from "../utils/interactionUtils.ts";
 import type { CommandOptions } from "../types.ts";
+import { stripIndent } from "common-tags";
 
 export default {
   data: new SlashCommandBuilder()
@@ -74,12 +75,13 @@ async function setTimezone(
     dayjs().tz(newTimezone);
   } catch (e) {
     console.error("Invalid timezone provided:", newTimezone, e);
-    await replyError(
+    await errorReply(
       opId,
       interaction,
       "Invalid Timezone",
-      `The timezone \`${newTimezone}\` is not valid.`,
-      "Check [IANA timezone list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)",
+      stripIndent`
+      The timezone \`${newTimezone}\` is not valid.
+      Check [IANA timezone list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)`,
     );
     return;
   }
@@ -108,11 +110,11 @@ async function setTimezone(
     .where(eq(userTable.discordId, discordId));
 
   if (result.rowCount === 0) {
-    await replyError(
+    await errorReply(
       opId,
       interaction,
-      `Timezone Update Failed`,
-      `Failed to update your timezone. Please try again later.`,
+      "Timezone Update Failed",
+      "Failed to update your timezone. Please try again later.",
     );
     return;
   }

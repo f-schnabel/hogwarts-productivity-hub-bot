@@ -13,7 +13,7 @@ const YEAR_ROLE_IDS = process.env.YEAR_ROLE_IDS.split(",");
 const YEAR_ANNOUNCEMENT_CHANNEL_ID = process.env.YEAR_ANNOUNCEMENT_CHANNEL_ID;
 
 // Returns 1-7 for year, or null if <1 hour
-export function getYearFromMonthlyVoiceTime(seconds: number): YEAR | null {
+function getYearFromMonthlyVoiceTime(seconds: number): YEAR | null {
   const hours = seconds / 3600;
   for (const year of [7, 6, 5, 4, 3, 2, 1] as const) {
     const threshold = YEAR_THRESHOLDS_HOURS[year - 1];

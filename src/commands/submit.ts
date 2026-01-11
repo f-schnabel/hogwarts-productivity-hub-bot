@@ -15,7 +15,7 @@ import {
 import { awardPoints } from "../services/pointsService.ts";
 import { getHouseFromMember } from "../utils/houseUtils.ts";
 import { hasAnyRole } from "../utils/roleUtils.ts";
-import { replyError } from "../utils/interactionUtils.ts";
+import { errorReply } from "../utils/interactionUtils.ts";
 import assert from "node:assert";
 import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";
@@ -42,12 +42,12 @@ export default {
    */
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
     if (!interaction.inCachedGuild()) {
-      await replyError(opId, interaction, "Invalid Context", "This command can only be used in a server.");
+      await errorReply(opId, interaction, "Invalid Context", "This command can only be used in a server.");
       return;
     }
 
     if (!hasAnyRole(interaction.member, Role.OWNER) && !SUBMISSION_CHANNEL_IDS.includes(interaction.channelId)) {
-      await replyError(opId, interaction, "Invalid Channel", "You cannot use this command in this channel.");
+      await errorReply(opId, interaction, "Invalid Channel", "You cannot use this command in this channel.");
       return;
     }
 
@@ -150,13 +150,13 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect, 
         components: [
           {
             type: ComponentType.Button,
-            customId: "submit|approve|" + submissionData.id.toFixed(),
+            customId: `submit|approve|${submissionData.id}`,
             label: `Approve ${submissionData.points} points`,
             style: ButtonStyle.Success,
           },
           {
             type: ComponentType.Button,
-            customId: "submit|reject|" + submissionData.id.toFixed(),
+            customId: `submit|reject|${submissionData.id}`,
             label: "Reject",
             style: ButtonStyle.Secondary,
           },
@@ -171,7 +171,7 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect, 
     fields: [
       {
         name: "Submission ID",
-        value: submissionData.houseId.toFixed(),
+        value: `${submissionData.houseId}`,
         inline: false,
       },
       {
@@ -181,7 +181,7 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect, 
       },
       {
         name: "Score",
-        value: submissionData.points.toFixed(),
+        value: `${submissionData.points}`,
         inline: true,
       },
       {

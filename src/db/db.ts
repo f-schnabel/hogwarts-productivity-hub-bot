@@ -1,20 +1,16 @@
 import { drizzle, type NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import * as schema from "./schema.ts";
 import type { GuildMember } from "discord.js";
-import { eq, and, type ExtractTablesWithRelations, isNull, inArray, DefaultLogger, type LogWriter } from "drizzle-orm";
+import { eq, and, type ExtractTablesWithRelations, isNull, inArray, DefaultLogger } from "drizzle-orm";
 import { getHouseFromMember } from "../utils/houseUtils.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
+import dayjs from "dayjs";
+import { SETTINGS_KEYS } from "../utils/constants.ts";
 
-export type Schema = typeof schema;
+type Schema = typeof schema;
 
 export type Tx = PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>;
 export type DbOrTx = Tx | typeof db;
-
-class MyLogWriter implements LogWriter {
-  write(message: string): void {
-    console.debug(message);
-  }
-}
 
 export const db = drizzle({
   connection: {
@@ -26,7 +22,13 @@ export const db = drizzle({
   },
   schema,
   casing: "snake_case",
-  logger: new DefaultLogger({ writer: new MyLogWriter() }),
+  logger: new DefaultLogger({
+    writer: {
+      write: (msg) => {
+        console.debug(msg);
+      },
+    },
+  }),
 });
 
 export async function ensureUserExists(member: GuildMember | null, discordId: string, username: string) {
@@ -65,4 +67,12 @@ export async function fetchOpenVoiceSessions(db: Tx, usersNeedingReset: string[]
       ),
     )
     .innerJoin(schema.userTable, eq(schema.voiceSessionTable.discordId, schema.userTable.discordId));
+}
+
+export async function getMonthStartDate(): Promise<Date> {
+  const [setting] = await db
+    .select()
+    .from(schema.settingsTable)
+    .where(eq(schema.settingsTable.key, SETTINGS_KEYS.LAST_MONTHLY_RESET));
+  return setting ? new Date(setting.value) : dayjs().startOf("month").toDate();
 }

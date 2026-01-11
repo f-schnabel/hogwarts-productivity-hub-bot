@@ -1,8 +1,7 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { db } from "../db/db.ts";
 import { awardPoints } from "../services/pointsService.ts";
-import { hasAnyRole } from "../utils/roleUtils.ts";
-import { editReplyError, replyError } from "../utils/interactionUtils.ts";
+import { errorReply, requireRole } from "../utils/interactionUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { settingsTable, userTable } from "../db/schema.ts";
 import { Role, SETTINGS_KEYS } from "../utils/constants.ts";
@@ -41,21 +40,11 @@ export default {
 
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
     if (!interaction.inCachedGuild()) {
-      await replyError(opId, interaction, "Invalid Context", "This command can only be used in a server.");
+      await errorReply(opId, interaction, "Invalid Context", "This command can only be used in a server.");
       return;
     }
-
     await interaction.deferReply();
-
-    if (!hasAnyRole(interaction.member, Role.PROFESSOR)) {
-      await editReplyError(
-        opId,
-        interaction,
-        "Insufficient Permissions",
-        "You do not have permission to use this command.",
-      );
-      return;
-    }
+    if (!(await requireRole(interaction, opId, Role.PROFESSOR))) return;
 
     switch (interaction.options.getSubcommand()) {
       case "adjust-points":
@@ -71,7 +60,7 @@ export default {
         await refreshYearRoles(interaction, opId);
         break;
       default:
-        await editReplyError(opId, interaction, "Invalid Subcommand", "Unknown subcommand.");
+        await errorReply(opId, interaction, "Invalid Subcommand", "Unknown subcommand.", { deferred: true });
         return;
     }
   },

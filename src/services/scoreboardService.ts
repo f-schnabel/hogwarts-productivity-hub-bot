@@ -10,7 +10,7 @@ import { getGuild } from "../events/clientReady.ts";
 
 const log = createLogger("Scoreboard");
 
-export interface ScoreboardEntry {
+interface ScoreboardEntry {
   id: number;
   channelId: string;
   messageId: string;

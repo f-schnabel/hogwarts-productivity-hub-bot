@@ -1,43 +1,48 @@
 import type { ChatInputCommandInteraction } from "discord.js";
-import { BOT_COLORS } from "./constants.ts";
+import { BOT_COLORS, Role } from "./constants.ts";
 import { createLogger } from "./logger.ts";
+import { hasAnyRole } from "./roleUtils.ts";
 
 const log = createLogger("Interaction");
 
-export async function editReplyError(
+export async function errorReply(
   opId: string,
   interaction: ChatInputCommandInteraction,
   title: string,
-  ...messages: string[]
+  description: string,
+  opts?: { deferred?: boolean },
 ) {
-  log.warn("Error reply", { opId, user: interaction.user.username, title, msg: messages.join("; ") });
-  await interaction.editReply({
-    embeds: [
-      {
-        color: BOT_COLORS.ERROR,
-        title: `❌ ${title}`,
-        description: messages.join("\n"),
-      },
-    ],
-  });
+  log.warn("Error reply", { opId, user: interaction.user.username, title, description });
+  const payload = {
+    embeds: [{ color: BOT_COLORS.ERROR, title: `❌ ${title}`, description }],
+  };
+  if (opts?.deferred) {
+    await interaction.editReply(payload);
+  } else {
+    await interaction.reply(payload);
+  }
 }
 
-export async function replyError(
+/** Returns true if role check passed, false if error was sent */
+export async function requireRole(
+  interaction: ChatInputCommandInteraction<"cached">,
   opId: string,
-  interaction: ChatInputCommandInteraction,
-  title: string,
-  ...messages: string[]
-) {
-  log.warn("Error reply", { opId, user: interaction.user.username, title, msg: messages.join("; ") });
-  await interaction.reply({
-    embeds: [
-      {
-        color: BOT_COLORS.ERROR,
-        title: `❌ ${title}`,
-        description: messages.join("\n"),
-      },
-    ],
-  });
+  roles: number,
+): Promise<boolean> {
+  if (!hasAnyRole(interaction.member, roles)) {
+    const roleNames: string[] = [];
+    if (roles & Role.OWNER) roleNames.push("OWNER");
+    if (roles & Role.PREFECT) roleNames.push("PREFECT");
+    if (roles & Role.PROFESSOR) roleNames.push("PROFESSOR");
+    await errorReply(
+      opId,
+      interaction,
+      "Insufficient Permissions",
+      `Only ${roleNames.join(" or ")} can use this command.`,
+    );
+    return false;
+  }
+  return true;
 }
 
 export function formatDuration(seconds: number): string {
