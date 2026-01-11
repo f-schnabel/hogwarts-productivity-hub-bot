@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { db } from "../db/db.ts";
 import { houseScoreboardTable } from "../db/schema.ts";
 import type { Command, CommandOptions, House } from "../types.ts";
-import { errorReply, requireRole } from "../utils/interactionUtils.ts";
+import { inGuild, requireRole } from "../utils/interactionUtils.ts";
 import { getHousepointMessages } from "../services/scoreboardService.ts";
 import assert from "node:assert";
 import { Role } from "../utils/constants.ts";
@@ -24,12 +24,8 @@ export default {
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
-    if (!interaction.inCachedGuild()) {
-      await errorReply(opId, interaction, "Invalid Context", "This command can only be used in a server.");
-      return;
-    }
+    if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.OWNER | Role.PROFESSOR)) return;
     await interaction.deferReply();
-    if (!(await requireRole(interaction, opId, Role.OWNER | Role.PROFESSOR))) return;
 
     const house = interaction.options.getString("house", true) as House;
     await db.transaction(async (db) => {

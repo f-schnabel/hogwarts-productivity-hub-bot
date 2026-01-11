@@ -23,18 +23,26 @@ export async function errorReply(
   }
 }
 
-/** Returns true if role check passed, false if error was sent */
-export async function requireRole(
-  interaction: ChatInputCommandInteraction<"cached">,
+/** Sync type guard for guild check. Fires error reply if not in guild. */
+export function inGuild(
+  interaction: ChatInputCommandInteraction,
   opId: string,
-  roles: number,
-): Promise<boolean> {
+): interaction is ChatInputCommandInteraction<"cached"> {
+  if (!interaction.inCachedGuild()) {
+    void errorReply(opId, interaction, "Invalid Context", "This command can only be used in a server.");
+    return false;
+  }
+  return true;
+}
+
+/** Returns true if role check passed, false if error was sent */
+export function requireRole(interaction: ChatInputCommandInteraction<"cached">, opId: string, roles: number): boolean {
   if (!hasAnyRole(interaction.member, roles)) {
     const roleNames: string[] = [];
     if (roles & Role.OWNER) roleNames.push("OWNER");
     if (roles & Role.PREFECT) roleNames.push("PREFECT");
     if (roles & Role.PROFESSOR) roleNames.push("PROFESSOR");
-    await errorReply(
+    void errorReply(
       opId,
       interaction,
       "Insufficient Permissions",

@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { db, getMonthStartDate } from "../db/db.ts";
 import { submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, asc, eq, gte } from "drizzle-orm";
-import { formatDuration, errorReply, requireRole } from "../utils/interactionUtils.ts";
+import { formatDuration, errorReply, inGuild, requireRole } from "../utils/interactionUtils.ts";
 import { BOT_COLORS, Role } from "../utils/constants.ts";
 import type { CommandOptions } from "../types.ts";
 import { calculatePointsHelper } from "../services/pointsService.ts";
@@ -78,12 +78,8 @@ async function time(interaction: ChatInputCommandInteraction, opId: string) {
 }
 
 async function points(interaction: ChatInputCommandInteraction, opId: string) {
-  if (!interaction.inCachedGuild()) {
-    await errorReply(opId, interaction, "Invalid Context", "This command can only be used in a server.");
-    return;
-  }
+  if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.OWNER | Role.PREFECT)) return;
   await interaction.deferReply();
-  if (!(await requireRole(interaction, opId, Role.OWNER | Role.PREFECT))) return;
 
   const user = interaction.options.getUser("user", true);
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
@@ -191,13 +187,17 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
   });
 }
 
+// Merge consecutive sessions (same channel, leftAt == joinedAt of next, not at midnight boundary)
+interface MergedSession {
+  channelName: string | null;
+  joinedAt: Date;
+  leftAt: Date | null;
+  duration: number;
+}
+
 async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: string) {
-  if (!interaction.inCachedGuild()) {
-    await errorReply(opId, interaction, "Invalid Context", "This command can only be used in a server.");
-    return;
-  }
+  if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.OWNER | Role.PREFECT)) return;
   await interaction.deferReply();
-  if (!(await requireRole(interaction, opId, Role.OWNER | Role.PREFECT))) return;
 
   const user = interaction.options.getUser("user", true);
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
@@ -229,14 +229,6 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: st
     .orderBy(asc(voiceSessionTable.joinedAt));
 
   const tz = userData.timezone;
-
-  // Merge consecutive sessions (same channel, leftAt == joinedAt of next, not at midnight boundary)
-  interface MergedSession {
-    channelName: string | null;
-    joinedAt: Date;
-    leftAt: Date | null;
-    duration: number;
-  }
   const mergedSessions: MergedSession[] = [];
 
   for (const session of voiceSessions) {

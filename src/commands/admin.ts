@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { db } from "../db/db.ts";
 import { awardPoints } from "../services/pointsService.ts";
-import { errorReply, requireRole } from "../utils/interactionUtils.ts";
+import { errorReply, inGuild, requireRole } from "../utils/interactionUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { settingsTable, userTable } from "../db/schema.ts";
 import { Role, SETTINGS_KEYS } from "../utils/constants.ts";
@@ -39,12 +39,8 @@ export default {
     ),
 
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
-    if (!interaction.inCachedGuild()) {
-      await errorReply(opId, interaction, "Invalid Context", "This command can only be used in a server.");
-      return;
-    }
+    if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.PROFESSOR)) return;
     await interaction.deferReply();
-    if (!(await requireRole(interaction, opId, Role.PROFESSOR))) return;
 
     switch (interaction.options.getSubcommand()) {
       case "adjust-points":

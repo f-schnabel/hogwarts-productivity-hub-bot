@@ -15,7 +15,7 @@ import {
 import { awardPoints } from "../services/pointsService.ts";
 import { getHouseFromMember } from "../utils/houseUtils.ts";
 import { hasAnyRole } from "../utils/roleUtils.ts";
-import { errorReply } from "../utils/interactionUtils.ts";
+import { errorReply, inGuild } from "../utils/interactionUtils.ts";
 import assert from "node:assert";
 import { db } from "../db/db.ts";
 import { submissionTable } from "../db/schema.ts";
@@ -41,10 +41,7 @@ export default {
    * Does not use deferReply as the initial processing is quick.
    */
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
-    if (!interaction.inCachedGuild()) {
-      await errorReply(opId, interaction, "Invalid Context", "This command can only be used in a server.");
-      return;
-    }
+    if (!inGuild(interaction, opId)) return;
 
     if (!hasAnyRole(interaction.member, Role.OWNER) && !SUBMISSION_CHANNEL_IDS.includes(interaction.channelId)) {
       await errorReply(opId, interaction, "Invalid Channel", "You cannot use this command in this channel.");
