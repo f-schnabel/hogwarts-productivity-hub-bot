@@ -1,14 +1,10 @@
 import type { House } from "../types.ts";
 
 export const BOT_COLORS = {
-  PRIMARY: 0x4b82f3,
   SUCCESS: 0x00c853,
   WARNING: 0xff8f00,
   ERROR: 0xd84315,
   INFO: 0x2196f3,
-  SECONDARY: 0x757575,
-  HEALTHY: 0x4caf50,
-  PREMIUM: 0x9c27b0,
 } as const;
 
 export const HOUSE_COLORS = {

@@ -12,39 +12,32 @@ import type { Guild } from "discord.js";
 import { getGuild } from "../events/clientReady.ts";
 
 const log = createLogger("Reset");
-const scheduledJobs = new Map<string, cron.ScheduledTask>();
 
-export async function start() {
+export function start() {
   // Schedule daily reset checks - run every hour to catch all timezones
-  const dailyResetJob = cron.schedule(
+  cron.schedule(
     "0 * * * *",
-    async () => {
-      await processDailyResets();
+    () => {
+      void processDailyResets();
     },
     {
       timezone: "UTC",
     },
   );
 
-  // Track all jobs
-  scheduledJobs.set("dailyReset", dailyResetJob);
-
-  // Start all jobs
-  await dailyResetJob.start();
   log.debug("CentralResetService started");
 }
 
 async function processDailyResets() {
-  const start = Date.now();
   const end = resetExecutionTimer.startTimer();
   const opId = OpId.rst();
   const guild = getGuild();
 
   log.debug("Daily reset start", { opId });
 
-  await wrapWithAlerting(
+  const usersReset = await wrapWithAlerting(
     async () => {
-      await db.transaction(async (db) => {
+      return await db.transaction(async (db) => {
         const usersNeedingPotentialReset = await db
           .select({
             discordId: userTable.discordId,
@@ -91,7 +84,7 @@ async function processDailyResets() {
 
           await loseMessageStreakInNickname(db, guild, opId, usersNeedingReset);
 
-          const result = await db
+          return await db
             .update(userTable)
             .set({
               dailyPoints: 0,
@@ -101,8 +94,8 @@ async function processDailyResets() {
               isMessageStreakUpdatedToday: false,
               dailyMessages: 0,
             })
-            .where(inArray(userTable.discordId, usersNeedingReset));
-          log.info("Daily reset complete", { opId, usersReset: result.rowCount, ms: Date.now() - start });
+            .where(inArray(userTable.discordId, usersNeedingReset))
+            .then((result) => result.rowCount);
         } finally {
           await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db, opId)));
         }
@@ -111,7 +104,7 @@ async function processDailyResets() {
     "Daily reset processing",
     opId,
   );
-  end({ action: "daily" });
+  log.info("Daily reset complete", { opId, usersReset, ms: end({ action: "daily" }) });
 }
 
 async function setBoosterPerk(db: Tx, guild: Guild, usersNeedingReset: Set<string>): Promise<number> {

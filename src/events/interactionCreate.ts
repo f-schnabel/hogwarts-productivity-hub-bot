@@ -11,11 +11,9 @@ import assert from "node:assert/strict";
 import { ensureUserExists } from "../db/db.ts";
 import { alertOwner } from "../utils/alerting.ts";
 import { interactionExecutionTimer } from "../monitoring.ts";
-import type { VoiceTimer } from "../types.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 
 const log = createLogger("Command");
-const activeVoiceTimers = new Map<string, VoiceTimer>();
 
 export async function execute(interaction: Interaction): Promise<void> {
   const start = Date.now();
@@ -59,7 +57,7 @@ export async function execute(interaction: Interaction): Promise<void> {
       assert(command.autocomplete, `Command /${interaction.commandName} does not support autocomplete`);
       await command.autocomplete(interaction);
     } else {
-      await command.execute(interaction, { activeVoiceTimers, opId });
+      await command.execute(interaction, { opId });
     }
   } catch (error) {
     log.error("Execution failed", ctx, error);

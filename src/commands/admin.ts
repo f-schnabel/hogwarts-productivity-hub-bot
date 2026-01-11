@@ -77,7 +77,7 @@ export default {
   },
 };
 
-async function adjustPoints(interaction: ChatInputCommandInteraction, opId: string) {
+async function adjustPoints(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
   const amount = interaction.options.getInteger("amount", true);
   const user = interaction.options.getUser("user", true);
 
@@ -86,13 +86,7 @@ async function adjustPoints(interaction: ChatInputCommandInteraction, opId: stri
   await interaction.editReply(`Adjusted ${amount} points for ${user.tag}.`);
 }
 
-async function resetMonthlyPoints(interaction: ChatInputCommandInteraction, opId: string) {
-  const guild = interaction.guild;
-  if (!guild) {
-    await editReplyError(opId, interaction, "Error", "This command can only be used in a server.");
-    return;
-  }
-
+async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
   await wrapWithAlerting(
     async () => {
       const result = await db.update(userTable).set({
@@ -102,7 +96,7 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction, opId
       log.info("Monthly reset complete", { opId, usersReset: result.rowCount });
 
       // Refresh year roles after resetting (removes all year roles since voice time is 0)
-      const rolesUpdated = await refreshAllYearRoles(guild, opId);
+      const rolesUpdated = await refreshAllYearRoles(interaction.guild, opId);
       log.info("Year roles refreshed", { opId, usersUpdated: rolesUpdated });
 
       // Store reset timestamp
@@ -120,7 +114,7 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction, opId
   await interaction.editReply("Monthly points have been reset for all users.");
 }
 
-async function resetTotalPoints(interaction: ChatInputCommandInteraction, opId: string) {
+async function resetTotalPoints(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
   await wrapWithAlerting(
     async () => {
       const result = await db.update(userTable).set({
@@ -135,16 +129,10 @@ async function resetTotalPoints(interaction: ChatInputCommandInteraction, opId: 
   await interaction.editReply("Total points have been reset for all users.");
 }
 
-async function refreshYearRoles(interaction: ChatInputCommandInteraction, opId: string) {
-  const guild = interaction.guild;
-  if (!guild) {
-    await editReplyError(opId, interaction, "Error", "This command can only be used in a server.");
-    return;
-  }
-
+async function refreshYearRoles(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
   await wrapWithAlerting(
     async () => {
-      const count = await refreshAllYearRoles(guild, opId);
+      const count = await refreshAllYearRoles(interaction.guild, opId);
       await interaction.editReply(`Year Ranks refreshed for ${count} users.`);
     },
     "Refresh Year Ranks processing",

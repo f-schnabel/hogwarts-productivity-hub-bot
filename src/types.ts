@@ -4,9 +4,9 @@ import type {
   ChatInputCommandInteraction,
   SharedSlashCommand,
 } from "discord.js";
+import type { HOUSE_COLORS } from "./utils/constants.ts";
 
 export interface CommandOptions {
-  activeVoiceTimers: Map<string, VoiceTimer>;
   opId: string;
 }
 
@@ -22,19 +22,11 @@ export interface Command {
   ) => Promise<void>;
 }
 
-export type House = "Gryffindor" | "Hufflepuff" | "Ravenclaw" | "Slytherin";
+export type House = keyof typeof HOUSE_COLORS;
 
 export interface VoiceSession {
   username: string;
   discordId: string;
   channelId: string | null;
   channelName: string | null;
-}
-
-export interface VoiceTimer {
-  endTime: Date;
-  phase: "work" | "break";
-  startTime: number;
-  workTimeout?: NodeJS.Timeout;
-  breakTimeout?: NodeJS.Timeout;
 }
