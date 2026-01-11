@@ -34,7 +34,7 @@ try {
   registerShutdownHandlers();
   registerMonitoringEvents();
 
-  await CentralResetService.start();
+  CentralResetService.start();
   await client.login(process.env.DISCORD_TOKEN);
 } catch (error) {
   log.error("Error initializing bot", { opId: "init" }, error);
