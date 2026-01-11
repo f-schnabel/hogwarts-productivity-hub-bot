@@ -14,30 +14,35 @@ const SystemDLogPriority = {
   Debug: 7,
 } as const;
 
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+type Priority = (typeof SystemDLogPriority)[keyof typeof SystemDLogPriority];
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
+const formatWithPriority = (priority: Priority, args: any[]): string => {
+  const message = args.map((arg) => (typeof arg === "string" ? arg : JSON.stringify(arg))).join(" ");
+  return `<${priority}>${message.replace(/\n/g, " ")}`;
+};
+
 console.log = (...args: any[]) => {
-  oldConsole.log(`<${SystemDLogPriority.Info}>`, ...args);
+  oldConsole.log(formatWithPriority(SystemDLogPriority.Info, args));
 };
 
 console.error = (...args: any[]) => {
-  oldConsole.error(`<${SystemDLogPriority.Error}>`, ...args);
+  oldConsole.error(formatWithPriority(SystemDLogPriority.Error, args));
 };
 
 console.warn = (...args: any[]) => {
-  oldConsole.warn(`<${SystemDLogPriority.Warning}>`, ...args);
+  oldConsole.warn(formatWithPriority(SystemDLogPriority.Warning, args));
 };
 
 console.info = (...args: any[]) => {
-  oldConsole.info(`<${SystemDLogPriority.Info}>`, ...args);
+  oldConsole.info(formatWithPriority(SystemDLogPriority.Info, args));
 };
 
 console.debug = (...args: any[]) => {
-  oldConsole.debug(`<${SystemDLogPriority.Debug}>`, ...args);
+  oldConsole.debug(formatWithPriority(SystemDLogPriority.Debug, args));
 };
 
 console.trace = (...args: any[]) => {
-  oldConsole.trace(`<${SystemDLogPriority.Debug}>`, ...args);
+  oldConsole.trace(formatWithPriority(SystemDLogPriority.Debug, args));
 };
-/* eslint-enable @typescript-eslint/no-unsafe-argument */
 /* eslint-enable @typescript-eslint/no-explicit-any */
