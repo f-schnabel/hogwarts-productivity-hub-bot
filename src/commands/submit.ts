@@ -45,7 +45,6 @@ export default {
       return;
     }
 
-    const points = DEFAULT_SUBMISSION_POINTS;
     const screenshot = interaction.options.getAttachment("screenshot", true);
 
     const house = getHouseFromMember(interaction.member);
@@ -55,7 +54,7 @@ export default {
       .insert(submissionTable)
       .values({
         discordId: interaction.member.id,
-        points,
+        points: DEFAULT_SUBMISSION_POINTS,
         screenshotUrl: screenshot.url,
         house: house,
         // Calculate next house submission ID by counting existing submissions
