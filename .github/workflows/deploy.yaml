@@ -31,7 +31,7 @@ jobs:
             pnpm register &&
             npx drizzle-kit migrate &&
             systemctl --user restart discord-bot.service &&
-            curl -k -X POST https://localhost:3000/api/annotations \
+            curl -X POST http://localhost:3000/api/annotations \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${{ secrets.OCI_GRAFANA_API_KEY }}" \
-              -d '{"text": "Deployment \"${{ github.event.workflow_run.head_commit.message }}\"", "tags": ["deploy", "hogwarts-bot"]}'
+              -d '{"text": "Deployment \"${{ github.event.workflow_run.head_commit.message }}\"", "tags": ["deploy", "hogwarts-bot"]}' || true
