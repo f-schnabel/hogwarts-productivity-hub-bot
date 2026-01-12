@@ -132,7 +132,7 @@ describe("updateMessageStreakInNickname", () => {
 
     await utils.updateMessageStreakInNickname(mockMember, streak, opId);
 
-    expect(mockMember.setNickname).toHaveBeenCalledExactlyOnceWith(expected);
+    expect(mockMember.setNickname).toHaveBeenCalledExactlyOnceWith(expected, `Updating message streak to ${streak}`);
     expect(mockMember.nickname).toBe(expected);
   });
 });
