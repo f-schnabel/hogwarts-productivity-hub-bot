@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, userMention } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import dayjs from "dayjs";
 import { db, getMonthStartDate } from "../db/db.ts";
 import { submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
@@ -168,7 +168,7 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
       {
         color: BOT_COLORS.INFO,
         title: "Monthly Points Breakdown",
-        description: `Viewing monthly points for ${userMention(user.id)}`,
+        description: `Viewing monthly points for ${user.toString()}`,
         thumbnail: {
           url: user.displayAvatarURL(),
         },
