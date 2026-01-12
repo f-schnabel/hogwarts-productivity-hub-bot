@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, userMention } from "discord.js";
 import dayjs from "dayjs";
 import { db, getMonthStartDate } from "../db/db.ts";
 import { submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
@@ -167,7 +167,8 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
     embeds: [
       {
         color: BOT_COLORS.INFO,
-        title: `${user.displayName}'s Monthly Points Breakdown`,
+        title: "Monthly Points Breakdown",
+        description: userMention(user.id),
         thumbnail: {
           url: user.displayAvatarURL(),
         },
