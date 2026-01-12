@@ -168,6 +168,9 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
       {
         color: BOT_COLORS.INFO,
         title: `${user.displayName}'s Monthly Points Breakdown`,
+        thumbnail: {
+          url: user.displayAvatarURL(),
+        },
         fields: [
           {
             name: `Daily Activity (${dayjs().tz(tz).format("z")})`,
