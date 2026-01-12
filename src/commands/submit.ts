@@ -1,6 +1,7 @@
 import {
   ButtonInteraction,
   ButtonStyle,
+  channelMention,
   ChatInputCommandInteraction,
   ComponentType,
   EmbedBuilder,
@@ -41,7 +42,12 @@ export default {
     if (!inGuild(interaction, opId)) return;
 
     if (!hasAnyRole(interaction.member, Role.OWNER) && !SUBMISSION_CHANNEL_IDS.includes(interaction.channelId)) {
-      await errorReply(opId, interaction, "Invalid Channel", "You cannot use this command in this channel.");
+      await errorReply(
+        opId,
+        interaction,
+        "Invalid Channel",
+        `You can use this command in the following channel${SUBMISSION_CHANNEL_IDS.length > 1 ? "s" : ""}: ${SUBMISSION_CHANNEL_IDS.map((id) => channelMention(id)).join(", ")}.`);
+
       return;
     }
 
