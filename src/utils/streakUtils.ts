@@ -35,6 +35,6 @@ export async function updateMessageStreakInNickname(
 
   if (newNickname !== member.nickname) {
     log.debug("Updating nickname", ctx);
-    await member.setNickname(newNickname);
+    await member.setNickname(newNickname, `Updating message streak to ${newStreak}`);
   }
 }

@@ -35,7 +35,7 @@ export async function getHousepointMessages<T extends { house: House }>(
     for (const user of leaderboard) {
       const member = guild.members.cache.get(user.discordId);
       if (member) {
-        user.username = member.nickname ?? member.user.globalName ?? member.user.username;
+        user.username = member.displayName;
       }
     }
 
