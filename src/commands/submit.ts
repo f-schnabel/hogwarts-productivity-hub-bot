@@ -31,9 +31,6 @@ export default {
     .setDescription("Submit a score")
     .addAttachmentOption((option) =>
       option.setName("screenshot").setDescription("A screenshot of your work").setRequired(true),
-    )
-    .addIntegerOption((option) =>
-      option.setName("points").setDescription(`The number of points to submit (default: ${DEFAULT_SUBMISSION_POINTS})`),
     ),
 
   /**
@@ -48,7 +45,7 @@ export default {
       return;
     }
 
-    const points = interaction.options.getInteger("points") ?? DEFAULT_SUBMISSION_POINTS;
+    const points = DEFAULT_SUBMISSION_POINTS;
     const screenshot = interaction.options.getAttachment("screenshot", true);
 
     const house = getHouseFromMember(interaction.member);
