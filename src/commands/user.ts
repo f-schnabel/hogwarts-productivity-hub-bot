@@ -168,7 +168,7 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
       {
         color: BOT_COLORS.INFO,
         title: "Monthly Points Breakdown",
-        description: userMention(user.id),
+        description: `Viewing monthly points for ${userMention(user.id)}`,
         thumbnail: {
           url: user.displayAvatarURL(),
         },
