@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, userMention } from "discord.js";
 import dayjs from "dayjs";
 import { db, getMonthStartDate } from "../db/db.ts";
 import { submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
@@ -24,7 +24,7 @@ export default {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("points")
-        .setDescription("View breakdown of a user's monthly points (OWNER/PREFECT only)")
+        .setDescription("View breakdown of a user's monthly points")
         .addUserOption((option) =>
           option.setName("user").setDescription("The user to view points for").setRequired(true),
         ),
@@ -78,7 +78,7 @@ async function time(interaction: ChatInputCommandInteraction, opId: string) {
 }
 
 async function points(interaction: ChatInputCommandInteraction, opId: string) {
-  if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.OWNER | Role.PREFECT)) return;
+  if (!inGuild(interaction, opId)) return;
   await interaction.deferReply();
 
   const user = interaction.options.getUser("user", true);
@@ -167,7 +167,11 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
     embeds: [
       {
         color: BOT_COLORS.INFO,
-        title: `${user.displayName}'s Monthly Points Breakdown`,
+        title: "Monthly Points Breakdown",
+        description: `Viewing monthly points for ${userMention(user.id)}`,
+        thumbnail: {
+          url: user.displayAvatarURL(),
+        },
         fields: [
           {
             name: `Daily Activity (${dayjs().tz(tz).format("z")})`,
@@ -184,6 +188,7 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
         footer: { text: `Month: ${dayjs().format("MMMM YYYY")}` },
       },
     ],
+    allowedMentions: { users: [] },
   });
 }
 

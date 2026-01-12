@@ -4,6 +4,8 @@ on:
     workflows: CI
     types:
       - completed
+    branches:
+      - main
 
 name: Deploy to Oracle Cloud
 
@@ -11,7 +13,7 @@ jobs:
   build:
     name: Build and Deploy
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') || github.event_name == 'workflow_dispatch' }}
     environment: OCI
     steps:
       - name: Deploy
