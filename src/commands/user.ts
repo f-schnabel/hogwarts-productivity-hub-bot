@@ -188,6 +188,7 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
         footer: { text: `Month: ${dayjs().format("MMMM YYYY")}` },
       },
     ],
+    allowedMentions: { users: [] },
   });
 }
 
