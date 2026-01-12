@@ -24,7 +24,7 @@ export default {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("points")
-        .setDescription("View breakdown of a user's monthly points (OWNER/PREFECT only)")
+        .setDescription("View breakdown of a user's monthly points")
         .addUserOption((option) =>
           option.setName("user").setDescription("The user to view points for").setRequired(true),
         ),
@@ -78,7 +78,7 @@ async function time(interaction: ChatInputCommandInteraction, opId: string) {
 }
 
 async function points(interaction: ChatInputCommandInteraction, opId: string) {
-  if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.OWNER | Role.PREFECT)) return;
+  if (!inGuild(interaction, opId)) return;
   await interaction.deferReply();
 
   const user = interaction.options.getUser("user", true);
