@@ -196,5 +196,4 @@ async function resetVCEmojisAndRoles(c: Client<true>, opId: string) {
       await removeVCRole(opId, m);
     }),
   );
-
 }
