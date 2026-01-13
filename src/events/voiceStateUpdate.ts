@@ -4,6 +4,8 @@ import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { alertOwner, wrapWithAlerting } from "../utils/alerting.ts";
 import { voiceSessionExecutionTimer } from "../monitoring.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
+import { hasAnyRole } from "../utils/roleUtils.ts";
+import { Role } from "../utils/constants.ts";
 
 const log = createLogger("VoiceEvent");
 const VC_ROLE_ID = process.env.VC_ROLE_ID;
@@ -99,6 +101,7 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
 }
 
 async function addVCEmoji(opId: string, member: GuildMember) {
+  if (hasAnyRole(member, Role.PROFESSOR)) return;
   const emoji = await getVCEmoji();
   try {
     const newNickname = member.displayName + " " + emoji;
@@ -114,6 +117,7 @@ async function addVCEmoji(opId: string, member: GuildMember) {
 }
 
 async function removeVCEmoji(opId: string, member: GuildMember) {
+  if (hasAnyRole(member, Role.PROFESSOR)) return;
   try {
     const emoji = await getVCEmoji();
     if (!member.nickname?.includes(" " + emoji)) return;
