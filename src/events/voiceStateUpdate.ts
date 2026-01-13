@@ -76,14 +76,18 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
         // User joined a voice channel
         if (!oldChannel && newChannel) {
           event = "join";
-          await startVoiceSession(newVoiceSession, db, opId);
-          await addVCEmoji(opId, member);
-          await addVCRole(opId, member);
+          await Promise.all([
+            startVoiceSession(newVoiceSession, db, opId),
+            addVCEmoji(opId, member),
+            addVCRole(opId, member),
+          ]);
         } else if (oldChannel && !newChannel) {
           event = "leave";
-          await endVoiceSession(oldVoiceSession, db, opId, true, member);
-          await removeVCEmoji(opId, member);
-          await removeVCRole(opId, member);
+          await Promise.all([
+            endVoiceSession(oldVoiceSession, db, opId, true, member),
+            removeVCEmoji(opId, member),
+            removeVCRole(opId, member),
+          ]);
         } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
           event = "switch";
           // For channel switches, end the old session and start new one immediately
@@ -106,7 +110,7 @@ async function addVCEmoji(opId: string, member: GuildMember) {
   try {
     const newNickname = member.displayName + " " + emoji;
     if (newNickname.length > 32) return;
-    await member.setNickname(newNickname);
+    await member.setNickname(newNickname, "User joined voice channel");
   } catch (error) {
     log.warn("Failed to add VC emoji", { opId, userId: member.id, error });
     await alertOwner(
@@ -124,7 +128,7 @@ async function removeVCEmoji(opId: string, member: GuildMember) {
 
     const newNickname = member.nickname.replaceAll(" " + emoji, "");
     if (newNickname.length === 0) return;
-    await member.setNickname(newNickname);
+    await member.setNickname(newNickname, "User left voice channel");
   } catch (error) {
     log.warn("Failed to remove VC emoji", { opId, userId: member.id, error });
     await alertOwner(
