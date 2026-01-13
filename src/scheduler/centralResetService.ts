@@ -6,7 +6,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { resetExecutionTimer } from "../monitoring.ts";
-import { updateMessageStreakInNickname } from "../utils/streakUtils.ts";
+import { updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 import type { Guild } from "discord.js";
 import { getGuild } from "../events/clientReady.ts";

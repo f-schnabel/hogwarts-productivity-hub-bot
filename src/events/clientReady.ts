@@ -3,15 +3,16 @@ import dayjs from "dayjs";
 import { commands } from "../commands.ts";
 import * as VoiceStateScanner from "../services/voiceStateScanner.ts";
 import { alertOwner } from "../utils/alerting.ts";
-import { db } from "../db/db.ts";
+import { db, getVCEmoji } from "../db/db.ts";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
-import { updateMessageStreakInNickname } from "../utils/streakUtils.ts";
+import { removeVCEmoji, updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../services/scoreboardService.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 import assert from "node:assert";
 import { client } from "../client.ts";
 import { MIN_USERS_FOR_SAFE_DELETION } from "../utils/constants.ts";
+import { removeVCRole } from "../utils/roleUtils.ts";
 
 const log = createLogger("Startup");
 
@@ -34,6 +35,7 @@ export async function execute(c: Client<true>): Promise<void> {
 
     await VoiceStateScanner.scanAndStartTracking(opId);
     await resetNicknameStreaks(c, opId);
+    await resetVCEmojisAndRoles(c, opId);
     const { staleUserIds, totalDbUsers } = await logDbUserRetention(opId);
     await deleteStaleUsers(staleUserIds, totalDbUsers, opId);
     await refreshScoreboardMessages(opId);
@@ -161,4 +163,38 @@ async function resetNicknameStreaks(client: Client, opId: string) {
       await updateMessageStreakInNickname(m, streak, opId);
     }),
   ]);
+}
+
+async function resetVCEmojisAndRoles(c: Client<true>, opId: string) {
+  log.debug("Resetting VC emojis", { opId, guildsCache: c.guilds.cache.size });
+  const emoji = await getVCEmoji();
+
+  const guild = getGuild();
+
+  const membersToReset = guild.members.cache.filter((member) => member.voice.channel === null);
+
+  const membersWithEmoji = membersToReset.filter((member) => member.nickname?.includes(" " + emoji));
+  log.debug("Processing guild VC emojis", {
+    opId,
+    toReset: membersWithEmoji.map((m) => m.user.username),
+  });
+  await Promise.all(
+    membersWithEmoji.values().map(async (m) => {
+      await removeVCEmoji(opId, m);
+    }),
+  );
+
+  const membersWithRole = membersToReset.filter(
+    (member) => member.roles.cache.get(process.env.VC_ROLE_ID) !== undefined,
+  );
+  log.debug("Processing guild VC roles", {
+    opId,
+    toReset: membersWithRole.map((m) => m.user.username),
+  });
+  await Promise.all(
+    membersWithRole.values().map(async (m) => {
+      await removeVCRole(opId, m);
+    }),
+  );
+
 }

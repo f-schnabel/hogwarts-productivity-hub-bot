@@ -4,7 +4,7 @@ import { userTable } from "../db/schema.ts";
 import { eq, sql } from "drizzle-orm";
 import { MIN_DAILY_MESSAGES_FOR_STREAK } from "../utils/constants.ts";
 import assert from "node:assert";
-import { updateMessageStreakInNickname } from "../utils/streakUtils.ts";
+import { updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 
 const log = createLogger("Message");
