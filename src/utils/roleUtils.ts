@@ -23,7 +23,10 @@ export async function addVCRole(opId: string, member: GuildMember) {
     }
 
     if (!member.roles.cache.has(role.id)) {
+      log.debug("Adding VC role", { opId, userId: member.id, username: member.user.username });
       await member.roles.add(role, "User joined voice channel");
+    } else {
+      log.debug("User already has VC role", { opId, userId: member.id, username: member.user.username });
     }
   } catch (error) {
     log.warn("Failed to add VC role", { opId, userId: member.id, error });
@@ -43,7 +46,10 @@ export async function removeVCRole(opId: string, member: GuildMember) {
     }
 
     if (member.roles.cache.has(role.id)) {
+      log.debug("Removing VC role", { opId, userId: member.id, username: member.user.username });
       await member.roles.remove(role, "User left voice channel");
+    } else {
+      log.debug("User does not have VC role", { opId, userId: member.id, username: member.user.username });
     }
   } catch (error) {
     // Log but do not alert owner on role removal failures
