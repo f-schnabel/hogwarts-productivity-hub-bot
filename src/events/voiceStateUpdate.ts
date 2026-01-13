@@ -1,11 +1,12 @@
-import { type VoiceState } from "discord.js";
-import { db, ensureUserExists } from "../db/db.ts";
+import { GuildMember, type VoiceState } from "discord.js";
+import { db, ensureUserExists, getVCEmoji } from "../db/db.ts";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
-import { wrapWithAlerting } from "../utils/alerting.ts";
+import { alertOwner, wrapWithAlerting } from "../utils/alerting.ts";
 import { voiceSessionExecutionTimer } from "../monitoring.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 
 const log = createLogger("VoiceEvent");
+const VC_ROLE_ID = process.env.VC_ROLE_ID;
 
 // Per-user locks to serialize voice events and prevent race conditions on fast channel switches
 const userLocks = new Map<string, Promise<void>>();
@@ -74,9 +75,13 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
         if (!oldChannel && newChannel) {
           event = "join";
           await startVoiceSession(newVoiceSession, db, opId);
+          await addVCEmoji(opId, member);
+          await addVCRole(opId, member);
         } else if (oldChannel && !newChannel) {
           event = "leave";
           await endVoiceSession(oldVoiceSession, db, opId, true, member);
+          await removeVCEmoji(opId, member);
+          await removeVCRole(opId, member);
         } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
           event = "switch";
           // For channel switches, end the old session and start new one immediately
@@ -91,4 +96,77 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
 
   log.info("Completed", { ...ctx, event, ms: Date.now() - start });
   end({ event });
+}
+
+async function addVCEmoji(opId: string, member: GuildMember) {
+  const emoji = await getVCEmoji();
+  try {
+    const newNickname = member.displayName + " " + emoji;
+    if (newNickname.length > 32) return;
+    await member.setNickname(newNickname);
+  } catch (error) {
+    log.warn("Failed to add VC emoji", { opId, userId: member.id, error });
+    await alertOwner(
+      "Failed to add VC emoji for " + member.id + ": " + (error instanceof Error ? error.message : String(error)),
+      opId,
+    );
+  }
+}
+
+async function removeVCEmoji(opId: string, member: GuildMember) {
+  try {
+    const emoji = await getVCEmoji();
+    if (!member.nickname?.includes(" " + emoji)) return;
+
+    const newNickname = member.nickname.replaceAll(" " + emoji, "");
+    if (newNickname.length === 0) return;
+    await member.setNickname(newNickname);
+  } catch (error) {
+    log.warn("Failed to remove VC emoji", { opId, userId: member.id, error });
+    await alertOwner(
+      "Failed to remove VC emoji for " + member.id + ": " + (error instanceof Error ? error.message : String(error)),
+      opId,
+    );
+  }
+}
+
+async function addVCRole(opId: string, member: GuildMember) {
+  try {
+    const role = await member.guild.roles.fetch(VC_ROLE_ID);
+    if (!role) {
+      await alertOwner("VC role not found: " + VC_ROLE_ID, opId);
+      return;
+    }
+
+    if (!member.roles.cache.has(role.id)) {
+      await member.roles.add(role, "User joined voice channel");
+    }
+  } catch (error) {
+    log.warn("Failed to add VC role", { opId, userId: member.id, error });
+    await alertOwner(
+      "Failed to add VC role for " + member.id + ": " + (error instanceof Error ? error.message : String(error)),
+      opId,
+    );
+  }
+}
+
+async function removeVCRole(opId: string, member: GuildMember) {
+  try {
+    const role = await member.guild.roles.fetch(VC_ROLE_ID);
+    if (!role) {
+      await alertOwner("VC role not found: " + VC_ROLE_ID, opId);
+      return;
+    }
+
+    if (member.roles.cache.has(role.id)) {
+      await member.roles.remove(role, "User left voice channel");
+    }
+  } catch (error) {
+    // Log but do not alert owner on role removal failures
+    log.warn("Failed to remove VC role", { opId, userId: member.id, error });
+    await alertOwner(
+      "Failed to remove VC role for " + member.id + ": " + (error instanceof Error ? error.message : String(error)),
+      opId,
+    );
+  }
 }

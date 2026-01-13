@@ -1,10 +1,10 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { db } from "../db/db.ts";
+import { db, getVCEmoji, setMonthStartDate, setVCEmoji } from "../db/db.ts";
 import { awardPoints } from "../services/pointsService.ts";
 import { errorReply, inGuild, requireRole } from "../utils/interactionUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
-import { settingsTable, userTable } from "../db/schema.ts";
-import { Role, SETTINGS_KEYS } from "../utils/constants.ts";
+import { userTable } from "../db/schema.ts";
+import { Role } from "../utils/constants.ts";
 import { refreshAllYearRoles } from "../utils/yearRoleUtils.ts";
 import { createLogger } from "../utils/logger.ts";
 import type { CommandOptions } from "../types.ts";
@@ -36,6 +36,14 @@ export default {
       subcommand
         .setName("refresh-ranks")
         .setDescription("Refreshes year roles for all users based on monthly voice time"),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("vc-emoji")
+        .setDescription("Sets or gets the emoji for voice channel status")
+        .addStringOption((option) =>
+          option.setName("emoji").setDescription("The emoji to set as the voice channel status emoji"),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
@@ -54,6 +62,9 @@ export default {
         break;
       case "refresh-ranks":
         await refreshYearRoles(interaction, opId);
+        break;
+      case "vc-emoji":
+        await vcEmojiCommand(interaction, opId);
         break;
       default:
         await errorReply(opId, interaction, "Invalid Subcommand", "Unknown subcommand.", { deferred: true });
@@ -85,13 +96,7 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
       log.info("Year roles refreshed", { opId, usersUpdated: rolesUpdated });
 
       // Store reset timestamp
-      await db
-        .insert(settingsTable)
-        .values({ key: SETTINGS_KEYS.LAST_MONTHLY_RESET, value: new Date().toISOString() })
-        .onConflictDoUpdate({
-          target: settingsTable.key,
-          set: { value: new Date().toISOString() },
-        });
+      await setMonthStartDate(new Date());
     },
     "Monthly reset processing",
     opId,
@@ -123,4 +128,17 @@ async function refreshYearRoles(interaction: ChatInputCommandInteraction<"cached
     "Refresh Year Ranks processing",
     opId,
   );
+}
+
+async function vcEmojiCommand(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
+  const emoji = interaction.options.getString("emoji");
+  if (emoji) {
+    await setVCEmoji(emoji);
+    log.info("VC emoji set", { opId, emoji });
+    await interaction.editReply(`Voice channel emoji set to: ${emoji}`);
+  } else {
+    const currentEmoji = await getVCEmoji();
+    log.debug("VC emoji fetched", { opId, emoji: currentEmoji });
+    await interaction.editReply(`Current voice channel emoji: ${currentEmoji}`);
+  }
 }

@@ -23,8 +23,6 @@ function getYearFromMonthlyVoiceTime(seconds: number): YEAR | null {
 }
 
 async function announceYearPromotion(member: GuildMember, house: House, year: YEAR, ctx: Ctx): Promise<void> {
-  if (!YEAR_ANNOUNCEMENT_CHANNEL_ID) return;
-
   const roleId = YEAR_ROLE_IDS[year - 1];
   assert(roleId, `No role ID configured for year ${year}`);
 
