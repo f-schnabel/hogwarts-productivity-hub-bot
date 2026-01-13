@@ -76,11 +76,13 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
         if (!oldChannel && newChannel) {
           event = "join";
           await startVoiceSession(newVoiceSession, db, opId);
-          await Promise.all([addVCEmoji(opId, member), addVCRole(opId, member)]);
+          await addVCEmoji(opId, member);
+          await addVCRole(opId, member);
         } else if (oldChannel && !newChannel) {
           event = "leave";
           await endVoiceSession(oldVoiceSession, db, opId, true, member);
-          await Promise.all([removeVCEmoji(opId, member), removeVCRole(opId, member)]);
+          await removeVCEmoji(opId, member);
+          await removeVCRole(opId, member);
         } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
           event = "switch";
           // For channel switches, end the old session and start new one immediately
