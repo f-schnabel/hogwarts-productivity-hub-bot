@@ -161,7 +161,7 @@ export async function endVoiceSession(
 
     // Update year role based on monthly voice time
     if (member && user.house) {
-      void updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
+      await updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
     }
   });
 }
