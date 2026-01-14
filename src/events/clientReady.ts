@@ -13,7 +13,6 @@ import assert from "node:assert";
 import { client } from "../client.ts";
 import { MIN_USERS_FOR_SAFE_DELETION } from "../utils/constants.ts";
 import { getVCRoleToRemove } from "../utils/roleUtils.ts";
-import { applyMemberUpdates } from "../utils/memberUpdateUtils.ts";
 
 const log = createLogger("Startup");
 
@@ -169,72 +168,34 @@ async function resetNicknameStreaks(client: Client, opId: string) {
 async function resetVCEmojisAndRoles(c: Client<true>, opId: string) {
   log.debug("Resetting VC emojis", { opId, guildsCache: c.guilds.cache.size });
   const emoji = await getVCEmoji();
-
   const guild = getGuild();
 
   const membersToReset = guild.members.cache.filter((member) => member.voice.channel === null);
-
-  const membersWithEmoji = membersToReset.filter((member) => member.nickname?.includes(" " + emoji));
-  const membersWithRole = membersToReset.filter(
-    (member) => member.roles.cache.get(process.env.VC_ROLE_ID) !== undefined,
+  const membersNeedingUpdate = membersToReset.filter(
+    (member) =>
+      (member.nickname?.includes(" " + emoji) ?? false) || member.roles.cache.get(process.env.VC_ROLE_ID) !== undefined,
   );
-
-  // Find members that have both emoji and role for batched updates
-  const membersWithBoth = membersToReset.filter(
-    (member) => member.nickname?.includes(" " + emoji) && member.roles.cache.get(process.env.VC_ROLE_ID) !== undefined,
-  );
-  const membersOnlyEmoji = membersWithEmoji.filter((m) => !membersWithBoth.has(m.id));
-  const membersOnlyRole = membersWithRole.filter((m) => !membersWithBoth.has(m.id));
 
   log.debug("Processing guild VC emojis and roles", {
     opId,
-    both: membersWithBoth.map((m) => m.user.username),
-    onlyEmoji: membersOnlyEmoji.map((m) => m.user.username),
-    onlyRole: membersOnlyRole.map((m) => m.user.username),
+    toReset: membersNeedingUpdate.map((m) => m.user.username),
   });
 
-  await Promise.all([
-    // Members with both - batch update
-    ...membersWithBoth.values().map(async (m) => {
+  await Promise.all(
+    membersNeedingUpdate.values().map(async (m) => {
       const nickname = await getNicknameWithoutVCEmoji(opId, m);
       const roleToRemove = await getVCRoleToRemove(opId, m);
-      await applyMemberUpdates(
-        m,
-        {
-          nickname,
-          rolesToAdd: [],
-          rolesToRemove: roleToRemove ? [roleToRemove] : [],
-        },
-        "Reset VC state on startup",
-        opId,
-      );
+
+      if (nickname || roleToRemove) {
+        const currentRoles = Array.from(m.roles.cache.keys());
+        const newRoles = roleToRemove ? currentRoles.filter((id) => id !== roleToRemove) : currentRoles;
+
+        await m.edit({
+          ...(nickname && { nick: nickname }),
+          ...(newRoles.length !== currentRoles.length && { roles: newRoles }),
+          reason: "Reset VC state on startup",
+        });
+      }
     }),
-    // Members with only emoji
-    ...membersOnlyEmoji.values().map(async (m) => {
-      const nickname = await getNicknameWithoutVCEmoji(opId, m);
-      await applyMemberUpdates(
-        m,
-        {
-          nickname,
-          rolesToAdd: [],
-          rolesToRemove: [],
-        },
-        "Reset VC emoji on startup",
-        opId,
-      );
-    }),
-    // Members with only role
-    ...membersOnlyRole.values().map(async (m) => {
-      const roleToRemove = await getVCRoleToRemove(opId, m);
-      await applyMemberUpdates(
-        m,
-        {
-          rolesToAdd: [],
-          rolesToRemove: roleToRemove ? [roleToRemove] : [],
-        },
-        "Reset VC role on startup",
-        opId,
-      );
-    }),
-  ]);
+  );
 }

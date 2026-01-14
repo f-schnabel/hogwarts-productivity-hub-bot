@@ -6,7 +6,6 @@ import { voiceSessionExecutionTimer } from "../monitoring.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 import { getNicknameWithVCEmoji, getNicknameWithoutVCEmoji } from "../utils/nicknameUtils.ts";
 import { getVCRoleToAdd, getVCRoleToRemove } from "../utils/roleUtils.ts";
-import { applyMemberUpdates } from "../utils/memberUpdateUtils.ts";
 
 const log = createLogger("VoiceEvent");
 
@@ -81,16 +80,14 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
           // Batch nickname and role updates into a single member.edit() call
           const nickname = await getNicknameWithVCEmoji(opId, member);
           const roleToAdd = await getVCRoleToAdd(opId, member);
-          await applyMemberUpdates(
-            member,
-            {
-              nickname,
-              rolesToAdd: roleToAdd ? [roleToAdd] : [],
-              rolesToRemove: [],
-            },
-            "User joined voice channel",
-            opId,
-          );
+
+          if (nickname || roleToAdd) {
+            await member.edit({
+              ...(nickname && { nick: nickname }),
+              ...(roleToAdd && { roles: [...member.roles.cache.keys(), roleToAdd] }),
+              reason: "User joined voice channel",
+            });
+          }
         } else if (oldChannel && !newChannel) {
           event = "leave";
           const yearRoleChanges = await endVoiceSession(oldVoiceSession, db, opId, true, member);
@@ -98,16 +95,20 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
           // Batch nickname and role updates into a single member.edit() call
           const nickname = await getNicknameWithoutVCEmoji(opId, member);
           const roleToRemove = await getVCRoleToRemove(opId, member);
-          await applyMemberUpdates(
-            member,
-            {
-              nickname,
-              rolesToAdd: yearRoleChanges?.rolesToAdd ?? [],
-              rolesToRemove: [...(roleToRemove ? [roleToRemove] : []), ...(yearRoleChanges?.rolesToRemove ?? [])],
-            },
-            "User left voice channel",
-            opId,
-          );
+
+          const rolesToAdd = yearRoleChanges?.rolesToAdd ?? [];
+          const rolesToRemove = [...(roleToRemove ? [roleToRemove] : []), ...(yearRoleChanges?.rolesToRemove ?? [])];
+
+          if (nickname || rolesToAdd.length > 0 || rolesToRemove.length > 0) {
+            const currentRoles = Array.from(member.roles.cache.keys());
+            const newRoles = [...currentRoles.filter((id) => !rolesToRemove.includes(id)), ...rolesToAdd];
+
+            await member.edit({
+              ...(nickname && { nick: nickname }),
+              ...(newRoles.length !== currentRoles.length && { roles: newRoles }),
+              reason: "User left voice channel",
+            });
+          }
 
           // Announce year promotion if needed
           if (yearRoleChanges?.shouldAnnounce && yearRoleChanges.year !== null) {
