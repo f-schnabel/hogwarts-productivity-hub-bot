@@ -187,14 +187,20 @@ async function resetVCEmojisAndRoles(c: Client<true>, opId: string) {
       const roleToRemove = await getVCRoleToRemove(opId, m);
 
       if (nickname || roleToRemove) {
-        const currentRoles = Array.from(m.roles.cache.keys());
-        const newRoles = roleToRemove ? currentRoles.filter((id) => id !== roleToRemove) : currentRoles;
-
-        await m.edit({
-          ...(nickname && { nick: nickname }),
-          ...(newRoles.length !== currentRoles.length && { roles: newRoles }),
+        const updates: { reason: string; nick?: string; roles?: string[] } = {
           reason: "Reset VC state on startup",
-        });
+        };
+
+        if (nickname) {
+          updates.nick = nickname;
+        }
+
+        if (roleToRemove) {
+          const currentRoles = Array.from(m.roles.cache.keys());
+          updates.roles = currentRoles.filter((id) => id !== roleToRemove);
+        }
+
+        await m.edit(updates);
       }
     }),
   );

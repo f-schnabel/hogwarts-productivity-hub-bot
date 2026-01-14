@@ -82,11 +82,16 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
           const roleToAdd = await getVCRoleToAdd(opId, member);
 
           if (nickname || roleToAdd) {
-            await member.edit({
-              ...(nickname && { nick: nickname }),
-              ...(roleToAdd && { roles: [...member.roles.cache.keys(), roleToAdd] }),
+            const updates: { reason: string; nick?: string; roles?: string[] } = {
               reason: "User joined voice channel",
-            });
+            };
+            if (nickname) {
+              updates.nick = nickname;
+            }
+            if (roleToAdd) {
+              updates.roles = [...member.roles.cache.keys(), roleToAdd];
+            }
+            await member.edit(updates);
           }
         } else if (oldChannel && !newChannel) {
           event = "leave";
@@ -96,22 +101,47 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
           const nickname = await getNicknameWithoutVCEmoji(opId, member);
           const roleToRemove = await getVCRoleToRemove(opId, member);
 
-          const rolesToAdd = yearRoleChanges?.rolesToAdd ?? [];
-          const rolesToRemove = [...(roleToRemove ? [roleToRemove] : []), ...(yearRoleChanges?.rolesToRemove ?? [])];
+          // Check if we need to update the member
+          const needsNicknameUpdate = nickname !== null;
+          const needsRoleUpdate =
+            roleToRemove !== null ||
+            (yearRoleChanges && (yearRoleChanges.rolesToAdd.length > 0 || yearRoleChanges.rolesToRemove.length > 0));
 
-          if (nickname || rolesToAdd.length > 0 || rolesToRemove.length > 0) {
-            const currentRoles = Array.from(member.roles.cache.keys());
-            const newRoles = [...currentRoles.filter((id) => !rolesToRemove.includes(id)), ...rolesToAdd];
-
-            await member.edit({
-              ...(nickname && { nick: nickname }),
-              ...(newRoles.length !== currentRoles.length && { roles: newRoles }),
+          if (needsNicknameUpdate || needsRoleUpdate) {
+            const updates: { reason: string; nick?: string; roles?: string[] } = {
               reason: "User left voice channel",
-            });
+            };
+
+            if (needsNicknameUpdate) {
+              updates.nick = nickname;
+            }
+
+            if (needsRoleUpdate) {
+              let newRoles = Array.from(member.roles.cache.keys());
+
+              // Remove VC role
+              if (roleToRemove) {
+                newRoles = newRoles.filter((id) => id !== roleToRemove);
+              }
+
+              // Remove year roles
+              if (yearRoleChanges && yearRoleChanges.rolesToRemove.length > 0) {
+                newRoles = newRoles.filter((id) => !yearRoleChanges.rolesToRemove.includes(id));
+              }
+
+              // Add year roles
+              if (yearRoleChanges && yearRoleChanges.rolesToAdd.length > 0) {
+                newRoles = [...newRoles, ...yearRoleChanges.rolesToAdd];
+              }
+
+              updates.roles = newRoles;
+            }
+
+            await member.edit(updates);
           }
 
           // Announce year promotion if needed
-          if (yearRoleChanges?.shouldAnnounce && yearRoleChanges.year !== null) {
+          if (yearRoleChanges && yearRoleChanges.shouldAnnounce && yearRoleChanges.year !== null) {
             const user = await db.query.userTable.findFirst({
               where: (users, { eq }) => eq(users.discordId, discordId),
             });
