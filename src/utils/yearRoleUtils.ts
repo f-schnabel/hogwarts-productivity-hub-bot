@@ -62,7 +62,7 @@ export async function updateYearRole(
 
   const year = getYearFromMonthlyVoiceTime(monthlyVoiceTimeSeconds);
   const roleId = year === null ? null : YEAR_ROLE_IDS[year - 1];
-  const ctx = { opId, userId: member.id, user: member.user.displayName };
+  const ctx = { opId, userId: member.id, username: member.user.username };
 
   // Remove all year roles except target
   const rolesToRemove = YEAR_ROLE_IDS.filter((id) => id !== roleId && member.roles.cache.has(id));
