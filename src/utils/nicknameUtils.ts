@@ -41,7 +41,7 @@ export async function updateMessageStreakInNickname(
   }
 }
 
-export async function addVCEmoji(opId: string, member: GuildMember): Promise<string | null> {
+export async function getNicknameWithVCEmoji(opId: string, member: GuildMember): Promise<string | null> {
   if (hasAnyRole(member, Role.PROFESSOR)) return null;
   const emoji = await getVCEmoji();
   try {
@@ -64,7 +64,7 @@ export async function addVCEmoji(opId: string, member: GuildMember): Promise<str
   }
 }
 
-export async function removeVCEmoji(opId: string, member: GuildMember): Promise<string | null> {
+export async function getNicknameWithoutVCEmoji(opId: string, member: GuildMember): Promise<string | null> {
   if (hasAnyRole(member, Role.PROFESSOR)) return null;
   try {
     const emoji = await getVCEmoji();

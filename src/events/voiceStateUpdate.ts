@@ -4,8 +4,8 @@ import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { voiceSessionExecutionTimer } from "../monitoring.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
-import { addVCEmoji, removeVCEmoji } from "../utils/nicknameUtils.ts";
-import { addVCRole, removeVCRole } from "../utils/roleUtils.ts";
+import { getNicknameWithVCEmoji, getNicknameWithoutVCEmoji } from "../utils/nicknameUtils.ts";
+import { getVCRoleToAdd, getVCRoleToRemove } from "../utils/roleUtils.ts";
 import { applyMemberUpdates } from "../utils/memberUpdateUtils.ts";
 
 const log = createLogger("VoiceEvent");
@@ -79,8 +79,8 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
           await startVoiceSession(newVoiceSession, db, opId);
 
           // Batch nickname and role updates into a single member.edit() call
-          const nickname = await addVCEmoji(opId, member);
-          const roleToAdd = await addVCRole(opId, member);
+          const nickname = await getNicknameWithVCEmoji(opId, member);
+          const roleToAdd = await getVCRoleToAdd(opId, member);
           await applyMemberUpdates(
             member,
             {
@@ -96,8 +96,8 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
           const yearRoleChanges = await endVoiceSession(oldVoiceSession, db, opId, true, member);
 
           // Batch nickname and role updates into a single member.edit() call
-          const nickname = await removeVCEmoji(opId, member);
-          const roleToRemove = await removeVCRole(opId, member);
+          const nickname = await getNicknameWithoutVCEmoji(opId, member);
+          const roleToRemove = await getVCRoleToRemove(opId, member);
           await applyMemberUpdates(
             member,
             {

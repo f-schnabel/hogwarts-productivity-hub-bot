@@ -14,7 +14,7 @@ export function hasAnyRole(member: GuildMember, roles: number): boolean {
   return (memberRoles & roles) !== 0;
 }
 
-export async function addVCRole(opId: string, member: GuildMember): Promise<string | null> {
+export async function getVCRoleToAdd(opId: string, member: GuildMember): Promise<string | null> {
   try {
     const role = await member.guild.roles.fetch(VC_ROLE_ID);
     if (!role) {
@@ -39,7 +39,7 @@ export async function addVCRole(opId: string, member: GuildMember): Promise<stri
   }
 }
 
-export async function removeVCRole(opId: string, member: GuildMember): Promise<string | null> {
+export async function getVCRoleToRemove(opId: string, member: GuildMember): Promise<string | null> {
   try {
     const role = await member.guild.roles.fetch(VC_ROLE_ID);
     if (!role) {

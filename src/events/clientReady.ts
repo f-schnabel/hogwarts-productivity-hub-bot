@@ -6,13 +6,14 @@ import { alertOwner } from "../utils/alerting.ts";
 import { db, getVCEmoji } from "../db/db.ts";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
-import { removeVCEmoji, updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
+import { getNicknameWithoutVCEmoji, updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../services/scoreboardService.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 import assert from "node:assert";
 import { client } from "../client.ts";
 import { MIN_USERS_FOR_SAFE_DELETION } from "../utils/constants.ts";
-import { removeVCRole } from "../utils/roleUtils.ts";
+import { getVCRoleToRemove } from "../utils/roleUtils.ts";
+import { applyMemberUpdates } from "../utils/memberUpdateUtils.ts";
 
 const log = createLogger("Startup");
 
@@ -174,26 +175,66 @@ async function resetVCEmojisAndRoles(c: Client<true>, opId: string) {
   const membersToReset = guild.members.cache.filter((member) => member.voice.channel === null);
 
   const membersWithEmoji = membersToReset.filter((member) => member.nickname?.includes(" " + emoji));
-  log.debug("Processing guild VC emojis", {
-    opId,
-    toReset: membersWithEmoji.map((m) => m.user.username),
-  });
-  await Promise.all(
-    membersWithEmoji.values().map(async (m) => {
-      await removeVCEmoji(opId, m);
-    }),
-  );
-
   const membersWithRole = membersToReset.filter(
     (member) => member.roles.cache.get(process.env.VC_ROLE_ID) !== undefined,
   );
-  log.debug("Processing guild VC roles", {
-    opId,
-    toReset: membersWithRole.map((m) => m.user.username),
-  });
-  await Promise.all(
-    membersWithRole.values().map(async (m) => {
-      await removeVCRole(opId, m);
-    }),
+
+  // Find members that have both emoji and role for batched updates
+  const membersWithBoth = membersToReset.filter(
+    (member) => member.nickname?.includes(" " + emoji) && member.roles.cache.get(process.env.VC_ROLE_ID) !== undefined,
   );
+  const membersOnlyEmoji = membersWithEmoji.filter((m) => !membersWithBoth.has(m.id));
+  const membersOnlyRole = membersWithRole.filter((m) => !membersWithBoth.has(m.id));
+
+  log.debug("Processing guild VC emojis and roles", {
+    opId,
+    both: membersWithBoth.map((m) => m.user.username),
+    onlyEmoji: membersOnlyEmoji.map((m) => m.user.username),
+    onlyRole: membersOnlyRole.map((m) => m.user.username),
+  });
+
+  await Promise.all([
+    // Members with both - batch update
+    ...membersWithBoth.values().map(async (m) => {
+      const nickname = await getNicknameWithoutVCEmoji(opId, m);
+      const roleToRemove = await getVCRoleToRemove(opId, m);
+      await applyMemberUpdates(
+        m,
+        {
+          nickname,
+          rolesToAdd: [],
+          rolesToRemove: roleToRemove ? [roleToRemove] : [],
+        },
+        "Reset VC state on startup",
+        opId,
+      );
+    }),
+    // Members with only emoji
+    ...membersOnlyEmoji.values().map(async (m) => {
+      const nickname = await getNicknameWithoutVCEmoji(opId, m);
+      await applyMemberUpdates(
+        m,
+        {
+          nickname,
+          rolesToAdd: [],
+          rolesToRemove: [],
+        },
+        "Reset VC emoji on startup",
+        opId,
+      );
+    }),
+    // Members with only role
+    ...membersOnlyRole.values().map(async (m) => {
+      const roleToRemove = await getVCRoleToRemove(opId, m);
+      await applyMemberUpdates(
+        m,
+        {
+          rolesToAdd: [],
+          rolesToRemove: roleToRemove ? [roleToRemove] : [],
+        },
+        "Reset VC role on startup",
+        opId,
+      );
+    }),
+  ]);
 }
