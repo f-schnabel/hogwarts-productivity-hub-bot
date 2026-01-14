@@ -6,6 +6,7 @@ import { voiceSessionExecutionTimer } from "../monitoring.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 import { addVCEmoji, removeVCEmoji } from "../utils/nicknameUtils.ts";
 import { addVCRole, removeVCRole } from "../utils/roleUtils.ts";
+import { applyMemberUpdates } from "../utils/memberUpdateUtils.ts";
 
 const log = createLogger("VoiceEvent");
 
@@ -76,13 +77,52 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
         if (!oldChannel && newChannel) {
           event = "join";
           await startVoiceSession(newVoiceSession, db, opId);
-          await addVCEmoji(opId, member);
-          await addVCRole(opId, member);
+
+          // Batch nickname and role updates into a single member.edit() call
+          const nickname = await addVCEmoji(opId, member);
+          const roleToAdd = await addVCRole(opId, member);
+          await applyMemberUpdates(
+            member,
+            {
+              nickname,
+              rolesToAdd: roleToAdd ? [roleToAdd] : [],
+              rolesToRemove: [],
+            },
+            "User joined voice channel",
+            opId,
+          );
         } else if (oldChannel && !newChannel) {
           event = "leave";
-          await endVoiceSession(oldVoiceSession, db, opId, true, member);
-          await removeVCEmoji(opId, member);
-          await removeVCRole(opId, member);
+          const yearRoleChanges = await endVoiceSession(oldVoiceSession, db, opId, true, member);
+
+          // Batch nickname and role updates into a single member.edit() call
+          const nickname = await removeVCEmoji(opId, member);
+          const roleToRemove = await removeVCRole(opId, member);
+          await applyMemberUpdates(
+            member,
+            {
+              nickname,
+              rolesToAdd: yearRoleChanges?.rolesToAdd ?? [],
+              rolesToRemove: [...(roleToRemove ? [roleToRemove] : []), ...(yearRoleChanges?.rolesToRemove ?? [])],
+            },
+            "User left voice channel",
+            opId,
+          );
+
+          // Announce year promotion if needed
+          if (yearRoleChanges?.shouldAnnounce && yearRoleChanges.year !== null) {
+            const user = await db.query.userTable.findFirst({
+              where: (users, { eq }) => eq(users.discordId, discordId),
+            });
+            if (user?.house) {
+              const { announceYearPromotion } = await import("../utils/yearRoleUtils.ts");
+              await announceYearPromotion(member, user.house, yearRoleChanges.year, {
+                opId,
+                userId: discordId,
+                username,
+              });
+            }
+          }
         } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
           event = "switch";
           // For channel switches, end the old session and start new one immediately

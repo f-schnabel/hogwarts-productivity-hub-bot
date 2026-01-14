@@ -14,19 +14,20 @@ export function hasAnyRole(member: GuildMember, roles: number): boolean {
   return (memberRoles & roles) !== 0;
 }
 
-export async function addVCRole(opId: string, member: GuildMember) {
+export async function addVCRole(opId: string, member: GuildMember): Promise<string | null> {
   try {
     const role = await member.guild.roles.fetch(VC_ROLE_ID);
     if (!role) {
       await alertOwner("VC role not found: " + VC_ROLE_ID, opId);
-      return;
+      return null;
     }
 
     if (!member.roles.cache.has(role.id)) {
       log.debug("Adding VC role", { opId, userId: member.id, username: member.user.username });
-      await member.roles.add(role, "User joined voice channel");
+      return role.id;
     } else {
       log.debug("User already has VC role", { opId, userId: member.id, username: member.user.username });
+      return null;
     }
   } catch (error) {
     log.warn("Failed to add VC role", { opId, userId: member.id, error });
@@ -34,22 +35,24 @@ export async function addVCRole(opId: string, member: GuildMember) {
       "Failed to add VC role for " + member.id + ": " + (error instanceof Error ? error.message : String(error)),
       opId,
     );
+    return null;
   }
 }
 
-export async function removeVCRole(opId: string, member: GuildMember) {
+export async function removeVCRole(opId: string, member: GuildMember): Promise<string | null> {
   try {
     const role = await member.guild.roles.fetch(VC_ROLE_ID);
     if (!role) {
       await alertOwner("VC role not found: " + VC_ROLE_ID, opId);
-      return;
+      return null;
     }
 
     if (member.roles.cache.has(role.id)) {
       log.debug("Removing VC role", { opId, userId: member.id, username: member.user.username });
-      await member.roles.remove(role, "User left voice channel");
+      return role.id;
     } else {
       log.debug("User does not have VC role", { opId, userId: member.id, username: member.user.username });
+      return null;
     }
   } catch (error) {
     // Log but do not alert owner on role removal failures
@@ -58,5 +61,6 @@ export async function removeVCRole(opId: string, member: GuildMember) {
       "Failed to remove VC role for " + member.id + ": " + (error instanceof Error ? error.message : String(error)),
       opId,
     );
+    return null;
   }
 }
