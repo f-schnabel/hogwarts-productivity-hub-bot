@@ -19,7 +19,7 @@ type Priority = (typeof SystemDLogPriority)[keyof typeof SystemDLogPriority];
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const formatWithPriority = (priority: Priority, args: any[]): string => {
   const message = args.map((arg) => (typeof arg === "string" ? arg : JSON.stringify(arg))).join(" ");
-  return `<${priority}>${message.replace(/\n/g, " ")}`;
+  return `<${priority}>${message.replaceAll("\n", " ")}`;
 };
 
 console.log = (...args: any[]) => {
