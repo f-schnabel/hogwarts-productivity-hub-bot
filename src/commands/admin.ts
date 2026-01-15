@@ -3,7 +3,7 @@ import { db, getVCEmoji, setMonthStartDate, setVCEmoji } from "../db/db.ts";
 import { awardPoints } from "../services/pointsService.ts";
 import { errorReply, inGuild, requireRole } from "../utils/interactionUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
-import { userTable } from "../db/schema.ts";
+import { pointAdjustmentTable, userTable } from "../db/schema.ts";
 import { Role } from "../utils/constants.ts";
 import { refreshAllYearRoles } from "../utils/yearRoleUtils.ts";
 import { createLogger } from "../utils/logger.ts";
@@ -24,7 +24,8 @@ export default {
         )
         .addUserOption((option) =>
           option.setName("user").setDescription("The user to adjust points for").setRequired(true),
-        ),
+        )
+        .addStringOption((option) => option.setName("reason").setDescription("Reason for adjustment")),
     )
     .addSubcommand((subcommand) =>
       subcommand.setName("reset-monthly-points").setDescription("Resets monthly points for all users"),
@@ -76,9 +77,18 @@ export default {
 async function adjustPoints(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
   const amount = interaction.options.getInteger("amount", true);
   const user = interaction.options.getUser("user", true);
+  const reason = interaction.options.getString("reason");
 
   await awardPoints(db, user.id, amount, opId);
 
+  await db.insert(pointAdjustmentTable).values({
+    discordId: user.id,
+    adjustedBy: interaction.user.id,
+    amount,
+    reason,
+  });
+
+  log.info("Points adjusted", { opId, user: user.id, amount, reason, adjustedBy: interaction.user.id });
   await interaction.editReply(`Adjusted ${amount} points for ${user.tag}.`);
 }
 

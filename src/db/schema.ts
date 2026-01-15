@@ -102,3 +102,15 @@ export const settingsTable = pgTable("settings", {
   key: varchar({ length: 255 }).primaryKey().notNull(),
   value: text().notNull(),
 });
+
+// Tracks manual point adjustments by admins
+export const pointAdjustmentTable = pgTable("point_adjustment", {
+  id: serial().primaryKey(),
+  discordId: varchar({ length: 255 })
+    .notNull()
+    .references(() => userTable.discordId, { onDelete: "cascade" }),
+  adjustedBy: varchar({ length: 255 }).notNull(),
+  amount: integer().notNull(),
+  reason: text(),
+  createdAt: timestamp().notNull().defaultNow(),
+});
