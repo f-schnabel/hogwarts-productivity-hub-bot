@@ -173,23 +173,24 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
   const currentYear = getYearFromMonthlyVoiceTime(userData.monthlyVoiceTime);
   const currentHours = userData.monthlyVoiceTime / 3600;
   let yearProgressValue: string;
+  const width = 20;
 
   if (currentYear === null) {
     const nextThreshold = YEAR_THRESHOLDS_HOURS[0];
     const progress = Math.min(currentHours / nextThreshold, 1);
-    const filled = Math.round(progress * 10);
-    const bar = "▓".repeat(filled) + "░".repeat(10 - filled);
-    yearProgressValue = `Year 0 ${bar} ${currentHours.toFixed(1)}/${nextThreshold}h`;
+    const filled = Math.round(progress * width);
+    const bar = "▓".repeat(filled) + "░".repeat(width - filled);
+    yearProgressValue = `**Year 0** (0h - ${nextThreshold}h)\n${bar} ${currentHours.toFixed(0)}/${nextThreshold}h\nNext rank: **Year 1** (${nextThreshold}h - ${YEAR_THRESHOLDS_HOURS[1]}h)`;
   } else if (currentYear === 7) {
-    yearProgressValue = `Year 7 ${"▓".repeat(10)} (Max)`;
+    yearProgressValue = `**Year 7** (${YEAR_THRESHOLDS_HOURS[6]}h+)\n${"▓".repeat(width)} (${currentHours.toFixed(0)}h)\nMaximum rank achieved`;
   } else {
     const nextThreshold = YEAR_THRESHOLDS_HOURS[currentYear];
     const currentThreshold = YEAR_THRESHOLDS_HOURS[currentYear - 1];
     assert(currentThreshold !== undefined, "Current threshold should be defined for years >= 1");
     const progress = (currentHours - currentThreshold) / (nextThreshold - currentThreshold);
-    const filled = Math.round(progress * 10);
-    const bar = "▓".repeat(filled) + "░".repeat(10 - filled);
-    yearProgressValue = `Year ${currentYear} ${bar} ${currentHours.toFixed(1)}/${nextThreshold}h`;
+    const filled = Math.round(progress * width);
+    const bar = "▓".repeat(filled) + "░".repeat(width - filled);
+    yearProgressValue = `**Year ${currentYear}** (${currentThreshold}h - ${nextThreshold}h)\n${bar} ${currentHours.toFixed(0)}/${nextThreshold}h\nNext rank: **Year ${currentYear + 1}** (${nextThreshold}h - ${YEAR_THRESHOLDS_HOURS[currentYear + 1]}h)`;
   }
 
   await interaction.editReply({
