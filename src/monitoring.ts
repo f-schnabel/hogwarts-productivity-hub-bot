@@ -4,14 +4,6 @@ import { createLogger } from "./utils/logger.ts";
 import { analyticsRouter } from "./analytics.ts";
 
 const log = createLogger("Monitoring");
-const app = express();
-
-// Analytics server on separate port (public)
-const analyticsApp = express();
-analyticsApp.use(analyticsRouter);
-export const analyticsServer = analyticsApp.listen(3001, "0.0.0.0", () => {
-  log.info("Analytics server started", { opId: "monitor", url: "http://localhost:3001" });
-});
 
 const register = new client.Registry();
 export const interactionExecutionTimer = new client.Histogram({
@@ -40,11 +32,24 @@ register.registerMetric(resetExecutionTimer);
 
 client.collectDefaultMetrics({ register });
 
-app.get("/metrics", async (_req, res) => {
-  res.setHeader("Content-Type", register.contentType);
-  res.send(await register.metrics());
-});
+// Servers are started lazily to avoid starting them on import
 
-export const server = app.listen(8080, "127.0.0.1", () => {
-  log.info("Metrics server started", { opId: "monitor", url: "http://localhost:8080/metrics" });
-});
+export function startServers() {
+  // Metrics server (internal)
+  const metricsApp = express();
+  metricsApp.get("/metrics", async (_req, res) => {
+    res.setHeader("Content-Type", register.contentType);
+    res.send(await register.metrics());
+  });
+  const server = metricsApp.listen(8080, "127.0.0.1", () => {
+    log.info("Metrics server started", { opId: "monitor", url: "http://localhost:8080/metrics" });
+  });
+
+  // Analytics server (public)
+  const analyticsApp = express();
+  analyticsApp.use(analyticsRouter);
+  const analyticsServer = analyticsApp.listen(3001, "0.0.0.0", () => {
+    log.info("Analytics server started", { opId: "monitor", url: "http://localhost:3001" });
+  });
+  return { server, analyticsServer };
+}

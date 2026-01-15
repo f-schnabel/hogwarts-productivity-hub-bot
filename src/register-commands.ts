@@ -4,7 +4,6 @@ import { REST, Routes } from "discord.js";
 import { commands } from "./commands.ts";
 import assert from "node:assert/strict";
 import { db } from "./db/db.ts";
-import { analyticsServer, server } from "./monitoring.ts";
 
 assert(process.env.CLIENT_ID);
 assert(process.env.DISCORD_TOKEN);
@@ -17,8 +16,5 @@ await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
 });
 console.log("Successfully registered all slash commands");
 
-// We don't need the db connection so just close it
+// Close db connection so process can exit
 await db.$client.end();
-
-analyticsServer.close();
-server.close();

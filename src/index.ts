@@ -1,6 +1,6 @@
 import "dotenv/config";
-import "./monitoring.ts";
 import "./console.ts";
+import { startServers } from "./monitoring.ts";
 
 import * as CentralResetService from "./scheduler/centralResetService.ts";
 import { client } from "./client.ts";
@@ -15,13 +15,7 @@ import timezone from "dayjs/plugin/timezone.js";
 import relativeTime from "dayjs/plugin/relativeTime.js";
 import advancedFormat from "dayjs/plugin/advancedFormat.js";
 import { alertOwner } from "./utils/alerting.ts";
-import {
-  interactionExecutionTimer,
-  resetExecutionTimer,
-  server,
-  analyticsServer,
-  voiceSessionExecutionTimer,
-} from "./monitoring.ts";
+import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTimer } from "./monitoring.ts";
 import { commands } from "./commands.ts";
 import { promisify } from "node:util";
 import { createLogger, OpId } from "./utils/logger.ts";
@@ -35,6 +29,7 @@ dayjs.extend(relativeTime);
 dayjs.tz.setDefault("UTC");
 
 // Start the bot
+const { server, analyticsServer } = startServers();
 try {
   registerEvents(client);
   registerShutdownHandlers();
@@ -74,11 +69,10 @@ function registerShutdownHandlers() {
     // They will be resumed on next startup if still valid (< 24h old).
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
-    const closeServer = promisify(server.close).bind(server);
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    const closeAnalytics = promisify(analyticsServer.close).bind(analyticsServer);
-    await Promise.all([closeServer(), closeAnalytics()]);
+    await promisify(server.close).bind(server)();
     server.closeAllConnections();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    await promisify(analyticsServer.close).bind(analyticsServer)();
     analyticsServer.closeAllConnections();
 
     log.info("Shutdown complete", ctx);
