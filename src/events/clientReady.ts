@@ -6,13 +6,13 @@ import { alertOwner } from "../utils/alerting.ts";
 import { db, getVCEmoji } from "../db/db.ts";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
-import { getNicknameWithoutVCEmoji, updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
+import { removeVCEmoji, updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../services/scoreboardService.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 import assert from "node:assert";
 import { client } from "../client.ts";
 import { MIN_USERS_FOR_SAFE_DELETION } from "../utils/constants.ts";
-import { getVCRoleToRemove } from "../utils/roleUtils.ts";
+import { removeVCRole } from "../utils/roleUtils.ts";
 
 const log = createLogger("Startup");
 
@@ -170,38 +170,14 @@ async function resetVCEmojisAndRoles(c: Client<true>, opId: string) {
   const emoji = await getVCEmoji();
   const guild = getGuild();
 
-  const membersToReset = guild.members.cache.filter((member) => member.voice.channel === null);
-  const membersNeedingUpdate = membersToReset.filter(
-    (member) =>
-      (member.nickname?.includes(" " + emoji) ?? false) || member.roles.cache.get(process.env.VC_ROLE_ID) !== undefined,
-  );
+  const membersToReset = guild.members.cache.filter((m) => m.voice.channel === null);
+  const membersWithEmoji = membersToReset.filter((m) => m.nickname?.includes(" " + emoji));
+  const membersWithRole = membersToReset.filter((m) => m.roles.cache.has(process.env.VC_ROLE_ID));
 
-  log.debug("Processing guild VC emojis and roles", {
-    opId,
-    toReset: membersNeedingUpdate.map((m) => m.user.username),
-  });
+  log.debug("Resetting VC state", { opId, emojis: membersWithEmoji.size, roles: membersWithRole.size });
 
-  await Promise.all(
-    membersNeedingUpdate.values().map(async (m) => {
-      const nickname = await getNicknameWithoutVCEmoji(opId, m);
-      const roleToRemove = await getVCRoleToRemove(opId, m);
-
-      if (nickname || roleToRemove) {
-        const updates: { reason: string; nick?: string; roles?: string[] } = {
-          reason: "Reset VC state on startup",
-        };
-
-        if (nickname) {
-          updates.nick = nickname;
-        }
-
-        if (roleToRemove) {
-          const currentRoles = Array.from(m.roles.cache.keys());
-          updates.roles = currentRoles.filter((id) => id !== roleToRemove);
-        }
-
-        await m.edit(updates);
-      }
-    }),
-  );
+  await Promise.all([
+    ...membersWithEmoji.values().map((m) => removeVCEmoji(opId, m)),
+    ...membersWithRole.values().map((m) => removeVCRole(opId, m)),
+  ]);
 }

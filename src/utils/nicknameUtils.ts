@@ -41,45 +41,43 @@ export async function updateMessageStreakInNickname(
   }
 }
 
-export async function getNicknameWithVCEmoji(opId: string, member: GuildMember): Promise<string | null> {
-  if (hasAnyRole(member, Role.PROFESSOR)) return null;
+export async function addVCEmoji(opId: string, member: GuildMember) {
+  if (hasAnyRole(member, Role.PROFESSOR)) return;
   const emoji = await getVCEmoji();
   try {
-    if (member.nickname?.includes(" " + emoji)) return null;
+    if (member.nickname?.includes(" " + emoji)) return;
 
     const newNickname = member.displayName + " " + emoji;
     if (newNickname.length > 32) {
       log.debug("Nickname too long to add VC emoji", { opId, username: member.user.username, newNickname });
-      return null;
+      return;
     }
     log.debug("Adding VC emoji to nickname", { opId, username: member.user.username, newNickname });
-    return newNickname;
+    await member.setNickname(newNickname, "User joined voice channel");
   } catch (error) {
     log.warn("Failed to add VC emoji", { opId, userId: member.id, error });
     await alertOwner(
       "Failed to add VC emoji for " + member.id + ": " + (error instanceof Error ? error.message : String(error)),
       opId,
     );
-    return null;
   }
 }
 
-export async function getNicknameWithoutVCEmoji(opId: string, member: GuildMember): Promise<string | null> {
-  if (hasAnyRole(member, Role.PROFESSOR)) return null;
+export async function removeVCEmoji(opId: string, member: GuildMember) {
+  if (hasAnyRole(member, Role.PROFESSOR)) return;
   try {
     const emoji = await getVCEmoji();
-    if (!member.nickname?.includes(" " + emoji)) return null;
+    if (!member.nickname?.includes(" " + emoji)) return;
 
     const newNickname = member.nickname.replaceAll(" " + emoji, "");
-    if (newNickname.length === 0) return null;
+    if (newNickname.length === 0) return;
     log.debug("Removing VC emoji from nickname", { opId, username: member.user.username, newNickname });
-    return newNickname;
+    await member.setNickname(newNickname, "User left voice channel");
   } catch (error) {
     log.warn("Failed to remove VC emoji", { opId, userId: member.id, error });
     await alertOwner(
       "Failed to remove VC emoji for " + member.id + ": " + (error instanceof Error ? error.message : String(error)),
       opId,
     );
-    return null;
   }
 }

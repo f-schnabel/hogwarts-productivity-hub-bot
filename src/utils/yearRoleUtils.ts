@@ -9,13 +9,6 @@ import { isNotNull } from "drizzle-orm";
 
 const log = createLogger("YearRole");
 
-export interface YearRoleChanges {
-  rolesToAdd: string[];
-  rolesToRemove: string[];
-  shouldAnnounce: boolean;
-  year: YEAR | null;
-}
-
 const YEAR_ROLE_IDS = process.env.YEAR_ROLE_IDS.split(",");
 const YEAR_ANNOUNCEMENT_CHANNEL_ID = process.env.YEAR_ANNOUNCEMENT_CHANNEL_ID;
 
@@ -29,7 +22,7 @@ function getYearFromMonthlyVoiceTime(seconds: number): YEAR | null {
   return null;
 }
 
-export async function announceYearPromotion(member: GuildMember, house: House, year: YEAR, ctx: Ctx): Promise<void> {
+async function announceYearPromotion(member: GuildMember, house: House, year: YEAR, ctx: Ctx): Promise<void> {
   const roleId = YEAR_ROLE_IDS[year - 1];
   assert(roleId, `No role ID configured for year ${year}`);
 
@@ -59,15 +52,13 @@ export async function announceYearPromotion(member: GuildMember, house: House, y
   }
 }
 
-export function updateYearRole(
+export async function updateYearRole(
   member: GuildMember,
   monthlyVoiceTimeSeconds: number,
-  _house: House,
+  house: House,
   opId: string,
-): YearRoleChanges {
-  if (YEAR_ROLE_IDS.length !== 7) {
-    return { rolesToAdd: [], rolesToRemove: [], shouldAnnounce: false, year: null };
-  }
+): Promise<void> {
+  if (YEAR_ROLE_IDS.length !== 7) return; // Skip if not configured
 
   const year = getYearFromMonthlyVoiceTime(monthlyVoiceTimeSeconds);
   const roleId = year === null ? null : YEAR_ROLE_IDS[year - 1];
@@ -77,35 +68,15 @@ export function updateYearRole(
   const rolesToRemove = YEAR_ROLE_IDS.filter((id) => id !== roleId && member.roles.cache.has(id));
   if (rolesToRemove.length > 0) {
     log.debug("Removing year roles", { ...ctx, roles: rolesToRemove.join(",") });
+    await member.roles.remove(rolesToRemove);
   }
 
   // Add role if needed
-  const rolesToAdd: string[] = [];
-  let shouldAnnounce = false;
   if (roleId && !member.roles.cache.has(roleId)) {
     assert(year !== null, "Year should be defined if role ID exists");
     log.info("Adding year role", { ...ctx, roleId: roleId, year });
-    rolesToAdd.push(roleId);
-    shouldAnnounce = true;
-  }
-
-  return { rolesToAdd, rolesToRemove, shouldAnnounce, year };
-}
-
-export async function applyYearRoleChanges(
-  member: GuildMember,
-  changes: YearRoleChanges,
-  house: House,
-  ctx: Ctx,
-): Promise<void> {
-  if (changes.rolesToRemove.length > 0) {
-    await member.roles.remove(changes.rolesToRemove);
-  }
-  if (changes.rolesToAdd.length > 0) {
-    await member.roles.add(changes.rolesToAdd);
-  }
-  if (changes.shouldAnnounce && changes.year !== null) {
-    await announceYearPromotion(member, house, changes.year, ctx);
+    await member.roles.add(roleId);
+    await announceYearPromotion(member, house, year, ctx);
   }
 }
 
@@ -123,9 +94,7 @@ export async function refreshAllYearRoles(guild: Guild, opId: string): Promise<n
     try {
       const member = guild.members.cache.get(user.discordId);
       if (!member) continue;
-      const changes = updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
-      const ctx = { opId, userId: member.id, username: member.user.username };
-      await applyYearRoleChanges(member, changes, user.house, ctx);
+      await updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
       updated++;
     } catch {
       // Member not in guild, skip

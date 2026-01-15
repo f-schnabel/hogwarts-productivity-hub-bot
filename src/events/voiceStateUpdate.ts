@@ -4,8 +4,8 @@ import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { voiceSessionExecutionTimer } from "../monitoring.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
-import { getNicknameWithVCEmoji, getNicknameWithoutVCEmoji } from "../utils/nicknameUtils.ts";
-import { getVCRoleToAdd, getVCRoleToRemove } from "../utils/roleUtils.ts";
+import { addVCEmoji, removeVCEmoji } from "../utils/nicknameUtils.ts";
+import { addVCRole, removeVCRole } from "../utils/roleUtils.ts";
 
 const log = createLogger("VoiceEvent");
 
@@ -76,84 +76,13 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
         if (!oldChannel && newChannel) {
           event = "join";
           await startVoiceSession(newVoiceSession, db, opId);
-
-          // Batch nickname and role updates into a single member.edit() call
-          const nickname = await getNicknameWithVCEmoji(opId, member);
-          const roleToAdd = await getVCRoleToAdd(opId, member);
-
-          if (nickname || roleToAdd) {
-            const updates: { reason: string; nick?: string; roles?: string[] } = {
-              reason: "User joined voice channel",
-            };
-            if (nickname) {
-              updates.nick = nickname;
-            }
-            if (roleToAdd) {
-              updates.roles = [...member.roles.cache.keys(), roleToAdd];
-            }
-            await member.edit(updates);
-          }
+          await addVCEmoji(opId, member);
+          await addVCRole(opId, member);
         } else if (oldChannel && !newChannel) {
           event = "leave";
-          const yearRoleChanges = await endVoiceSession(oldVoiceSession, db, opId, true, member);
-
-          // Batch nickname and role updates into a single member.edit() call
-          const nickname = await getNicknameWithoutVCEmoji(opId, member);
-          const roleToRemove = await getVCRoleToRemove(opId, member);
-
-          // Check if we need to update the member
-          const needsNicknameUpdate = nickname !== null;
-          const needsRoleUpdate =
-            roleToRemove !== null ||
-            (yearRoleChanges && (yearRoleChanges.rolesToAdd.length > 0 || yearRoleChanges.rolesToRemove.length > 0));
-
-          if (needsNicknameUpdate || needsRoleUpdate) {
-            const updates: { reason: string; nick?: string; roles?: string[] } = {
-              reason: "User left voice channel",
-            };
-
-            if (needsNicknameUpdate) {
-              updates.nick = nickname;
-            }
-
-            if (needsRoleUpdate) {
-              let newRoles = Array.from(member.roles.cache.keys());
-
-              // Remove VC role
-              if (roleToRemove) {
-                newRoles = newRoles.filter((id) => id !== roleToRemove);
-              }
-
-              // Remove year roles
-              if (yearRoleChanges && yearRoleChanges.rolesToRemove.length > 0) {
-                newRoles = newRoles.filter((id) => !yearRoleChanges.rolesToRemove.includes(id));
-              }
-
-              // Add year roles
-              if (yearRoleChanges && yearRoleChanges.rolesToAdd.length > 0) {
-                newRoles = [...newRoles, ...yearRoleChanges.rolesToAdd];
-              }
-
-              updates.roles = newRoles;
-            }
-
-            await member.edit(updates);
-          }
-
-          // Announce year promotion if needed
-          if (yearRoleChanges && yearRoleChanges.shouldAnnounce && yearRoleChanges.year !== null) {
-            const user = await db.query.userTable.findFirst({
-              where: (users, { eq }) => eq(users.discordId, discordId),
-            });
-            if (user?.house) {
-              const { announceYearPromotion } = await import("../utils/yearRoleUtils.ts");
-              await announceYearPromotion(member, user.house, yearRoleChanges.year, {
-                opId,
-                userId: discordId,
-                username,
-              });
-            }
-          }
+          await endVoiceSession(oldVoiceSession, db, opId, true, member);
+          await removeVCEmoji(opId, member);
+          await removeVCRole(opId, member);
         } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
           event = "switch";
           // For channel switches, end the old session and start new one immediately

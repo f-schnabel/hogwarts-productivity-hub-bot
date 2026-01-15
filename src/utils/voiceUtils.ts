@@ -4,7 +4,7 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { VoiceSession } from "../types.ts";
 import type { GuildMember } from "discord.js";
 import assert from "node:assert/strict";
-import { updateYearRole, type YearRoleChanges } from "./yearRoleUtils.ts";
+import { updateYearRole } from "./yearRoleUtils.ts";
 import { createLogger } from "./logger.ts";
 import { formatDuration } from "./interactionUtils.ts";
 import { alertOwner } from "./alerting.ts";
@@ -36,8 +36,8 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx, opId:
       log.warn("Existing session found, closing first", { ...ctx, existingSessions: existingVoiceSessions.length });
       await alertOwner(
         oneLine`
-        Existing voice session(s) found 
-        when starting new voice session for user ${username} (${discordId}) 
+        Existing voice session(s) found
+        when starting new voice session for user ${username} (${discordId})
         in channel ${channelName} (${channelId}).
         Closing existing session(s).`,
         opId,
@@ -55,7 +55,6 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx, opId:
  *  @param isTracked - If false, do not update user stats (for deleting old sessions)
  *  @param opId - Operation ID for tracing
  *  @param member - GuildMember to update year role (optional)
- *  @returns YearRoleChanges if member is provided and has a house, null otherwise
  */
 export async function endVoiceSession(
   session: VoiceSession,
@@ -63,15 +62,15 @@ export async function endVoiceSession(
   opId: string,
   isTracked = true,
   member?: GuildMember,
-): Promise<YearRoleChanges | null> {
+) {
   const channelId = session.channelId;
   const ctx = { opId, userId: session.discordId, user: session.username, channel: session.channelName };
 
   if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
     log.debug("Skipped excluded channel", ctx);
-    return null;
+    return;
   }
-  return await db.transaction(async (db) => {
+  await db.transaction(async (db) => {
     const existingVoiceSession = await db
       .select({ id: voiceSessionTable.id })
       .from(voiceSessionTable)
@@ -92,7 +91,7 @@ export async function endVoiceSession(
         Found ${existingVoiceSession.length}, expected 1.`,
         opId,
       );
-      return null;
+      return;
     }
 
     const [voiceSessionWithDuration, ...extra] = await db
@@ -114,7 +113,7 @@ export async function endVoiceSession(
 
     if (!isTracked) {
       log.debug("Session closed (untracked)", ctx);
-      return null;
+      return;
     }
 
     assert(voiceSessionWithDuration !== undefined, `Expected exactly one voice session to end, but found none`);
@@ -160,10 +159,9 @@ export async function endVoiceSession(
       .set({ points: pointsEarned })
       .where(eq(voiceSessionTable.id, voiceSessionWithDuration.id));
 
-    // Return year role changes based on monthly voice time
+    // Update year role based on monthly voice time
     if (member && user.house) {
-      return updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
+      await updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
     }
-    return null;
   });
 }
