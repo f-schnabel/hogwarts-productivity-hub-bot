@@ -279,29 +279,32 @@ analyticsRouter.get("/user/:id", async (req, res) => {
       ),
     );
 
-  // Aggregate sessions by day
+  const tz = user.timezone;
+
+  // Aggregate sessions by day (in user's timezone)
   const dailyHours = new Map<string, number>();
   for (const s of sessions) {
-    const day = dayjs(s.joinedAt).format("YYYY-MM-DD");
+    const day = dayjs(s.joinedAt).tz(tz).format("YYYY-MM-DD");
     dailyHours.set(day, (dailyHours.get(day) ?? 0) + (s.duration ?? 0) / 3600);
   }
 
-  // Aggregate submissions by day
+  // Aggregate submissions by day (in user's timezone)
   const dailyTodoPoints = new Map<string, number>();
   for (const s of submissions) {
-    const day = dayjs(s.submittedAt).format("YYYY-MM-DD");
+    const day = dayjs(s.submittedAt).tz(tz).format("YYYY-MM-DD");
     dailyTodoPoints.set(day, (dailyTodoPoints.get(day) ?? 0) + s.points);
   }
 
-  // Build data from month start to today
+  // Build data from month start to today (in user's timezone)
   const labels: string[] = [];
   const cumulativeHours: number[] = [];
   const todoPoints: number[] = [];
   let cumulative = 0;
-  const daysInPeriod = dayjs().diff(dayjs(monthStart), "day") + 1;
+  const now = dayjs().tz(tz);
+  const daysInPeriod = now.diff(dayjs(monthStart).tz(tz), "day") + 1;
   for (let i = daysInPeriod - 1; i >= 0; i--) {
-    const day = dayjs().subtract(i, "day").format("YYYY-MM-DD");
-    const label = dayjs().subtract(i, "day").format("MMM D");
+    const day = now.subtract(i, "day").format("YYYY-MM-DD");
+    const label = now.subtract(i, "day").format("MMM D");
     cumulative += dailyHours.get(day) ?? 0;
     labels.push(label);
     cumulativeHours.push(Math.round(cumulative * 10) / 10);
