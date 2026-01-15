@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType } from "express";
-import { db } from "./db/db.ts";
+import { db, getMonthStartDate } from "./db/db.ts";
 import { userTable, voiceSessionTable } from "./db/schema.ts";
 import { desc, eq, sql, and, gte } from "drizzle-orm";
 import type { House } from "./types.ts";
@@ -249,14 +249,14 @@ analyticsRouter.get("/user/:id", async (req, res) => {
   const member = guild ? await guild.members.fetch(id).catch(() => null) : null;
   const displayName = member?.displayName ?? user.username;
 
-  const thirtyDaysAgo = dayjs().subtract(30, "day").startOf("day").toDate();
+  const monthStart = await getMonthStartDate();
   const sessions = await db
     .select({
       joinedAt: voiceSessionTable.joinedAt,
       duration: voiceSessionTable.duration,
     })
     .from(voiceSessionTable)
-    .where(and(eq(voiceSessionTable.discordId, id), gte(voiceSessionTable.joinedAt, thirtyDaysAgo)))
+    .where(and(eq(voiceSessionTable.discordId, id), gte(voiceSessionTable.joinedAt, monthStart)))
     .orderBy(voiceSessionTable.joinedAt);
 
   // Aggregate sessions by day
@@ -266,11 +266,12 @@ analyticsRouter.get("/user/:id", async (req, res) => {
     dailyHours.set(day, (dailyHours.get(day) ?? 0) + (s.duration ?? 0) / 3600);
   }
 
-  // Build cumulative data for last 30 days
+  // Build cumulative data from month start to today
   const labels: string[] = [];
   const cumulativeData: number[] = [];
   let cumulative = 0;
-  for (let i = 29; i >= 0; i--) {
+  const daysInPeriod = dayjs().diff(dayjs(monthStart), "day") + 1;
+  for (let i = daysInPeriod - 1; i >= 0; i--) {
     const day = dayjs().subtract(i, "day").format("YYYY-MM-DD");
     const label = dayjs().subtract(i, "day").format("MMM D");
     cumulative += dailyHours.get(day) ?? 0;
