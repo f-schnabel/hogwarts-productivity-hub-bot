@@ -1,11 +1,11 @@
-import { Router } from "express";
+import { Router, type Router as RouterType } from "express";
 import { db } from "./db/db.ts";
 import { userTable, voiceSessionTable } from "./db/schema.ts";
 import { desc, eq, sql, and, gte } from "drizzle-orm";
 import type { House } from "./types.ts";
 import dayjs from "dayjs";
 
-export const analyticsRouter = Router();
+export const analyticsRouter: RouterType = Router();
 
 const HOUSE_HEX: Record<House, string> = {
   Gryffindor: "#ae0001",
