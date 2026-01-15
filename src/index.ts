@@ -1,7 +1,19 @@
 import "dotenv/config";
 import "./console.ts";
-import { startServers } from "./monitoring.ts";
 
+// Extend dayjs BEFORE any imports that use it
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc.js";
+import timezone from "dayjs/plugin/timezone.js";
+import relativeTime from "dayjs/plugin/relativeTime.js";
+import advancedFormat from "dayjs/plugin/advancedFormat.js";
+dayjs.extend(advancedFormat);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(relativeTime);
+dayjs.tz.setDefault("UTC");
+
+import { startServers } from "./monitoring.ts";
 import * as CentralResetService from "./scheduler/centralResetService.ts";
 import { client } from "./client.ts";
 import { Events, SlashCommandSubcommandBuilder, type Client } from "discord.js";
@@ -9,11 +21,6 @@ import * as VoiceStateUpdate from "./events/voiceStateUpdate.ts";
 import * as ClientReady from "./events/clientReady.ts";
 import * as InteractionCreate from "./events/interactionCreate.ts";
 import * as MessageCreate from "./events/messageCreate.ts";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc.js";
-import timezone from "dayjs/plugin/timezone.js";
-import relativeTime from "dayjs/plugin/relativeTime.js";
-import advancedFormat from "dayjs/plugin/advancedFormat.js";
 import { alertOwner } from "./utils/alerting.ts";
 import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTimer } from "./monitoring.ts";
 import { commands } from "./commands.ts";
@@ -21,12 +28,6 @@ import { promisify } from "node:util";
 import { createLogger, OpId } from "./utils/logger.ts";
 
 const log = createLogger("Main");
-
-dayjs.extend(advancedFormat);
-dayjs.extend(utc);
-dayjs.extend(timezone);
-dayjs.extend(relativeTime);
-dayjs.tz.setDefault("UTC");
 
 // Start the bot
 const { server, analyticsServer } = startServers();
