@@ -5,7 +5,7 @@ import { createLogger, type Ctx } from "./logger.ts";
 import assert from "node:assert";
 import type { House } from "../types.ts";
 import { HOUSE_COLORS, YEAR_MESSAGES, YEAR_THRESHOLDS_HOURS, type YEAR } from "./constants.ts";
-import { isNotNull } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import { updateMember, type UpdateMemberParams } from "../events/voiceStateUpdate.ts";
 
 const log = createLogger("YearRole");
@@ -25,16 +25,15 @@ function getYearFromMonthlyVoiceTime(seconds: number): YEAR | null {
 
 export async function announceYearPromotion(
   member: GuildMember,
-  user: { monthlyVoiceTime: number; house: House | null } | null,
+  user: { monthlyVoiceTime: number; house: House | null; announcedYear: number } | null,
   ctx: Ctx,
 ): Promise<void> {
   if (!user?.house) return;
   const year = getYearFromMonthlyVoiceTime(user.monthlyVoiceTime);
-  if (year === null) return;
+  if (year === null || user.announcedYear >= year) return; // Already announced this year or higher
 
   const roleId = YEAR_ROLE_IDS[year - 1];
   assert(roleId, `No role ID configured for year ${year}`);
-  if (member.roles.cache.has(roleId)) return;
 
   const hours = YEAR_THRESHOLDS_HOURS[year - 1];
   assert(hours, `No hours threshold configured for year ${year}`);
@@ -54,6 +53,9 @@ export async function announceYearPromotion(
           },
         ],
       });
+      if (year !== user.announcedYear) {
+        await db.update(userTable).set({ announcedYear: year }).where(eq(userTable.discordId, member.id));
+      }
     } else {
       log.error("Year announcement channel is not text-based", ctx);
     }

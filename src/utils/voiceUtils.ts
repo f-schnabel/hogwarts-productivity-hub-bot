@@ -161,6 +161,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, opId: s
         dailyVoiceTime: userTable.dailyVoiceTime,
         monthlyVoiceTime: userTable.monthlyVoiceTime,
         house: userTable.house,
+        announcedYear: userTable.announcedYear,
       });
     assert(user !== undefined, `User not found for Discord ID ${session.discordId}`);
 

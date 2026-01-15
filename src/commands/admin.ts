@@ -88,6 +88,7 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
       const result = await db.update(userTable).set({
         monthlyPoints: 0,
         monthlyVoiceTime: 0,
+        announcedYear: 0,
       });
       log.info("Monthly reset complete", { opId, usersReset: result.rowCount });
 

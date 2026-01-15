@@ -31,6 +31,7 @@ export const userTable = pgTable("user", {
   dailyMessages: integer().default(0).notNull(),
   messageStreak: integer().default(0).notNull(),
   isMessageStreakUpdatedToday: boolean().default(false).notNull(),
+  announcedYear: integer().default(0).notNull(),
 });
 
 export const voiceSessionTable = pgTable(
