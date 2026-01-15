@@ -256,7 +256,13 @@ analyticsRouter.get("/user/:id", async (req, res) => {
       duration: voiceSessionTable.duration,
     })
     .from(voiceSessionTable)
-    .where(and(eq(voiceSessionTable.discordId, id), gte(voiceSessionTable.joinedAt, monthStart)))
+    .where(
+      and(
+        eq(voiceSessionTable.discordId, id),
+        eq(voiceSessionTable.isTracked, true),
+        gte(voiceSessionTable.joinedAt, monthStart),
+      ),
+    )
     .orderBy(voiceSessionTable.joinedAt);
 
   // Aggregate sessions by day
