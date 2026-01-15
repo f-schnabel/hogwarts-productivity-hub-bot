@@ -149,25 +149,59 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
     dailyData.set(day, existing);
   }
 
-  // Sort days and build lines
-  const sortedDays = [...dailyData.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-5);
-  const dailyLines =
-    sortedDays.length > 0
-      ? sortedDays
-          .map(([day, data]) => {
-            const dayLabel = dayjs(day).format("MMM D");
-            const voicePoints = calculatePointsHelper(data.voiceSeconds);
-            const dailyTotal = voicePoints + data.submissionPoints;
-            const parts: string[] = [];
-            if (data.voiceSeconds > 0) parts.push(`${formatDuration(data.voiceSeconds)} (${voicePoints} pt)`);
-            if (data.submissionPoints > 0) {
-              const todoLabel = data.submissionCount === 1 ? "To-Do List" : "To-Do Lists";
-              parts.push(`${todoLabel} (${data.submissionPoints} pt)`);
-            }
-            return `• ${dayLabel}: **${dailyTotal} pt** = ${parts.join(" + ")}`;
-          })
-          .join("\n")
-      : "None";
+  // Build activity lines: daily for current week, weekly aggregates for previous weeks
+  const now = dayjs().tz(tz);
+  const currentWeekStart = now.startOf("week");
+
+  // Separate current week days vs previous weeks
+  const currentWeekDays: [string, { voiceSeconds: number; submissionPoints: number; submissionCount: number }][] = [];
+  const weeklyData = new Map<string, { voiceSeconds: number; submissionPoints: number; submissionCount: number }>();
+
+  for (const [day, data] of dailyData.entries()) {
+    const dayDate = dayjs(day).tz(tz);
+    if (!dayDate.isBefore(currentWeekStart, "day")) {
+      currentWeekDays.push([day, data]);
+    } else {
+      // Group by week start (Sunday)
+      const weekStart = dayDate.startOf("week").format("YYYY-MM-DD");
+      const existing = weeklyData.get(weekStart) ?? { voiceSeconds: 0, submissionPoints: 0, submissionCount: 0 };
+      existing.voiceSeconds += data.voiceSeconds;
+      existing.submissionPoints += data.submissionPoints;
+      existing.submissionCount += data.submissionCount;
+      weeklyData.set(weekStart, existing);
+    }
+  }
+
+  const formatLine = (
+    label: string,
+    data: { voiceSeconds: number; submissionPoints: number; submissionCount: number },
+  ) => {
+    const voicePoints = calculatePointsHelper(data.voiceSeconds);
+    const total = voicePoints + data.submissionPoints;
+    const parts: string[] = [];
+    if (data.voiceSeconds > 0) parts.push(`${formatDuration(data.voiceSeconds)} (${voicePoints} pt)`);
+    if (data.submissionPoints > 0) {
+      const todoLabel = data.submissionCount === 1 ? "To-Do List" : "To-Do Lists";
+      parts.push(`${todoLabel} (${data.submissionPoints} pt)`);
+    }
+    return `• ${label}: **${total} pt** = ${parts.join(" + ")}`;
+  };
+
+  // Build weekly lines (sorted by week start)
+  const weeklyLines = [...weeklyData.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([weekStart, data]) => {
+      const weekEnd = dayjs(weekStart).add(6, "day");
+      const label = `${dayjs(weekStart).format("MMM D")}-${weekEnd.format("D")}`;
+      return formatLine(label, data);
+    });
+
+  // Build daily lines for current week (sorted by day)
+  const dailyLines = currentWeekDays
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([day, data]) => formatLine(dayjs(day).format("MMM D"), data));
+
+  const activityLines = [...weeklyLines, ...dailyLines].join("\n") || "None";
 
   // Year progress calculation
   const currentYear = getYearFromMonthlyVoiceTime(userData.monthlyVoiceTime);
@@ -206,8 +240,8 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
         },
         fields: [
           {
-            name: `Daily Activity (${dayjs().tz(tz).format("z")})`,
-            value: dailyLines,
+            name: `Activity (${dayjs().tz(tz).format("z")})`,
+            value: activityLines,
           },
           {
             name: "Monthly Totals",
