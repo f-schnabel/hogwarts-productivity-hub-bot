@@ -88,11 +88,12 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
       const result = await db.update(userTable).set({
         monthlyPoints: 0,
         monthlyVoiceTime: 0,
+        announcedYear: 0,
       });
       log.info("Monthly reset complete", { opId, usersReset: result.rowCount });
 
       // Refresh year roles after resetting (removes all year roles since voice time is 0)
-      const rolesUpdated = await refreshAllYearRoles(interaction.guild, opId);
+      const rolesUpdated = await refreshAllYearRoles(interaction.guild);
       log.info("Year roles refreshed", { opId, usersUpdated: rolesUpdated });
 
       // Store reset timestamp
@@ -122,7 +123,7 @@ async function resetTotalPoints(interaction: ChatInputCommandInteraction<"cached
 async function refreshYearRoles(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
   await wrapWithAlerting(
     async () => {
-      const count = await refreshAllYearRoles(interaction.guild, opId);
+      const count = await refreshAllYearRoles(interaction.guild);
       await interaction.editReply(`Year Ranks refreshed for ${count} users.`);
     },
     "Refresh Year Ranks processing",

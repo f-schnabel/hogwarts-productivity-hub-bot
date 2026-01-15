@@ -6,13 +6,14 @@ import { alertOwner } from "../utils/alerting.ts";
 import { db, getVCEmoji } from "../db/db.ts";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
-import { removeVCEmoji, updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
+import { VCEmojiNeedsRemovalSync, updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../services/scoreboardService.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 import assert from "node:assert";
 import { client } from "../client.ts";
 import { MIN_USERS_FOR_SAFE_DELETION } from "../utils/constants.ts";
-import { removeVCRole } from "../utils/roleUtils.ts";
+import { VCRoleNeedsRemovalSync } from "../utils/roleUtils.ts";
+import { updateMember } from "./voiceStateUpdate.ts";
 
 const log = createLogger("Startup");
 
@@ -168,32 +169,27 @@ async function resetNicknameStreaks(client: Client, opId: string) {
 async function resetVCEmojisAndRoles(c: Client<true>, opId: string) {
   log.debug("Resetting VC emojis", { opId, guildsCache: c.guilds.cache.size });
   const emoji = await getVCEmoji();
-
   const guild = getGuild();
+  const role = guild.roles.cache.get(process.env.VC_ROLE_ID);
+  if (!role) {
+    await alertOwner("VC role not found: " + process.env.VC_ROLE_ID, opId);
+    return;
+  }
 
-  const membersToReset = guild.members.cache.filter((member) => member.voice.channel === null);
+  const membersToReset = guild.members.cache.filter((m) => m.voice.channel === null);
 
-  const membersWithEmoji = membersToReset.filter((member) => member.nickname?.includes(" " + emoji));
-  log.debug("Processing guild VC emojis", {
-    opId,
-    toReset: membersWithEmoji.map((m) => m.user.username),
-  });
   await Promise.all(
-    membersWithEmoji.values().map(async (m) => {
-      await removeVCEmoji(opId, m);
-    }),
-  );
+    membersToReset.map(async (member) => {
+      const ctx = { opId, userId: member.id, username: member.user.username };
 
-  const membersWithRole = membersToReset.filter(
-    (member) => member.roles.cache.get(process.env.VC_ROLE_ID) !== undefined,
-  );
-  log.debug("Processing guild VC roles", {
-    opId,
-    toReset: membersWithRole.map((m) => m.user.username),
-  });
-  await Promise.all(
-    membersWithRole.values().map(async (m) => {
-      await removeVCRole(opId, m);
+      await updateMember({
+        member,
+        reason: "Resetting VC emoji and role on startup",
+        nickname: VCEmojiNeedsRemovalSync(ctx, member, emoji),
+        roleUpdates: {
+          rolesToRemove: VCRoleNeedsRemovalSync(ctx, member, role),
+        },
+      });
     }),
   );
 }
