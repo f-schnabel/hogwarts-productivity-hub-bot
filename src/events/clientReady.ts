@@ -138,10 +138,7 @@ async function resetNicknameStreaks(client: Client, opId: string) {
       !discordIds.has(member.id) && member.guild.ownerId !== member.user.id && member.nickname?.match(/⚡\d+$/),
   );
   const membersToUpdate = guild.members.cache.filter(
-    (member) =>
-      discordIds.has(member.id) &&
-      (!member.nickname?.endsWith(`⚡${String(discordIdsToStreak[member.id])}`) ||
-        member.nickname.endsWith(` ⚡${String(discordIdsToStreak[member.id])}`)),
+    (member) => discordIds.has(member.id) && !member.nickname?.endsWith(` ⚡${String(discordIdsToStreak[member.id])}`),
   );
 
   log.debug("Processing guild nicknames", {

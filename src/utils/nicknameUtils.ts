@@ -15,7 +15,7 @@ export async function updateMessageStreakInNickname(
   if (!member || member.guild.ownerId === member.user.id || hasAnyRole(member, Role.PROFESSOR)) return;
 
   // If member has no nickname, no need to reset
-  if (newStreak == 0 && member.nickname === null) return;
+  if (newStreak === 0 && member.nickname === null) return;
 
   let newNickname =
     member.nickname?.replace(/⚡\d+(?=[^⚡]*$)/, newStreak === 0 ? "" : `⚡${newStreak}`).trim() ??

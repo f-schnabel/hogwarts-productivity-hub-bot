@@ -53,9 +53,7 @@ export async function announceYearPromotion(
           },
         ],
       });
-      if (year !== user.announcedYear) {
-        await db.update(userTable).set({ announcedYear: year }).where(eq(userTable.discordId, member.id));
-      }
+      await db.update(userTable).set({ announcedYear: year }).where(eq(userTable.discordId, member.id));
     } else {
       log.error("Year announcement channel is not text-based", ctx);
     }

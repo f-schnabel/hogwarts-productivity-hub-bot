@@ -7,6 +7,9 @@ import { eq } from "drizzle-orm";
 import { errorReply } from "../utils/interactionUtils.ts";
 import type { CommandOptions } from "../types.ts";
 import { stripIndent } from "common-tags";
+import { createLogger } from "../utils/logger.ts";
+
+const log = createLogger("Timezone");
 
 export default {
   data: new SlashCommandBuilder()
@@ -73,8 +76,8 @@ async function setTimezone(
   // Validate timezone
   try {
     dayjs().tz(newTimezone);
-  } catch (e) {
-    console.error("Invalid timezone provided:", newTimezone, e);
+  } catch {
+    log.warn("Invalid timezone", { opId, user: discordId, username: interaction.user.username, tz: newTimezone });
     await errorReply(
       opId,
       interaction,

@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { ensureUserExists } from "../db/db.ts";
 import { alertOwner } from "../utils/alerting.ts";
 import { interactionExecutionTimer } from "../monitoring.ts";
-import { createLogger, OpId } from "../utils/logger.ts";
+import { createLogger, OpId, type Ctx } from "../utils/logger.ts";
 
 const log = createLogger("Command");
 
@@ -67,7 +67,7 @@ export async function execute(interaction: Interaction): Promise<void> {
     );
     if (interaction.isAutocomplete()) return;
 
-    await handleException(error, interaction);
+    await handleException(error, interaction, ctx);
   }
 
   log.info("Completed", { ...ctx, ms: Date.now() - start });
@@ -116,7 +116,7 @@ async function handleButton(
   });
 }
 
-async function handleException(error: unknown, interaction: ChatInputCommandInteraction) {
+async function handleException(error: unknown, interaction: ChatInputCommandInteraction, ctx: Ctx) {
   // Improved error response handling with interaction state checks
   try {
     const errorMessage =
@@ -136,6 +136,6 @@ async function handleException(error: unknown, interaction: ChatInputCommandInte
     }
     // If interaction is already replied, we can't send another response
   } catch (replyError) {
-    console.error(`💥 Failed to send error response for /${interaction.commandName}:`, replyError);
+    log.error("Failed to send error response", ctx, replyError);
   }
 }

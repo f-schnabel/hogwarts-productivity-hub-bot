@@ -17,7 +17,7 @@ export function getHouseFromMember(member: GuildMember | null): House | undefine
   const houses = HOUSE_ROLES.filter(([roleId]) => roles.has(roleId));
   assert(
     houses.length <= 1,
-    `Member ${member.user.tag} has multiple house roles: ${roles.map((r) => r.name).join(", ")}`,
+    `Member ${member.user.tag} has multiple house roles: ${houses.map(([, name]) => name).join(", ")}`,
   );
   return houses[0]?.[1];
 }

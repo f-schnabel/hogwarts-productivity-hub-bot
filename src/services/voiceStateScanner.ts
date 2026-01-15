@@ -18,20 +18,38 @@ import { join } from "../events/voiceStateUpdate.ts";
 const log = createLogger("VoiceScan");
 
 let isScanning = false;
-let scanResults = {
-  totalUsersFound: 0,
-  trackingStarted: 0,
-  sessionsResumed: 0,
-  staleClosed: 0,
-  errors: 0,
-  channels: [] as { id: string; name: string; userCount: number }[],
-};
 
 interface OpenSession {
   discordId: string;
   channelId: string;
   channelName: string;
   joinedAt: Date;
+}
+
+interface ScanContext {
+  opId: string;
+  results: {
+    totalUsersFound: number;
+    trackingStarted: number;
+    sessionsResumed: number;
+    staleClosed: number;
+    errors: number;
+    channels: { id: string; name: string; userCount: number }[];
+  };
+}
+
+function createScanContext(opId: string): ScanContext {
+  return {
+    opId,
+    results: {
+      totalUsersFound: 0,
+      trackingStarted: 0,
+      sessionsResumed: 0,
+      staleClosed: 0,
+      errors: 0,
+      channels: [],
+    },
+  };
 }
 
 /**
@@ -43,22 +61,14 @@ interface OpenSession {
  */
 export async function scanAndStartTracking(parentOpId?: string) {
   const opId = parentOpId ?? OpId.vcscan();
-  const ctx = { opId };
 
   if (isScanning) {
-    log.warn("Scan already in progress, skipping", ctx);
+    log.warn("Scan already in progress, skipping", { opId });
     return;
   }
 
   isScanning = true;
-  scanResults = {
-    totalUsersFound: 0,
-    trackingStarted: 0,
-    sessionsResumed: 0,
-    staleClosed: 0,
-    errors: 0,
-    channels: [],
-  };
+  const ctx = createScanContext(opId);
 
   // Fetch all open sessions with their details
   const openSessions = await db
@@ -84,23 +94,23 @@ export async function scanAndStartTracking(parentOpId?: string) {
     const usersInVoice = new Set<string>();
 
     const guild = getGuild();
-    await scanGuildVoiceStates(guild, openSessionsByUser, usersInVoice, opId);
+    await scanGuildVoiceStates(ctx, guild, openSessionsByUser, usersInVoice);
 
     // Close stale sessions: users with open sessions who are not in voice
-    await closeStaleSessionsForMissingUsers(openSessionsByUser, usersInVoice, opId);
+    await closeStaleSessionsForMissingUsers(ctx, openSessionsByUser, usersInVoice);
 
     log.info("Scan complete", {
-      ...ctx,
-      usersFound: scanResults.totalUsersFound,
-      trackingStarted: scanResults.trackingStarted,
-      sessionsResumed: scanResults.sessionsResumed,
-      staleClosed: scanResults.staleClosed,
-      errors: scanResults.errors,
-      channels: scanResults.channels.map((c) => `${c.name}:${c.userCount}`).join(", ") || "none",
+      opId,
+      usersFound: ctx.results.totalUsersFound,
+      trackingStarted: ctx.results.trackingStarted,
+      sessionsResumed: ctx.results.sessionsResumed,
+      staleClosed: ctx.results.staleClosed,
+      errors: ctx.results.errors,
+      channels: ctx.results.channels.map((c) => `${c.name}:${c.userCount}`).join(", ") || "none",
     });
   } catch (error) {
-    log.error("Scan failed", ctx, error);
-    scanResults.errors++;
+    log.error("Scan failed", { opId }, error);
+    ctx.results.errors++;
   } finally {
     isScanning = false;
   }
@@ -111,9 +121,9 @@ export async function scanAndStartTracking(parentOpId?: string) {
  * All sessions for missing users are closed.
  */
 async function closeStaleSessionsForMissingUsers(
+  ctx: ScanContext,
   openSessionsByUser: Map<string, OpenSession[]>,
   usersInVoice: Set<string>,
-  opId: string,
 ) {
   const now = Date.now();
 
@@ -132,21 +142,21 @@ async function closeStaleSessionsForMissingUsers(
 
       try {
         if (sessionAge > MAX_SESSION_AGE_MS) {
-          await closeVoiceSessionUntracked(sessionToClose, db, opId);
+          await closeVoiceSessionUntracked(sessionToClose, db, ctx.opId);
         } else {
-          await endVoiceSession(sessionToClose, db, opId);
+          await endVoiceSession(sessionToClose, db, ctx.opId);
         }
-        scanResults.staleClosed++;
+        ctx.results.staleClosed++;
         log.debug("Closed stale session", {
-          opId,
+          opId: ctx.opId,
           userId: discordId,
           channel: session.channelName,
           ageHours: Math.round(sessionAge / 1000 / 60 / 60),
           tracked: sessionAge <= MAX_SESSION_AGE_MS,
         });
       } catch (error) {
-        log.error("Failed to close stale session", { opId, userId: discordId }, error);
-        scanResults.errors++;
+        log.error("Failed to close stale session", { opId: ctx.opId, userId: discordId }, error);
+        ctx.results.errors++;
       }
     }
   }
@@ -156,12 +166,11 @@ async function closeStaleSessionsForMissingUsers(
  * Scan voice states for a specific guild
  */
 async function scanGuildVoiceStates(
+  ctx: ScanContext,
   guild: Guild,
   openSessionsByUser: Map<string, OpenSession[]>,
   usersInVoice: Set<string>,
-  opId: string,
 ) {
-  const ctx = { opId, guild: guild.name };
   try {
     // Get all voice channels in the guild
     const voiceChannels = guild.channels.cache.filter(
@@ -171,11 +180,11 @@ async function scanGuildVoiceStates(
     ) as Collection<string, BaseGuildVoiceChannel>;
 
     for (const [, channel] of voiceChannels) {
-      await scanVoiceChannel(channel, openSessionsByUser, usersInVoice, opId);
+      await scanVoiceChannel(ctx, channel, openSessionsByUser, usersInVoice);
     }
   } catch (error) {
-    log.error("Guild scan failed", ctx, error);
-    scanResults.errors++;
+    log.error("Guild scan failed", { opId: ctx.opId, guild: guild.name }, error);
+    ctx.results.errors++;
   }
 }
 
@@ -184,19 +193,19 @@ async function scanGuildVoiceStates(
  * For users with multiple open sessions, keeps the newest valid one and closes others.
  */
 async function scanVoiceChannel(
+  ctx: ScanContext,
   channel: BaseGuildVoiceChannel,
   openSessionsByUser: Map<string, OpenSession[]>,
   usersInVoice: Set<string>,
-  opId: string,
 ) {
-  const ctx = { opId, channel: channel.name };
+  const logCtx = { opId: ctx.opId, channel: channel.name };
   const now = Date.now();
 
   try {
     const members = channel.members;
 
     // Add to scan results
-    scanResults.channels.push({
+    ctx.results.channels.push({
       id: channel.id,
       name: channel.name,
       userCount: members.size,
@@ -213,7 +222,7 @@ async function scanVoiceChannel(
           continue;
         }
 
-        scanResults.totalUsersFound++;
+        ctx.results.totalUsersFound++;
         usersInVoice.add(discordId);
 
         const existingSessions = openSessionsByUser.get(discordId) ?? [];
@@ -244,17 +253,17 @@ async function scanVoiceChannel(
               channelName: session.channelName,
             };
             if (sessionAge > MAX_SESSION_AGE_MS) {
-              await closeVoiceSessionUntracked(sessionToClose, db, opId);
+              await closeVoiceSessionUntracked(sessionToClose, db, ctx.opId);
             } else {
-              await endVoiceSession(sessionToClose, db, opId);
+              await endVoiceSession(sessionToClose, db, ctx.opId);
             }
 
-            scanResults.staleClosed++;
+            ctx.results.staleClosed++;
           }
 
           if (validSession !== null) {
             // Valid session found - resume it (keep it open)
-            scanResults.sessionsResumed++;
+            ctx.results.sessionsResumed++;
             usersResumed.push(username);
             continue;
           }
@@ -272,25 +281,25 @@ async function scanVoiceChannel(
             channelName: channel.name,
           },
           member,
-          opId,
+          ctx.opId,
         );
 
-        scanResults.trackingStarted++;
+        ctx.results.trackingStarted++;
         usersStarted.push(username);
       } catch (userError) {
-        log.error("Failed to start tracking for user", { ...ctx, user: username }, userError);
-        scanResults.errors++;
+        log.error("Failed to start tracking for user", { ...logCtx, user: username }, userError);
+        ctx.results.errors++;
       }
     }
 
     if (usersStarted.length > 0) {
-      log.debug("Started tracking users", { ...ctx, users: usersStarted.join(", ") });
+      log.debug("Started tracking users", { ...logCtx, users: usersStarted.join(", ") });
     }
     if (usersResumed.length > 0) {
-      log.debug("Resumed sessions for users", { ...ctx, users: usersResumed.join(", ") });
+      log.debug("Resumed sessions for users", { ...logCtx, users: usersResumed.join(", ") });
     }
   } catch (error) {
-    log.error("Channel scan failed", ctx, error);
-    scanResults.errors++;
+    log.error("Channel scan failed", logCtx, error);
+    ctx.results.errors++;
   }
 }
