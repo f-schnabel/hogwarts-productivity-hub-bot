@@ -3,6 +3,7 @@ import { db } from "./db/db.ts";
 import { userTable, voiceSessionTable } from "./db/schema.ts";
 import { desc, eq, sql, and, gte } from "drizzle-orm";
 import type { House } from "./types.ts";
+import { client } from "./client.ts";
 import dayjs from "dayjs";
 
 export const analyticsRouter: RouterType = Router();
@@ -176,6 +177,16 @@ analyticsRouter.get("/leaderboard", async (_req, res) => {
     .orderBy(desc(userTable.monthlyPoints))
     .limit(50);
 
+  // Fetch display names from Discord
+  const guild = client.guilds.cache.get(process.env.GUILD_ID);
+  const displayNames = new Map<string, string>();
+  if (guild) {
+    const members = await guild.members.fetch({ user: users.map((u) => u.discordId) });
+    for (const [id, member] of members) {
+      displayNames.set(id, member.displayName);
+    }
+  }
+
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -187,7 +198,7 @@ analyticsRouter.get("/leaderboard", async (_req, res) => {
       (u, i) => `
     <tr>
       <td class="rank">#${i + 1}</td>
-      <td><a href="/user/${u.discordId}" style="color:#e8d5b7">${u.username}</a></td>
+      <td><a href="/user/${u.discordId}" style="color:#e8d5b7">${displayNames.get(u.discordId) ?? u.username}</a></td>
       <td style="color:${u.house ? HOUSE_HEX[u.house] : "#888"}">${u.house ?? "-"}</td>
       <td>${u.monthlyPoints}</td>
       <td>${formatTime(u.monthlyVoiceTime)}</td>
@@ -231,6 +242,11 @@ analyticsRouter.get("/user/:id", async (req, res) => {
     return;
   }
 
+  // Fetch display name from Discord
+  const guild = client.guilds.cache.get(process.env.GUILD_ID);
+  const member = guild ? await guild.members.fetch(id).catch(() => null) : null;
+  const displayName = member?.displayName ?? user.username;
+
   const thirtyDaysAgo = dayjs().subtract(30, "day").toDate();
   const sessions = await db
     .select({
@@ -264,10 +280,10 @@ analyticsRouter.get("/user/:id", async (req, res) => {
 
   res.send(
     layout(
-      user.username,
+      displayName,
       `
     <div class="user-header">
-      <h1>${user.username}</h1>
+      <h1>${displayName}</h1>
       <p style="color:${houseColor};font-size:1.2rem">${user.house ?? "No House"}</p>
     </div>
 
