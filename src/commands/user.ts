@@ -193,7 +193,8 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
     .map(([weekStart, data]) => {
       const start = dayjs(weekStart);
       const end = start.add(6, "day");
-      const label = `${start.format("MMM D")}-${end.format("MMM D")}`;
+      const endFormat = start.month() !== end.month() ? "MMM D" : "D";
+      const label = `${start.format("MMM D")} - ${end.format(endFormat)}`;
       return formatLine(label, data);
     });
 
