@@ -15,13 +15,14 @@ const HOUSE_HEX: Record<House, string> = {
   Slytherin: "#2a623d",
 };
 
-const layout = (title: string, content: string) => `
+const layout = (title: string, content: string, script?: string) => `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title} - Hogwarts Productivity</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -120,6 +121,7 @@ const layout = (title: string, content: string) => `
     </nav>
     ${content}
   </div>
+  ${script ? `<script>${script}</script>` : ""}
 </body>
 </html>
 `;
@@ -198,7 +200,7 @@ analyticsRouter.get("/leaderboard", async (_req, res) => {
       (u, i) => `
     <tr>
       <td class="rank">#${i + 1}</td>
-      <td><a href="/user/${u.discordId}" style="color:#e8d5b7">${displayNames.get(u.discordId) ?? u.username}</a></td>
+      <td><a href="/user/${u.discordId}" style="color:#e8d5b7;text-decoration:none">${displayNames.get(u.discordId) ?? u.username}</a></td>
       <td style="color:${u.house ? HOUSE_HEX[u.house] : "#888"}">${u.house ?? "-"}</td>
       <td>${u.monthlyPoints}</td>
       <td>${formatTime(u.monthlyVoiceTime)}</td>
@@ -247,34 +249,40 @@ analyticsRouter.get("/user/:id", async (req, res) => {
   const member = guild ? await guild.members.fetch(id).catch(() => null) : null;
   const displayName = member?.displayName ?? user.username;
 
-  const thirtyDaysAgo = dayjs().subtract(30, "day").toDate();
+  const thirtyDaysAgo = dayjs().subtract(30, "day").startOf("day").toDate();
   const sessions = await db
     .select({
-      channelName: voiceSessionTable.channelName,
       joinedAt: voiceSessionTable.joinedAt,
       duration: voiceSessionTable.duration,
     })
     .from(voiceSessionTable)
     .where(and(eq(voiceSessionTable.discordId, id), gte(voiceSessionTable.joinedAt, thirtyDaysAgo)))
-    .orderBy(desc(voiceSessionTable.joinedAt))
-    .limit(20);
+    .orderBy(voiceSessionTable.joinedAt);
+
+  // Aggregate sessions by day
+  const dailyHours = new Map<string, number>();
+  for (const s of sessions) {
+    const day = dayjs(s.joinedAt).format("YYYY-MM-DD");
+    dailyHours.set(day, (dailyHours.get(day) ?? 0) + (s.duration ?? 0) / 3600);
+  }
+
+  // Build cumulative data for last 30 days
+  const labels: string[] = [];
+  const cumulativeData: number[] = [];
+  let cumulative = 0;
+  for (let i = 29; i >= 0; i--) {
+    const day = dayjs().subtract(i, "day").format("YYYY-MM-DD");
+    const label = dayjs().subtract(i, "day").format("MMM D");
+    cumulative += dailyHours.get(day) ?? 0;
+    labels.push(label);
+    cumulativeData.push(Math.round(cumulative * 10) / 10);
+  }
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
-
-  const sessionRows = sessions
-    .map(
-      (s) => `
-    <div class="session">
-      <span>${dayjs(s.joinedAt).format("MMM D, HH:mm")} - ${s.channelName}</span>
-      <span>${formatTime(s.duration ?? 0)}</span>
-    </div>
-  `,
-    )
-    .join("");
 
   const houseColor = user.house ? HOUSE_HEX[user.house] : "#888";
 
@@ -311,10 +319,45 @@ analyticsRouter.get("/user/:id", async (req, res) => {
     </div>
 
     <div class="sessions">
-      <h2 style="margin-bottom:1rem">Recent Sessions</h2>
-      ${sessionRows || "<p>No recent sessions</p>"}
+      <h2 style="margin-bottom:1rem">Study Hours (Last 30 Days)</h2>
+      <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:1rem">
+        <canvas id="studyChart"></canvas>
+      </div>
     </div>
   `,
+      `
+      new Chart(document.getElementById('studyChart'), {
+        type: 'line',
+        data: {
+          labels: ${JSON.stringify(labels)},
+          datasets: [{
+            label: 'Cumulative Hours',
+            data: ${JSON.stringify(cumulativeData)},
+            borderColor: '${houseColor}',
+            backgroundColor: '${houseColor}33',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#e8d5b7', maxRotation: 45 },
+              grid: { color: 'rgba(255,255,255,0.1)' }
+            },
+            y: {
+              ticks: { color: '#e8d5b7' },
+              grid: { color: 'rgba(255,255,255,0.1)' },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+      `,
     ),
   );
 });
