@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
 import { BOT_COLORS } from "../utils/constants.ts";
 import dayjs from "dayjs";
-import { db, fetchUserTimezone } from "../db/db.ts";
+import { db, getUserTimezone } from "../db/db.ts";
 import { userTable } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
 import { errorReply } from "../utils/interactionUtils.ts";
@@ -54,7 +54,7 @@ export default {
 };
 
 async function viewTimezone(interaction: ChatInputCommandInteraction, discordId: string) {
-  const userTimezone = await fetchUserTimezone(discordId);
+  const userTimezone = await getUserTimezone(discordId);
   const userLocalTime = dayjs().tz(userTimezone).format("HH:mm");
 
   await interaction.reply({
@@ -90,7 +90,7 @@ async function setTimezone(
   }
 
   // Get current timezone for comparison
-  const oldTimezone = await fetchUserTimezone(discordId);
+  const oldTimezone = await getUserTimezone(discordId);
   if (oldTimezone === newTimezone) {
     await interaction.reply({
       embeds: [

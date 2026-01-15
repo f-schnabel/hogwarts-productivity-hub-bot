@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import dayjs from "dayjs";
-import { db, fetchOpenVoiceSessions, type Tx } from "../db/db.ts";
+import { db, getOpenVoiceSessions, type Tx } from "../db/db.ts";
 import { userTable } from "../db/schema.ts";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
@@ -67,7 +67,7 @@ async function processDailyResets() {
           return;
         }
 
-        const usersInVoiceSessions = await fetchOpenVoiceSessions(db, usersNeedingReset);
+        const usersInVoiceSessions = await getOpenVoiceSessions(db, usersNeedingReset);
         log.info("Users identified", {
           opId,
           total: usersNeedingReset.length,

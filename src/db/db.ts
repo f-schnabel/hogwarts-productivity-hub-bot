@@ -43,7 +43,7 @@ export async function ensureUserExists(member: GuildMember | null, discordId: st
   });
 }
 
-export async function fetchUserTimezone(discordId: string) {
+export async function getUserTimezone(discordId: string) {
   return await db
     .select({ timezone: schema.userTable.timezone })
     .from(schema.userTable)
@@ -51,7 +51,7 @@ export async function fetchUserTimezone(discordId: string) {
     .then((rows) => rows[0]?.timezone ?? "UTC");
 }
 
-export async function fetchOpenVoiceSessions(db: Tx, usersNeedingReset: string[] | null = null) {
+export async function getOpenVoiceSessions(db: Tx, usersNeedingReset: string[] | null = null) {
   return await db
     .select({
       discordId: schema.voiceSessionTable.discordId,
