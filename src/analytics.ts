@@ -1,6 +1,6 @@
 import { Router, type Router as RouterType } from "express";
 import { db, getMonthStartDate } from "./db/db.ts";
-import { userTable, voiceSessionTable } from "./db/schema.ts";
+import { userTable, voiceSessionTable, submissionTable } from "./db/schema.ts";
 import { desc, eq, sql, and, gte } from "drizzle-orm";
 import type { House } from "./types.ts";
 import { client } from "./client.ts";
@@ -265,6 +265,20 @@ analyticsRouter.get("/user/:id", async (req, res) => {
     )
     .orderBy(voiceSessionTable.joinedAt);
 
+  const submissions = await db
+    .select({
+      submittedAt: submissionTable.submittedAt,
+      points: submissionTable.points,
+    })
+    .from(submissionTable)
+    .where(
+      and(
+        eq(submissionTable.discordId, id),
+        eq(submissionTable.status, "APPROVED"),
+        gte(submissionTable.submittedAt, monthStart),
+      ),
+    );
+
   // Aggregate sessions by day
   const dailyHours = new Map<string, number>();
   for (const s of sessions) {
@@ -272,9 +286,17 @@ analyticsRouter.get("/user/:id", async (req, res) => {
     dailyHours.set(day, (dailyHours.get(day) ?? 0) + (s.duration ?? 0) / 3600);
   }
 
-  // Build cumulative data from month start to today
+  // Aggregate submissions by day
+  const dailyTodoPoints = new Map<string, number>();
+  for (const s of submissions) {
+    const day = dayjs(s.submittedAt).format("YYYY-MM-DD");
+    dailyTodoPoints.set(day, (dailyTodoPoints.get(day) ?? 0) + s.points);
+  }
+
+  // Build data from month start to today
   const labels: string[] = [];
-  const cumulativeData: number[] = [];
+  const cumulativeHours: number[] = [];
+  const todoPoints: number[] = [];
   let cumulative = 0;
   const daysInPeriod = dayjs().diff(dayjs(monthStart), "day") + 1;
   for (let i = daysInPeriod - 1; i >= 0; i--) {
@@ -282,7 +304,8 @@ analyticsRouter.get("/user/:id", async (req, res) => {
     const label = dayjs().subtract(i, "day").format("MMM D");
     cumulative += dailyHours.get(day) ?? 0;
     labels.push(label);
-    cumulativeData.push(Math.round(cumulative * 10) / 10);
+    cumulativeHours.push(Math.round(cumulative * 10) / 10);
+    todoPoints.push(dailyTodoPoints.get(day) ?? 0);
   }
 
   const formatTime = (seconds: number) => {
@@ -326,7 +349,7 @@ analyticsRouter.get("/user/:id", async (req, res) => {
     </div>
 
     <div class="sessions">
-      <h2 style="margin-bottom:1rem">Study Hours (Last 30 Days)</h2>
+      <h2 style="margin-bottom:1rem">Activity This Month</h2>
       <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:1rem">
         <canvas id="studyChart"></canvas>
       </div>
@@ -334,22 +357,34 @@ analyticsRouter.get("/user/:id", async (req, res) => {
   `,
       `
       new Chart(document.getElementById('studyChart'), {
-        type: 'line',
         data: {
           labels: ${JSON.stringify(labels)},
           datasets: [{
-            label: 'Cumulative Hours',
-            data: ${JSON.stringify(cumulativeData)},
+            type: 'line',
+            label: 'Study Hours',
+            data: ${JSON.stringify(cumulativeHours)},
             borderColor: '${houseColor}',
             backgroundColor: '${houseColor}33',
             fill: true,
-            tension: 0.3
+            tension: 0.3,
+            yAxisID: 'y'
+          }, {
+            type: 'bar',
+            label: 'To-Do Points',
+            data: ${JSON.stringify(todoPoints)},
+            backgroundColor: '#ffd70088',
+            borderColor: '#ffd700',
+            borderWidth: 1,
+            yAxisID: 'y1'
           }]
         },
         options: {
           responsive: true,
           plugins: {
-            legend: { display: false }
+            legend: {
+              display: true,
+              labels: { color: '#e8d5b7' }
+            }
           },
           scales: {
             x: {
@@ -357,9 +392,21 @@ analyticsRouter.get("/user/:id", async (req, res) => {
               grid: { color: 'rgba(255,255,255,0.1)' }
             },
             y: {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'Hours', color: '#e8d5b7' },
               ticks: { color: '#e8d5b7' },
               grid: { color: 'rgba(255,255,255,0.1)' },
               beginAtZero: true
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              title: { display: true, text: 'To-Do Pts', color: '#e8d5b7' },
+              ticks: { color: '#e8d5b7', stepSize: 5 },
+              grid: { drawOnChartArea: false },
+              beginAtZero: true,
+              max: 15
             }
           }
         }
