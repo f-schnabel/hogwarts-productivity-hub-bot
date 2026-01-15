@@ -4,10 +4,12 @@ import { db, getMonthStartDate } from "../db/db.ts";
 import { submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, asc, eq, gte } from "drizzle-orm";
 import { formatDuration, errorReply, inGuild, requireRole } from "../utils/interactionUtils.ts";
-import { BOT_COLORS, Role } from "../utils/constants.ts";
+import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "../utils/constants.ts";
+import { getYearFromMonthlyVoiceTime } from "../utils/yearRoleUtils.ts";
 import type { CommandOptions } from "../types.ts";
 import { calculatePointsHelper } from "../services/pointsService.ts";
 import { stripIndent } from "common-tags";
+import assert from "node:assert";
 
 export default {
   data: new SlashCommandBuilder()
@@ -167,6 +169,29 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
           .join("\n")
       : "None";
 
+  // Year progress calculation
+  const currentYear = getYearFromMonthlyVoiceTime(userData.monthlyVoiceTime);
+  const currentHours = userData.monthlyVoiceTime / 3600;
+  let yearProgressValue: string;
+
+  if (currentYear === null) {
+    const nextThreshold = YEAR_THRESHOLDS_HOURS[0];
+    const progress = Math.min(currentHours / nextThreshold, 1);
+    const filled = Math.round(progress * 10);
+    const bar = "▓".repeat(filled) + "░".repeat(10 - filled);
+    yearProgressValue = `Year 0 ${bar} ${currentHours.toFixed(1)}/${nextThreshold}h`;
+  } else if (currentYear === 7) {
+    yearProgressValue = `Year 7 ${"▓".repeat(10)} (Max)`;
+  } else {
+    const nextThreshold = YEAR_THRESHOLDS_HOURS[currentYear];
+    const currentThreshold = YEAR_THRESHOLDS_HOURS[currentYear - 1];
+    assert(currentThreshold !== undefined, "Current threshold should be defined for years >= 1");
+    const progress = (currentHours - currentThreshold) / (nextThreshold - currentThreshold);
+    const filled = Math.round(progress * 10);
+    const bar = "▓".repeat(filled) + "░".repeat(10 - filled);
+    yearProgressValue = `Year ${currentYear} ${bar} ${currentHours.toFixed(1)}/${nextThreshold}h`;
+  }
+
   await interaction.editReply({
     embeds: [
       {
@@ -187,6 +212,10 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
               Study: ${formatDuration(totalVoiceSeconds)}
               Submissions: ${totalSubmissionPoints} pts
               **Total: ${userData.monthlyPoints} pts**`,
+          },
+          {
+            name: "Year Progress",
+            value: yearProgressValue,
           },
         ],
         footer: { text: `Month: ${dayjs().format("MMMM YYYY")}` },
