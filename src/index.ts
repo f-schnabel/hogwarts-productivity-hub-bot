@@ -15,7 +15,13 @@ import timezone from "dayjs/plugin/timezone.js";
 import relativeTime from "dayjs/plugin/relativeTime.js";
 import advancedFormat from "dayjs/plugin/advancedFormat.js";
 import { alertOwner } from "./utils/alerting.ts";
-import { interactionExecutionTimer, resetExecutionTimer, server, voiceSessionExecutionTimer } from "./monitoring.ts";
+import {
+  interactionExecutionTimer,
+  resetExecutionTimer,
+  server,
+  analyticsServer,
+  voiceSessionExecutionTimer,
+} from "./monitoring.ts";
 import { commands } from "./commands.ts";
 import { promisify } from "node:util";
 import { createLogger, OpId } from "./utils/logger.ts";
@@ -69,8 +75,11 @@ function registerShutdownHandlers() {
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
     const closeServer = promisify(server.close).bind(server);
-    await closeServer();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const closeAnalytics = promisify(analyticsServer.close).bind(analyticsServer);
+    await Promise.all([closeServer(), closeAnalytics()]);
     server.closeAllConnections();
+    analyticsServer.closeAllConnections();
 
     log.info("Shutdown complete", ctx);
     process.exit(0);

@@ -1,9 +1,17 @@
 import client from "prom-client";
 import express from "express";
 import { createLogger } from "./utils/logger.ts";
+import { analyticsRouter } from "./analytics.ts";
 
 const log = createLogger("Monitoring");
 const app = express();
+
+// Analytics server on separate port (public)
+const analyticsApp = express();
+analyticsApp.use(analyticsRouter);
+export const analyticsServer = analyticsApp.listen(3001, () => {
+  log.info("Analytics server started", { opId: "monitor", url: "http://localhost:3001" });
+});
 
 const register = new client.Registry();
 export const interactionExecutionTimer = new client.Histogram({
