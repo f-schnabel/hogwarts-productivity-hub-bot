@@ -9,7 +9,7 @@ const app = express();
 // Analytics server on separate port (public)
 const analyticsApp = express();
 analyticsApp.use(analyticsRouter);
-export const analyticsServer = analyticsApp.listen(3001, () => {
+export const analyticsServer = analyticsApp.listen(3001, "0.0.0.0", () => {
   log.info("Analytics server started", { opId: "monitor", url: "http://localhost:3001" });
 });
 
