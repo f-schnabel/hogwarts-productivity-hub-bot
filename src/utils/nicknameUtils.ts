@@ -1,9 +1,8 @@
 import type { GuildMember } from "discord.js";
 import { hasAnyRole } from "./roleUtils.ts";
-import { createLogger } from "./logger.ts";
+import { createLogger, type Ctx } from "./logger.ts";
 import { Role } from "./constants.ts";
 import { getVCEmoji } from "../db/db.ts";
-import { alertOwner } from "./alerting.ts";
 
 const log = createLogger("Streak");
 
@@ -41,43 +40,37 @@ export async function updateMessageStreakInNickname(
   }
 }
 
-export async function addVCEmoji(opId: string, member: GuildMember) {
-  if (hasAnyRole(member, Role.PROFESSOR)) return;
-  const emoji = await getVCEmoji();
-  try {
-    if (member.nickname?.includes(" " + emoji)) return;
-
-    const newNickname = member.displayName + " " + emoji;
-    if (newNickname.length > 32) {
-      log.debug("Nickname too long to add VC emoji", { opId, username: member.user.username, newNickname });
-      return;
-    }
-    log.debug("Adding VC emoji to nickname", { opId, username: member.user.username, newNickname });
-    await member.setNickname(newNickname, "User joined voice channel");
-  } catch (error) {
-    log.warn("Failed to add VC emoji", { opId, userId: member.id, error });
-    await alertOwner(
-      "Failed to add VC emoji for " + member.id + ": " + (error instanceof Error ? error.message : String(error)),
-      opId,
-    );
-  }
+export async function VCEmojiNeedsAdding(ctx: Ctx, member: GuildMember): Promise<string | null> {
+  if (hasAnyRole(member, Role.PROFESSOR)) return null;
+  return VCEmojiNeedsAddingSync(ctx, member, await getVCEmoji());
 }
 
-export async function removeVCEmoji(opId: string, member: GuildMember) {
-  if (hasAnyRole(member, Role.PROFESSOR)) return;
-  try {
-    const emoji = await getVCEmoji();
-    if (!member.nickname?.includes(" " + emoji)) return;
+export function VCEmojiNeedsAddingSync(ctx: Ctx, member: GuildMember, emoji: string): string | null {
+  if (hasAnyRole(member, Role.PROFESSOR)) return null;
+  if (member.nickname?.includes(" " + emoji)) return null;
 
-    const newNickname = member.nickname.replaceAll(" " + emoji, "");
-    if (newNickname.length === 0) return;
-    log.debug("Removing VC emoji from nickname", { opId, username: member.user.username, newNickname });
-    await member.setNickname(newNickname, "User left voice channel");
-  } catch (error) {
-    log.warn("Failed to remove VC emoji", { opId, userId: member.id, error });
-    await alertOwner(
-      "Failed to remove VC emoji for " + member.id + ": " + (error instanceof Error ? error.message : String(error)),
-      opId,
-    );
+  const newNickname = member.displayName + " " + emoji;
+  if (newNickname.length > 32) {
+    log.debug("Nickname too long to add VC emoji", { ...ctx, newNickname });
+    return null;
   }
+
+  log.debug("Adding VC emoji to nickname", { ...ctx, newNickname });
+  return newNickname;
+}
+
+export async function VCEmojiNeedsRemoval(ctx: Ctx, member: GuildMember): Promise<string | null> {
+  if (hasAnyRole(member, Role.PROFESSOR)) return null;
+  return VCEmojiNeedsRemovalSync(ctx, member, await getVCEmoji());
+}
+
+export function VCEmojiNeedsRemovalSync(ctx: Ctx, member: GuildMember, emoji: string): string | null {
+  if (hasAnyRole(member, Role.PROFESSOR)) return null;
+  if (!member.nickname?.includes(" " + emoji)) return null;
+
+  const newNickname = member.nickname.replaceAll(" " + emoji, "");
+  if (newNickname.length === 0) return null;
+
+  log.debug("Removing VC emoji from nickname", { ...ctx, newNickname });
+  return newNickname;
 }

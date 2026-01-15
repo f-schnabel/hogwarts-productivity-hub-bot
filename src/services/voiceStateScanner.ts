@@ -6,13 +6,14 @@
  */
 
 import { BaseGuildVoiceChannel, ChannelType, Collection, type Guild } from "discord.js";
-import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
+import { closeVoiceSessionUntracked, endVoiceSession } from "../utils/voiceUtils.ts";
 import { db, ensureUserExists } from "../db/db.ts";
 import { voiceSessionTable } from "../db/schema.ts";
 import { isNull } from "drizzle-orm";
 import { createLogger, OpId } from "../utils/logger.ts";
 import { getGuild } from "../events/clientReady.ts";
 import { MAX_SESSION_AGE_MS } from "../utils/constants.ts";
+import { join } from "../events/voiceStateUpdate.ts";
 
 const log = createLogger("VoiceScan");
 
@@ -122,29 +123,26 @@ async function closeStaleSessionsForMissingUsers(
     // Close all sessions for this user
     for (const session of sessions) {
       const sessionAge = now - session.joinedAt.getTime();
-      const isStale = sessionAge > MAX_SESSION_AGE_MS;
+      const sessionToClose = {
+        discordId,
+        username: "unknown", // We don't have username here, but it's only for logging
+        channelId: session.channelId,
+        channelName: session.channelName,
+      };
 
       try {
-        // Close session - award points only if session is not too old
-        await endVoiceSession(
-          {
-            discordId,
-            username: "unknown", // We don't have username here, but it's only for logging
-            channelId: session.channelId,
-            channelName: session.channelName,
-          },
-          db,
-          opId,
-          !isStale, // isTracked = false if stale (no points)
-        );
-
+        if (sessionAge > MAX_SESSION_AGE_MS) {
+          await closeVoiceSessionUntracked(sessionToClose, db, opId);
+        } else {
+          await endVoiceSession(sessionToClose, db, opId);
+        }
         scanResults.staleClosed++;
         log.debug("Closed stale session", {
           opId,
           userId: discordId,
           channel: session.channelName,
           ageHours: Math.round(sessionAge / 1000 / 60 / 60),
-          tracked: !isStale,
+          tracked: sessionAge <= MAX_SESSION_AGE_MS,
         });
       } catch (error) {
         log.error("Failed to close stale session", { opId, userId: discordId }, error);
@@ -239,19 +237,18 @@ async function scanVoiceChannel(
             if (session === validSession) continue; // Keep this one
 
             const sessionAge = now - session.joinedAt.getTime();
-            const isStale = sessionAge > MAX_SESSION_AGE_MS;
+            const sessionToClose = {
+              discordId,
+              username,
+              channelId: session.channelId,
+              channelName: session.channelName,
+            };
+            if (sessionAge > MAX_SESSION_AGE_MS) {
+              await closeVoiceSessionUntracked(sessionToClose, db, opId);
+            } else {
+              await endVoiceSession(sessionToClose, db, opId);
+            }
 
-            await endVoiceSession(
-              {
-                discordId,
-                username,
-                channelId: session.channelId,
-                channelName: session.channelName,
-              },
-              db,
-              opId,
-              !isStale, // Track points only if not stale
-            );
             scanResults.staleClosed++;
           }
 
@@ -265,15 +262,16 @@ async function scanVoiceChannel(
         }
 
         await ensureUserExists(member, discordId, username);
+
         // Start voice session for this user
-        await startVoiceSession(
+        await join(
           {
             discordId,
             username,
             channelId: channel.id,
             channelName: channel.name,
           },
-          db,
+          member,
           opId,
         );
 

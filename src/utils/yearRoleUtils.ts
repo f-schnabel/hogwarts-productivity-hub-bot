@@ -6,6 +6,7 @@ import assert from "node:assert";
 import type { House } from "../types.ts";
 import { HOUSE_COLORS, YEAR_MESSAGES, YEAR_THRESHOLDS_HOURS, type YEAR } from "./constants.ts";
 import { isNotNull } from "drizzle-orm";
+import { updateMember, type UpdateMemberParams } from "../events/voiceStateUpdate.ts";
 
 const log = createLogger("YearRole");
 
@@ -22,14 +23,23 @@ function getYearFromMonthlyVoiceTime(seconds: number): YEAR | null {
   return null;
 }
 
-async function announceYearPromotion(member: GuildMember, house: House, year: YEAR, ctx: Ctx): Promise<void> {
+export async function announceYearPromotion(
+  member: GuildMember,
+  user: { monthlyVoiceTime: number; house: House | null } | null,
+  ctx: Ctx,
+): Promise<void> {
+  if (!user?.house) return;
+  const year = getYearFromMonthlyVoiceTime(user.monthlyVoiceTime);
+  if (year === null) return;
+
   const roleId = YEAR_ROLE_IDS[year - 1];
   assert(roleId, `No role ID configured for year ${year}`);
+  if (member.roles.cache.has(roleId)) return;
 
   const hours = YEAR_THRESHOLDS_HOURS[year - 1];
   assert(hours, `No hours threshold configured for year ${year}`);
 
-  const message = YEAR_MESSAGES[house]
+  const message = YEAR_MESSAGES[user.house]
     .replace("{ROLE}", roleMention(roleId))
     .replace("{HOURS}", hours.toString() + (hours === 1 ? " hour" : " hours"));
   try {
@@ -40,7 +50,7 @@ async function announceYearPromotion(member: GuildMember, house: House, year: YE
           {
             title: "New Activity Rank Attained!",
             description: `Congratulations ${member.toString()}!\n\n${message}`,
-            color: HOUSE_COLORS[house],
+            color: HOUSE_COLORS[user.house],
           },
         ],
       });
@@ -52,35 +62,26 @@ async function announceYearPromotion(member: GuildMember, house: House, year: YE
   }
 }
 
-export async function updateYearRole(
+export function calculateYearRoles(
   member: GuildMember,
-  monthlyVoiceTimeSeconds: number,
-  house: House,
-  opId: string,
-): Promise<void> {
-  if (YEAR_ROLE_IDS.length !== 7) return; // Skip if not configured
+  user: { monthlyVoiceTime: number; house: House | null } | null,
+): { rolesToRemove: string[]; rolesToAdd: string[] } | null {
+  if (!user?.house) return null;
+  const { monthlyVoiceTime } = user;
 
-  const year = getYearFromMonthlyVoiceTime(monthlyVoiceTimeSeconds);
+  if (YEAR_ROLE_IDS.length !== 7) return null; // Skip if not configured
+
+  const year = getYearFromMonthlyVoiceTime(monthlyVoiceTime);
   const roleId = year === null ? null : YEAR_ROLE_IDS[year - 1];
-  const ctx = { opId, userId: member.id, username: member.user.username };
 
   // Remove all year roles except target
   const rolesToRemove = YEAR_ROLE_IDS.filter((id) => id !== roleId && member.roles.cache.has(id));
-  if (rolesToRemove.length > 0) {
-    log.debug("Removing year roles", { ...ctx, roles: rolesToRemove.join(",") });
-    await member.roles.remove(rolesToRemove);
-  }
+  const rolesToAdd = roleId && !member.roles.cache.has(roleId) ? [roleId] : [];
 
-  // Add role if needed
-  if (roleId && !member.roles.cache.has(roleId)) {
-    assert(year !== null, "Year should be defined if role ID exists");
-    log.info("Adding year role", { ...ctx, roleId: roleId, year });
-    await member.roles.add(roleId);
-    await announceYearPromotion(member, house, year, ctx);
-  }
+  return { rolesToRemove, rolesToAdd };
 }
 
-export async function refreshAllYearRoles(guild: Guild, opId: string): Promise<number> {
+export async function refreshAllYearRoles(guild: Guild): Promise<number> {
   if (YEAR_ROLE_IDS.length !== 7) return 0;
 
   const users = await db
@@ -89,17 +90,29 @@ export async function refreshAllYearRoles(guild: Guild, opId: string): Promise<n
     .where(isNotNull(userTable.house));
   let updated = 0;
 
+  const updates: UpdateMemberParams[] = [];
   for (const user of users) {
     assert(user.house, "User house should be defined");
     try {
       const member = guild.members.cache.get(user.discordId);
       if (!member) continue;
-      await updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
+      updates.push({
+        member,
+        roleUpdates: calculateYearRoles(member, user),
+      });
       updated++;
     } catch {
       // Member not in guild, skip
     }
   }
-
+  await Promise.all(
+    updates.map(async ({ member, roleUpdates }) => {
+      await updateMember({
+        member,
+        reason: "Refreshing year roles",
+        roleUpdates,
+      });
+    }),
+  );
   return updated;
 }

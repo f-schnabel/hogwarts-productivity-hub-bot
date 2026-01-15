@@ -2,9 +2,7 @@ import { type DbOrTx } from "../db/db.ts";
 import { userTable, voiceSessionTable } from "../db/schema.ts";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { VoiceSession } from "../types.ts";
-import type { GuildMember } from "discord.js";
 import assert from "node:assert/strict";
-import { updateYearRole } from "./yearRoleUtils.ts";
 import { createLogger } from "./logger.ts";
 import { formatDuration } from "./interactionUtils.ts";
 import { alertOwner } from "./alerting.ts";
@@ -42,7 +40,7 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx, opId:
         Closing existing session(s).`,
         opId,
       );
-      await endVoiceSession(session, db, opId, false); // End existing session without tracking
+      await closeVoiceSessionUntracked(session, db, opId); // End existing session without tracking
     }
 
     await db.insert(voiceSessionTable).values({ discordId, channelId, channelName });
@@ -51,18 +49,7 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx, opId:
   });
 }
 
-/** End a voice session when user leaves VC
- *  @param isTracked - If false, do not update user stats (for deleting old sessions)
- *  @param opId - Operation ID for tracing
- *  @param member - GuildMember to update year role (optional)
- */
-export async function endVoiceSession(
-  session: VoiceSession,
-  db: DbOrTx,
-  opId: string,
-  isTracked = true,
-  member?: GuildMember,
-) {
+export async function closeVoiceSessionUntracked(session: VoiceSession, db: DbOrTx, opId: string) {
   const channelId = session.channelId;
   const ctx = { opId, userId: session.discordId, user: session.username, channel: session.channelName };
 
@@ -81,24 +68,12 @@ export async function endVoiceSession(
           isNull(voiceSessionTable.leftAt),
         ),
       );
-    if (isTracked && existingVoiceSession.length !== 1) {
-      log.error("Unexpected session count", { ...ctx, found: existingVoiceSession.length, expected: 1 });
-      await alertOwner(
-        oneLine`
-        Unexpected session count when ending voice session
-        for user ${session.username} (${session.discordId})
-        in channel ${session.channelName ?? "Unknown"} (${channelId}).
-        Found ${existingVoiceSession.length}, expected 1.`,
-        opId,
-      );
-      return;
-    }
 
-    const [voiceSessionWithDuration, ...extra] = await db
+    await db
       .update(voiceSessionTable)
       .set({
         leftAt: new Date(),
-        isTracked, // Only track if not deleting old session
+        isTracked: false,
       })
       .where(
         inArray(
@@ -111,10 +86,62 @@ export async function endVoiceSession(
         duration: voiceSessionTable.duration,
       });
 
-    if (!isTracked) {
-      log.debug("Session closed (untracked)", ctx);
-      return;
+    log.debug("Session closed (untracked)", ctx);
+    return;
+  });
+}
+
+/** End a voice session when user leaves VC
+ *  @param opId - Operation ID for tracing
+ */
+export async function endVoiceSession(session: VoiceSession, db: DbOrTx, opId: string) {
+  const channelId = session.channelId;
+  const ctx = { opId, userId: session.discordId, user: session.username, channel: session.channelName };
+
+  if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
+    log.debug("Skipped excluded channel", ctx);
+    return null;
+  }
+  return await db.transaction(async (db) => {
+    const existingVoiceSession = await db
+      .select({ id: voiceSessionTable.id })
+      .from(voiceSessionTable)
+      .where(
+        and(
+          eq(voiceSessionTable.discordId, session.discordId),
+          inArray(voiceSessionTable.channelId, [channelId, "unknown"]),
+          isNull(voiceSessionTable.leftAt),
+        ),
+      );
+    if (existingVoiceSession.length !== 1) {
+      log.error("Unexpected session count", { ...ctx, found: existingVoiceSession.length, expected: 1 });
+      await alertOwner(
+        oneLine`
+        Unexpected session count when ending voice session
+        for user ${session.username} (${session.discordId})
+        in channel ${session.channelName ?? "Unknown"} (${channelId}).
+        Found ${existingVoiceSession.length}, expected 1.`,
+        opId,
+      );
+      return null;
     }
+
+    const [voiceSessionWithDuration, ...extra] = await db
+      .update(voiceSessionTable)
+      .set({
+        leftAt: new Date(),
+        isTracked: true,
+      })
+      .where(
+        inArray(
+          voiceSessionTable.id,
+          existingVoiceSession.map((s) => s.id),
+        ),
+      )
+      .returning({
+        id: voiceSessionTable.id,
+        duration: voiceSessionTable.duration,
+      });
 
     assert(voiceSessionWithDuration !== undefined, `Expected exactly one voice session to end, but found none`);
     assert(extra.length === 0, `Expected exactly one voice session to end, but found ${extra.length} extra rows`);
@@ -159,9 +186,6 @@ export async function endVoiceSession(
       .set({ points: pointsEarned })
       .where(eq(voiceSessionTable.id, voiceSessionWithDuration.id));
 
-    // Update year role based on monthly voice time
-    if (member && user.house) {
-      await updateYearRole(member, user.monthlyVoiceTime, user.house, opId);
-    }
+    return user;
   });
 }

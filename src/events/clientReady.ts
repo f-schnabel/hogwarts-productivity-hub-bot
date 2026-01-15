@@ -6,13 +6,14 @@ import { alertOwner } from "../utils/alerting.ts";
 import { db, getVCEmoji } from "../db/db.ts";
 import { houseScoreboardTable, userTable } from "../db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
-import { removeVCEmoji, updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
+import { VCEmojiNeedsRemovalSync, updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../services/scoreboardService.ts";
 import { createLogger, OpId } from "../utils/logger.ts";
 import assert from "node:assert";
 import { client } from "../client.ts";
 import { MIN_USERS_FOR_SAFE_DELETION } from "../utils/constants.ts";
-import { removeVCRole } from "../utils/roleUtils.ts";
+import { VCRoleNeedsRemovalSync } from "../utils/roleUtils.ts";
+import { updateMember } from "./voiceStateUpdate.ts";
 
 const log = createLogger("Startup");
 
@@ -169,15 +170,26 @@ async function resetVCEmojisAndRoles(c: Client<true>, opId: string) {
   log.debug("Resetting VC emojis", { opId, guildsCache: c.guilds.cache.size });
   const emoji = await getVCEmoji();
   const guild = getGuild();
+  const role = guild.roles.cache.get(process.env.VC_ROLE_ID);
+  if (!role) {
+    await alertOwner("VC role not found: " + process.env.VC_ROLE_ID, opId);
+    return;
+  }
 
   const membersToReset = guild.members.cache.filter((m) => m.voice.channel === null);
-  const membersWithEmoji = membersToReset.filter((m) => m.nickname?.includes(" " + emoji));
-  const membersWithRole = membersToReset.filter((m) => m.roles.cache.has(process.env.VC_ROLE_ID));
 
-  log.debug("Resetting VC state", { opId, emojis: membersWithEmoji.size, roles: membersWithRole.size });
+  await Promise.all(
+    membersToReset.map(async (member) => {
+      const ctx = { opId, userId: member.id, username: member.user.username };
 
-  await Promise.all([
-    ...membersWithEmoji.values().map((m) => removeVCEmoji(opId, m)),
-    ...membersWithRole.values().map((m) => removeVCRole(opId, m)),
-  ]);
+      await updateMember({
+        member,
+        reason: "Resetting VC emoji and role on startup",
+        nickname: VCEmojiNeedsRemovalSync(ctx, member, emoji),
+        roleUpdates: {
+          rolesToRemove: VCRoleNeedsRemovalSync(ctx, member, role),
+        },
+      });
+    }),
+  );
 }
