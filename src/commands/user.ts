@@ -191,8 +191,9 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
   const weeklyLines = [...weeklyData.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([weekStart, data]) => {
-      const weekEnd = dayjs(weekStart).add(6, "day");
-      const label = `${dayjs(weekStart).format("MMM D")}-${weekEnd.format("D")}`;
+      const start = dayjs(weekStart);
+      const end = start.add(6, "day");
+      const label = `${start.format("MMM D")}-${end.format("MMM D")}`;
       return formatLine(label, data);
     });
 
