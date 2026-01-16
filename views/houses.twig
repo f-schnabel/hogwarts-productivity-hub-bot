@@ -1,5 +1,106 @@
 {% extends "layout.twig" %}
 
+{% block styles %}
+<style>
+  .house-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+    margin: 2rem 0;
+  }
+
+  .house-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    border: 1px solid var(--border-subtle);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .house-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--house-color);
+    opacity: 0.8;
+  }
+
+  .house-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(180deg, var(--house-color-fade) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  .house-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    border-color: var(--house-color);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 30px var(--house-color-fade);
+  }
+
+  .house-card:hover::after {
+    opacity: 1;
+  }
+
+  .house-card h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .house-card .points {
+    font-size: 2.5rem;
+    font-weight: 600;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.02em;
+    position: relative;
+    z-index: 1;
+  }
+
+  .house-card .members {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.75rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .footer-note {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .house-card:nth-child(1) { animation: fadeSlideUp 0.5s ease-out 0.1s both; }
+  .house-card:nth-child(2) { animation: fadeSlideUp 0.5s ease-out 0.2s both; }
+  .house-card:nth-child(3) { animation: fadeSlideUp 0.5s ease-out 0.3s both; }
+  .house-card:nth-child(4) { animation: fadeSlideUp 0.5s ease-out 0.4s both; }
+
+  @media (max-width: 640px) {
+    .house-card { padding: 1.5rem 1rem; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <h1>House Cup Standings</h1>
 <div class="house-grid">
