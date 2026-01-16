@@ -10,6 +10,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Start the bot
 pnpm start
 
+# Analytics dev server (quick prototyping)
+pnpm analytics:dev
+
 # Register Discord slash commands (run after adding/modifying commands)
 pnpm run register
 
@@ -46,23 +49,52 @@ npx drizzle-kit generate   # Generate new migration from schema changes
 - `messageCreate.ts` - Message tracking for streaks
 - `voiceStateUpdate.ts` - Voice channel join/leave/switch
 
-**Commands**: Located in `src/commands/`, registered in `src/commands.ts`. Each command exports:
+**Commands**: Located in `src/commands/`, registered in `src/commands.ts`:
+
+- `admin.ts` - Admin commands (adjust-points, reset-monthly-points, reset-total-points, refresh-ranks, vc-emoji)
+- `scoreboard.ts` - House/user scoreboards
+- `submit.ts` - Point submissions
+- `timezone.ts` - User timezone settings
+- `user.ts` - User profile/stats
+
+Each command exports:
 
 - `data` - Discord command definition
 - `execute()` - Main command handler
 - `autocomplete()` - (optional) Autocomplete handler
 - `buttonHandler()` - (optional) Button interaction handler
 
+**Services** (in `src/services/`):
+
+- `pointsService.ts` - Points awarding logic
+- `scoreboardService.ts` - Scoreboard management
+- `voiceStateScanner.ts` - Voice state scanning on startup
+
 ### Database Schema
 
 **Tables** (defined in `src/db/schema.ts`):
 
-- `userTable` - Discord users with house, timezone, points (daily/monthly/total), voice time, message streaks
+- `userTable` - Discord users with house, timezone, points (daily/monthly/total), voice time, message streaks, announcedYear
 - `voiceSessionTable` - Tracks voice channel sessions with duration calculation
 - `submissionTable` - Pending/approved/rejected submissions for points
 - `houseScoreboardTable` - Stores message IDs for persistent scoreboards
+- `settingsTable` - Global settings (VC emoji, month start date)
+- `pointAdjustmentTable` - Tracks manual point adjustments by admins
 
 ### Key Systems
+
+**Points System**:
+
+- First hour in VC: 5 points
+- Subsequent hours: 2 points each
+- Max 12 hours tracked per day
+- Points also awarded via submissions
+
+**Year Roles** (`src/utils/yearRoleUtils.ts`):
+
+- Users progress Year 1-7 based on monthly voice time
+- Thresholds: 1, 10, 20, 40, 80, 100, 120 hours
+- Announcements sent to configured channel on promotion
 
 **Timezone-Based Daily Resets** (`src/scheduler/centralResetService.ts`):
 
@@ -81,10 +113,16 @@ npx drizzle-kit generate   # Generate new migration from schema changes
 
 **Message Streaks**:
 
-- Users must send MIN_DAILY_MESSAGES_FOR_STREAK messages/day
+- Users must send MIN_DAILY_MESSAGES_FOR_STREAK (3) messages/day
 - Streak shown in nickname with fire emoji
 - Streak increments once per day on threshold hit
 - Boosters automatically maintain streak
+
+**Analytics Dashboard** (`src/analytics.ts`):
+
+- Web dashboard with Twig templates (in `views/`)
+- Routes: house scoreboard, leaderboard, user profiles
+- Templates: houses.twig, leaderboard.twig, user.twig
 
 **Monitoring** (`src/monitoring.ts`):
 
@@ -96,7 +134,6 @@ npx drizzle-kit generate   # Generate new migration from schema changes
 
 - Structured logging with operation IDs for tracing
 - Format: `[Scope] [opId] key=value message`
-- Scopes: Command, Voice, VoiceEvent, VoiceScan, Reset, Message, Startup
 - OpId prefixes: cmd, vc, rst, msg, vcscan, start, shtdwn
 - Logs sent to stdout with syslog priority levels (via `src/console.ts`)
 - Use `createLogger(scope)` to create scoped loggers with debug/info/warn/error methods
@@ -109,12 +146,20 @@ npx drizzle-kit generate   # Generate new migration from schema changes
 
 ### Environment Variables
 
-Required in `.env`:
+Required in `.env` (see `.env.example`):
 
 - `DISCORD_TOKEN` - Bot token
+- `CLIENT_ID` - Application ID
 - `GUILD_ID` - Discord server ID
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` - PostgreSQL credentials
 - `OWNER_ID` - Discord user ID for error alerts
+- `GRYFFINDOR_ROLE_ID`, `SLYTHERIN_ROLE_ID`, `HUFFLEPUFF_ROLE_ID`, `RAVENCLAW_ROLE_ID` - House roles
+- `PREFECT_ROLE_ID`, `PROFESSOR_ROLE_ID` - Staff roles
+- `VC_ROLE_ID` - Voice channel role
+- `YEAR_ROLE_IDS` - Comma-separated Year 1-7 role IDs
+- `YEAR_ANNOUNCEMENT_CHANNEL_ID` - Channel for year promotions
+- `EXCLUDE_VOICE_CHANNEL_IDS` - Voice channels to exclude from tracking
+- `SUBMISSION_CHANNEL_IDS` - Channels for submissions
 
 ### Command Pattern
 
@@ -123,7 +168,7 @@ Commands follow this structure:
 ```typescript
 export default {
   data: new SlashCommandBuilder().setName("command").setDescription("Description"),
-  async execute(interaction, { activeVoiceTimers }) {
+  async execute(interaction, { opId }) {
     // Command logic
   },
   async autocomplete(interaction) {
