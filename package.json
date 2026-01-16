@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
+    "analytics:dev": "tsx src/analytics-dev.ts",
     "register": "tsx src/register-commands.ts",
     "format": "prettier --write .",
     "test": "vitest",
