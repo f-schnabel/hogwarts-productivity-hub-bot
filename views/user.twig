@@ -74,7 +74,48 @@
 
 <script>
 const todoPoints = {{ chartTodoPoints|json_encode|raw }};
+const yearLines = {{ yearLines|json_encode|raw }};
 const hasThirdRow = todoPoints.some(p => p >= 15);
+
+// Plugin to draw year threshold horizontal lines
+const yearLinesPlugin = {
+  id: 'yearLines',
+  afterDraw(chart) {
+    const { ctx, chartArea, scales: { y } } = chart;
+    if (!chartArea) return;
+
+    yearLines.forEach(line => {
+      const yPos = y.getPixelForValue(line.hours);
+      if (yPos < chartArea.top || yPos > chartArea.bottom) return;
+
+      ctx.save();
+
+      // Draw dashed line
+      ctx.strokeStyle = line.color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.globalAlpha = 0.6;
+
+      ctx.beginPath();
+      ctx.moveTo(chartArea.left, yPos);
+      ctx.lineTo(chartArea.right, yPos);
+      ctx.stroke();
+
+      // Draw label
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      ctx.font = "600 10px 'Cinzel', serif";
+      ctx.fillStyle = line.color;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(line.label, chartArea.right - 4, yPos - 3);
+
+      ctx.restore();
+    });
+  }
+};
+
+Chart.register(yearLinesPlugin);
 
 const orbPlugin = {
   id: 'todoOrbs',
@@ -238,7 +279,8 @@ const chart = new Chart(document.getElementById('studyChart'), {
           font: { size: 10 }
         },
         grid: { color: 'rgba(255, 255, 255, 0.04)' },
-        beginAtZero: true
+        beginAtZero: true,
+        max: {{ chartYMax ?? 'undefined' }}
       }
     },
     animation: {

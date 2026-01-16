@@ -2,25 +2,58 @@
 
 {% block content %}
 <h1>Monthly Leaderboard</h1>
+
+<div class="leaderboard-controls">
+  <div class="house-filters">
+    <button class="filter-pill active" data-house="all">All Houses</button>
+    <button class="filter-pill gryffindor" data-house="Gryffindor">Gryffindor</button>
+    <button class="filter-pill hufflepuff" data-house="Hufflepuff">Hufflepuff</button>
+    <button class="filter-pill ravenclaw" data-house="Ravenclaw">Ravenclaw</button>
+    <button class="filter-pill slytherin" data-house="Slytherin">Slytherin</button>
+  </div>
+  <div class="sort-controls">
+    <span class="sort-label">Sort:</span>
+    <button class="sort-btn active" data-sort="points">Points</button>
+    <button class="sort-btn" data-sort="voiceTime">Study Time</button>
+  </div>
+</div>
+
 <div class="table-wrapper">
-  <table>
+  <table id="leaderboard-table">
     <thead>
       <tr>
         <th>Rank</th>
         <th>User</th>
         <th>House</th>
-        <th>Points</th>
-        <th>Study Time</th>
+        <th>Year</th>
+        <th class="sortable-col" data-sort="points">Points <span class="sort-arrow active desc"></span></th>
+        <th class="sortable-col" data-sort="voiceTime">Study Time <span class="sort-arrow"></span></th>
         <th>Streak</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="leaderboard-body">
       {% for user in users %}
-      <tr>
-        <td class="rank {% if user.rank == 1 %}rank-1{% elseif user.rank == 2 %}rank-2{% elseif user.rank == 3 %}rank-3{% endif %}">#{{ user.rank }}</td>
+      <tr data-house="{{ user.house }}" data-voice-seconds="{{ user.voiceTimeSeconds }}" data-points="{{ user.monthlyPoints }}" data-year="{{ user.yearRank }}">
+        <td class="rank {% if user.rank == 1 %}rank-1{% elseif user.rank == 2 %}rank-2{% elseif user.rank == 3 %}rank-3{% endif %}">#<span class="rank-num">{{ user.rank }}</span></td>
         <td><a href="/user/{{ user.discordId }}" class="user-link">{{ user.displayName }}</a></td>
-        <td style="color: {{ user.houseColor }}; font-weight: 500;">{{ user.house ?? "—" }}</td>
-        <td style="font-weight: 600; color: var(--accent-gold-bright);">{{ user.monthlyPoints }}</td>
+        <td style="color: {{ user.houseColor }}; font-weight: 500;">{{ user.house ?: "—" }}</td>
+        <td class="year-cell">
+          <span class="year-badge year-{{ user.yearRank }}">Year {{ user.yearRank }}</span>
+        </td>
+        <td class="points-cell">
+          <div class="points-main">
+            <span class="points-total">{{ user.monthlyPoints }}</span>
+            <button class="expand-btn" aria-label="Expand points breakdown">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.5" fill="none"/>
+              </svg>
+            </button>
+          </div>
+          <div class="points-breakdown">
+            <span class="breakdown-item voice">🎙️ {{ user.voicePoints }}</span>
+            <span class="breakdown-item todo">📝 {{ user.todoPoints }}</span>
+          </div>
+        </td>
         <td style="color: var(--text-secondary);">{{ user.studyTime }}</td>
         <td style="color: var(--text-secondary);">{{ user.messageStreak }}</td>
       </tr>
@@ -28,4 +61,137 @@
     </tbody>
   </table>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const tbody = document.getElementById('leaderboard-body');
+  const filterBtns = document.querySelectorAll('.filter-pill');
+  const sortBtns = document.querySelectorAll('.sort-btn');
+  const sortableCols = document.querySelectorAll('.sortable-col');
+
+  let currentFilter = 'all';
+  let currentSort = 'points';
+  let sortDirection = 'desc';
+
+  // House filtering
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.house;
+      applyFilterAndSort();
+    });
+  });
+
+  // Sort buttons
+  sortBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const newSort = btn.dataset.sort;
+      if (currentSort === newSort) {
+        sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+      } else {
+        sortDirection = 'desc';
+      }
+      currentSort = newSort;
+
+      sortBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateSortArrows();
+      applyFilterAndSort();
+    });
+  });
+
+  // Sortable column headers
+  sortableCols.forEach(col => {
+    col.addEventListener('click', () => {
+      const newSort = col.dataset.sort;
+      if (currentSort === newSort) {
+        sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+      } else {
+        sortDirection = 'desc';
+      }
+      currentSort = newSort;
+
+      sortBtns.forEach(b => {
+        b.classList.toggle('active', b.dataset.sort === currentSort);
+      });
+      updateSortArrows();
+      applyFilterAndSort();
+    });
+  });
+
+  // Expandable points
+  document.querySelectorAll('.expand-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cell = btn.closest('.points-cell');
+      cell.classList.toggle('expanded');
+    });
+  });
+
+  function updateSortArrows() {
+    sortableCols.forEach(col => {
+      const arrow = col.querySelector('.sort-arrow');
+      if (col.dataset.sort === currentSort) {
+        arrow.classList.add('active');
+        arrow.classList.toggle('asc', sortDirection === 'asc');
+        arrow.classList.toggle('desc', sortDirection === 'desc');
+      } else {
+        arrow.classList.remove('active', 'asc', 'desc');
+      }
+    });
+  }
+
+  function applyFilterAndSort() {
+    const rows = Array.from(tbody.querySelectorAll('tr:not(.year-divider)'));
+
+    // Remove existing dividers
+    tbody.querySelectorAll('.year-divider').forEach(d => d.remove());
+
+    // Filter
+    rows.forEach(row => {
+      const house = row.dataset.house || '';
+      let show;
+      if (currentFilter === 'all') {
+        show = true;
+      } else {
+        show = house === currentFilter;
+      }
+      row.style.display = show ? '' : 'none';
+    });
+
+    // Sort visible rows
+    const visibleRows = rows.filter(r => r.style.display !== 'none');
+    visibleRows.sort((a, b) => {
+      let valA, valB;
+      if (currentSort === 'points') {
+        valA = parseInt(a.dataset.points, 10) || 0;
+        valB = parseInt(b.dataset.points, 10) || 0;
+      } else {
+        valA = parseInt(a.dataset.voiceSeconds, 10) || 0;
+        valB = parseInt(b.dataset.voiceSeconds, 10) || 0;
+      }
+      return sortDirection === 'desc' ? valB - valA : valA - valB;
+    });
+
+    // Reorder in DOM
+    visibleRows.forEach((row, i) => {
+      tbody.appendChild(row);
+      // Update rank number
+      row.querySelector('.rank-num').textContent = i + 1;
+      // Update rank styling
+      const rankCell = row.querySelector('.rank');
+      rankCell.classList.remove('rank-1', 'rank-2', 'rank-3');
+      if (i === 0) rankCell.classList.add('rank-1');
+      else if (i === 1) rankCell.classList.add('rank-2');
+      else if (i === 2) rankCell.classList.add('rank-3');
+    });
+  }
+
+  // Initial sort arrows
+  updateSortArrows();
+})();
+</script>
 {% endblock %}

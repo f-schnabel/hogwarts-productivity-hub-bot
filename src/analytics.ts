@@ -1,7 +1,7 @@
 import { Router, type Router as RouterType } from "express";
 import { db, getMonthStartDate, getVCEmoji } from "./db/db.ts";
 import { userTable, voiceSessionTable, submissionTable } from "./db/schema.ts";
-import { desc, eq, sql, and, gte } from "drizzle-orm";
+import { desc, eq, sql, and, gte, gt } from "drizzle-orm";
 import type { House } from "./types.ts";
 import { client } from "./client.ts";
 import dayjs from "dayjs";
@@ -43,7 +43,7 @@ analyticsRouter.get("/", async (_req, res) => {
       memberCount: sql<number>`count(*)`.as("member_count"),
     })
     .from(userTable)
-    .where(sql`${userTable.house} IS NOT NULL`)
+    .where(and(sql`${userTable.house} IS NOT NULL`, gt(userTable.monthlyPoints, 0)))
     .groupBy(userTable.house)
     .orderBy(desc(sql`total_points`));
 
@@ -61,6 +61,19 @@ analyticsRouter.get("/", async (_req, res) => {
 
 // Leaderboard
 analyticsRouter.get("/leaderboard", async (_req, res) => {
+  const monthStart = await getMonthStartDate();
+
+  // Get todo points per user this month
+  const todoPointsData = await db
+    .select({
+      discordId: submissionTable.discordId,
+      todoPoints: sql<number>`COALESCE(sum(${submissionTable.points}), 0)`,
+    })
+    .from(submissionTable)
+    .where(and(gte(submissionTable.submittedAt, monthStart), eq(submissionTable.status, "APPROVED")))
+    .groupBy(submissionTable.discordId);
+  const todoPointsMap = new Map(todoPointsData.map((t) => [t.discordId, t.todoPoints]));
+
   const userData = await db
     .select({
       username: userTable.username,
@@ -71,8 +84,8 @@ analyticsRouter.get("/leaderboard", async (_req, res) => {
       messageStreak: userTable.messageStreak,
     })
     .from(userTable)
-    .orderBy(desc(userTable.monthlyPoints))
-    .limit(50);
+    .where(gt(userTable.monthlyPoints, 0))
+    .orderBy(desc(userTable.monthlyPoints));
 
   // Fetch display names from Discord
   const guild = client.guilds.cache.get(process.env.GUILD_ID);
@@ -85,16 +98,24 @@ analyticsRouter.get("/leaderboard", async (_req, res) => {
   }
 
   const vcEmoji = await getVCEmoji();
-  const users = userData.map((u, i) => ({
-    rank: i + 1,
-    discordId: u.discordId,
-    displayName: cleanDisplayName(displayNames.get(u.discordId) ?? u.username, vcEmoji),
-    house: u.house,
-    houseColor: getHouseColor(u.house),
-    monthlyPoints: u.monthlyPoints,
-    studyTime: formatTime(u.monthlyVoiceTime),
-    messageStreak: `${u.messageStreak}`,
-  }));
+  const users = userData.map((u, i) => {
+    const todoPoints = todoPointsMap.get(u.discordId) ?? 0;
+    const voicePoints = Math.max(0, u.monthlyPoints - todoPoints);
+    return {
+      rank: i + 1,
+      discordId: u.discordId,
+      displayName: cleanDisplayName(displayNames.get(u.discordId) ?? u.username, vcEmoji),
+      house: u.house ?? "",
+      houseColor: getHouseColor(u.house),
+      monthlyPoints: u.monthlyPoints,
+      voicePoints,
+      todoPoints,
+      studyTime: formatTime(u.monthlyVoiceTime),
+      voiceTimeSeconds: u.monthlyVoiceTime,
+      yearRank: getYearFromMonthlyVoiceTime(u.monthlyVoiceTime) ?? 0,
+      messageStreak: `${u.messageStreak}`,
+    };
+  });
 
   res.render("leaderboard", { title: "Leaderboard", users });
 });
@@ -183,6 +204,42 @@ analyticsRouter.get("/user/:id", async (req, res) => {
   // Year rank progress calculation
   const yearProgress = calculateYearProgress(user.monthlyVoiceTime);
 
+  // Calculate year threshold lines for chart (all years)
+  const yearColors: Record<number, string> = {
+    1: "#cd8b62",
+    2: "#daa520",
+    3: "#d3d3d3",
+    4: "#ffd700",
+    5: "#40e0d0",
+    6: "#ba55d3",
+    7: "#ffd700",
+  };
+  const yearLines = YEAR_THRESHOLDS_HOURS.map((hours, i) => ({
+    hours,
+    label: `Year ${i + 1}`,
+    color: yearColors[i + 1] ?? "#888",
+  }));
+
+  // Chart Y-axis max: next year threshold + 5, or null if at max year (auto-scale)
+  const currentYear = getYearFromMonthlyVoiceTime(user.monthlyVoiceTime);
+  let chartYMax: number | null = null;
+  if (currentYear === null) {
+    chartYMax = YEAR_THRESHOLDS_HOURS[0] + 5;
+  } else if (currentYear === 1) {
+    chartYMax = YEAR_THRESHOLDS_HOURS[1] + 5;
+  } else if (currentYear === 2) {
+    chartYMax = YEAR_THRESHOLDS_HOURS[2] + 5;
+  } else if (currentYear === 3) {
+    chartYMax = YEAR_THRESHOLDS_HOURS[3] + 5;
+  } else if (currentYear === 4) {
+    chartYMax = YEAR_THRESHOLDS_HOURS[4] + 5;
+  } else if (currentYear === 5) {
+    chartYMax = YEAR_THRESHOLDS_HOURS[5] + 5;
+  } else if (currentYear === 6) {
+    chartYMax = YEAR_THRESHOLDS_HOURS[6] + 5;
+  }
+  // Year 7: chartYMax stays null (auto-scale)
+
   res.render("user", {
     title: displayName,
     includeChartJs: true,
@@ -198,6 +255,8 @@ analyticsRouter.get("/user/:id", async (req, res) => {
     chartLabels,
     chartHours,
     chartTodoPoints,
+    yearLines,
+    chartYMax,
   });
 });
 
