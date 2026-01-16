@@ -42,13 +42,13 @@ pnpm start
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `/user` | View your profile and stats |
-| `/timezone` | Set your timezone for daily resets |
-| `/submit` | Submit screenshot for points |
-| `/scoreboard` | View house/user leaderboards |
-| `/admin` | Admin commands (staff only) |
+| Command       | Description                        |
+| ------------- | ---------------------------------- |
+| `/user`       | View your profile and stats        |
+| `/timezone`   | Set your timezone for daily resets |
+| `/submit`     | Submit screenshot for points       |
+| `/scoreboard` | View house/user leaderboards       |
+| `/admin`      | Admin commands (staff only)        |
 
 ## Environment Variables
 
