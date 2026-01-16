@@ -21,11 +21,12 @@ import { client } from "./client.ts";
 // Create a fake guild that returns usernames from DB as display names
 const mockGuild = {
   members: {
-    fetch: () => new Map(),
+    // eslint-disable-next-line @typescript-eslint/require-await
+    fetch: async () => new Map(),
   },
 };
 client.guilds = {
-  cache: {
+  cache: { 
     get: () => mockGuild,
   },
 } as unknown as typeof client.guilds;

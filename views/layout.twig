@@ -443,15 +443,24 @@
       height: 100%;
       border-radius: 14px;
       background: linear-gradient(90deg, var(--bar-start) 0%, var(--bar-end) 100%);
-      box-shadow: 0 0 20px var(--bar-glow);
+      box-shadow: 0 0 15px var(--bar-glow);
       position: relative;
       transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-      animation: barGlowPulse 3s ease-in-out infinite;
+    }
+
+    .progress-bar::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow: 0 0 30px var(--bar-glow), 0 0 50px var(--bar-glow);
+      opacity: 0;
+      animation: barGlowPulse 5s ease-in-out infinite;
     }
 
     @keyframes barGlowPulse {
-      0%, 100% { box-shadow: 0 0 15px var(--bar-glow); }
-      50% { box-shadow: 0 0 30px var(--bar-glow), 0 0 50px var(--bar-glow); }
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
     }
 
     .progress-info {
