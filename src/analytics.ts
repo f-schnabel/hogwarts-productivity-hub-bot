@@ -10,7 +10,16 @@ import { HOUSE_COLORS, YEAR_THRESHOLDS_HOURS } from "./utils/constants.ts";
 
 export const analyticsRouter: RouterType = Router();
 
-const toHex = (n: number) => `#${n.toString(16).padStart(6, "0")}`;
+// Analytics-specific color overrides for dark background readability
+const ANALYTICS_HOUSE_COLORS: Partial<Record<House, number>> = {
+  Ravenclaw: 0x5b7fc7, // Lighter steel blue for dark background
+};
+
+const getHouseColor = (house: House | null) => {
+  if (!house) return "#888";
+  const color = ANALYTICS_HOUSE_COLORS[house] ?? HOUSE_COLORS[house];
+  return `#${color.toString(16).padStart(6, "0")}`;
+};
 
 function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -35,7 +44,7 @@ analyticsRouter.get("/", async (_req, res) => {
     .filter((h): h is typeof h & { house: House } => h.house !== null)
     .map((h) => ({
       name: h.house,
-      color: toHex(HOUSE_COLORS[h.house]),
+      color: getHouseColor(h.house),
       points: h.totalPoints.toLocaleString(),
       memberCount: h.memberCount,
     }));
@@ -73,7 +82,7 @@ analyticsRouter.get("/leaderboard", async (_req, res) => {
     discordId: u.discordId,
     displayName: displayNames.get(u.discordId) ?? u.username,
     house: u.house,
-    houseColor: u.house ? toHex(HOUSE_COLORS[u.house]) : "#888",
+    houseColor: getHouseColor(u.house),
     monthlyPoints: u.monthlyPoints,
     studyTime: formatTime(u.monthlyVoiceTime),
     messageStreak: `${u.messageStreak}`,
@@ -160,7 +169,7 @@ analyticsRouter.get("/user/:id", async (req, res) => {
     chartTodoPoints.push(dailyTodoPoints.get(day) ?? 0);
   }
 
-  const houseColor = user.house ? toHex(HOUSE_COLORS[user.house]) : "#888";
+  const houseColor = getHouseColor(user.house);
 
   // Year rank progress calculation
   const yearProgress = calculateYearProgress(user.monthlyVoiceTime);
