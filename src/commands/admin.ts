@@ -89,7 +89,7 @@ async function adjustPoints(interaction: ChatInputCommandInteraction<"cached">, 
   });
 
   log.info("Points adjusted", { opId, user: user.id, amount, reason, adjustedBy: interaction.user.id });
-  await interaction.editReply(`Adjusted ${amount} points for ${user.tag}.`);
+  await interaction.editReply(`Adjusted ${amount} points for ${user.tag}.` + (reason ? ` Reason: ${reason}` : ""));
 }
 
 async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
