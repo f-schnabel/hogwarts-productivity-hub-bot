@@ -6,7 +6,8 @@
       "Bash(pnpm test)",
       "Bash(pnpm lint)",
       "Bash(pnpm lint:fix)",
-      "Bash(pnpm validate)"
+      "Bash(pnpm validate)",
+      "Skill(frontend-design)"
     ]
   }
 }

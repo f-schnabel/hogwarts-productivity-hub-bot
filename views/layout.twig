@@ -449,9 +449,13 @@
     .progress-bar::after {
       content: '';
       position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
-      animation: shimmer 7s ease-in-out infinite;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 40px;
+      border-radius: 0 14px 14px 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 100%);
+      animation: edgeGlow 3s ease-in-out infinite;
     }
 
     .progress-text {
@@ -536,12 +540,9 @@
       100% { background-position: -200% center; }
     }
 
-    @keyframes shimmer {
-      0% { transform: translateX(-100%); opacity: 0; }
-      10% { opacity: 1; }
-      70% { opacity: 1; }
-      80% { transform: translateX(100%); opacity: 0; }
-      100% { transform: translateX(100%); opacity: 0; }
+    @keyframes edgeGlow {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.8; }
     }
 
     /* Staggered animations for grid items */
