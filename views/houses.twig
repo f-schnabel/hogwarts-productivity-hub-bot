@@ -4,12 +4,12 @@
 <h1>House Cup Standings</h1>
 <div class="house-grid">
   {% for house in houses %}
-  <div class="house-card" style="border-color: {{ house.color }}">
+  <div class="house-card" style="--house-color: {{ house.color }}; --house-color-fade: {{ house.color }}33">
     <h2 style="color: {{ house.color }}">{{ house.name }}</h2>
-    <div class="points">{{ house.points }}</div>
+    <div class="points" style="color: {{ house.color }}">{{ house.points }}</div>
     <div class="members">{{ house.memberCount }} members</div>
   </div>
   {% endfor %}
 </div>
-<p style="text-align:center;opacity:0.6;margin-top:2rem">Monthly points - resets each month</p>
+<p class="footer-note">Monthly points &middot; Resets at the start of each month</p>
 {% endblock %}

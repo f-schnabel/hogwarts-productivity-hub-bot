@@ -1,9 +1,9 @@
 {% extends "layout.twig" %}
 
 {% block content %}
-<div class="user-header">
+<div class="user-header" style="--house-color: {{ houseColor }}">
   <h1>{{ displayName }}</h1>
-  <p style="color:{{ houseColor }};font-size:1.2rem">{{ house ?? "No House" }}</p>
+  <p class="user-house" style="color: {{ houseColor }}">{{ house ?? "No House" }}</p>
 </div>
 
 <div class="stat-grid">
@@ -17,7 +17,7 @@
   </div>
   <div class="stat">
     <div class="stat-value">{{ messageStreak }}</div>
-    <div class="stat-label">Message Streak</div>
+    <div class="stat-label">Streak</div>
   </div>
   <div class="stat">
     <div class="stat-value">{{ totalPoints }}</div>
@@ -38,13 +38,13 @@
   </div>
   <div class="year-info">
     <span>{{ yearProgress.leftLabel }}</span>
-    <span class="next-rank" {% if yearProgress.isMax %}style="color: #ffd700"{% endif %}>{{ yearProgress.rightLabel }}</span>
+    <span class="next-rank" {% if yearProgress.isMax %}style="color: var(--accent-gold-bright)"{% endif %}>{{ yearProgress.rightLabel }}</span>
   </div>
 </div>
 
 <div class="sessions">
-  <h2 style="margin-bottom:1rem">Activity This Month</h2>
-  <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:1rem">
+  <h2>Activity This Month</h2>
+  <div class="chart-container">
     <canvas id="studyChart"></canvas>
   </div>
 </div>
@@ -52,6 +52,7 @@
 
 {% block scripts %}
 <script>
+Chart.defaults.font.family = "'Outfit', system-ui, sans-serif";
 new Chart(document.getElementById('studyChart'), {
   data: {
     labels: {{ chartLabels|json_encode|raw }},
@@ -60,46 +61,87 @@ new Chart(document.getElementById('studyChart'), {
       label: 'Study Hours',
       data: {{ chartHours|json_encode|raw }},
       borderColor: '{{ houseColor }}',
-      backgroundColor: '{{ houseColor }}33',
+      backgroundColor: '{{ houseColor }}22',
       fill: true,
-      tension: 0.3,
+      tension: 0.4,
+      pointRadius: 0,
+      pointHoverRadius: 6,
+      pointHoverBackgroundColor: '{{ houseColor }}',
+      pointHoverBorderColor: '#fff',
+      pointHoverBorderWidth: 2,
+      borderWidth: 2,
       yAxisID: 'y'
     }, {
       type: 'bar',
       label: 'To-Do Points',
       data: {{ chartTodoPoints|json_encode|raw }},
-      backgroundColor: '#ffd70088',
-      borderColor: '#ffd700',
+      backgroundColor: 'rgba(212, 168, 83, 0.4)',
+      borderColor: 'rgba(212, 168, 83, 0.8)',
       borderWidth: 1,
+      borderRadius: 4,
       yAxisID: 'y1'
     }]
   },
   options: {
     responsive: true,
+    maintainAspectRatio: true,
+    interaction: {
+      intersect: false,
+      mode: 'index'
+    },
     plugins: {
       legend: {
         display: true,
-        labels: { color: '#e8d5b7' }
+        position: 'top',
+        labels: {
+          color: 'rgba(240, 230, 211, 0.7)',
+          padding: 20,
+          usePointStyle: true,
+          pointStyle: 'circle'
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(20, 20, 35, 0.95)',
+        titleColor: '#f0e6d3',
+        bodyColor: 'rgba(240, 230, 211, 0.8)',
+        borderColor: 'rgba(212, 168, 83, 0.3)',
+        borderWidth: 1,
+        cornerRadius: 8,
+        padding: 12
       }
     },
     scales: {
       x: {
-        ticks: { color: '#e8d5b7', maxRotation: 45 },
-        grid: { color: 'rgba(255,255,255,0.1)' }
+        ticks: {
+          color: 'rgba(240, 230, 211, 0.5)',
+          maxRotation: 45,
+          font: { size: 11 }
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.05)' }
       },
       y: {
         type: 'linear',
         position: 'left',
-        title: { display: true, text: 'Hours', color: '#e8d5b7' },
-        ticks: { color: '#e8d5b7' },
-        grid: { color: 'rgba(255,255,255,0.1)' },
+        title: {
+          display: true,
+          text: 'Hours',
+          color: 'rgba(240, 230, 211, 0.5)',
+          font: { size: 11 }
+        },
+        ticks: { color: 'rgba(240, 230, 211, 0.5)' },
+        grid: { color: 'rgba(255, 255, 255, 0.05)' },
         beginAtZero: true
       },
       y1: {
         type: 'linear',
         position: 'right',
-        title: { display: true, text: 'To-Do Pts', color: '#e8d5b7' },
-        ticks: { color: '#e8d5b7', stepSize: 5 },
+        title: {
+          display: true,
+          text: 'To-Do Pts',
+          color: 'rgba(240, 230, 211, 0.5)',
+          font: { size: 11 }
+        },
+        ticks: { color: 'rgba(240, 230, 211, 0.5)', stepSize: 5 },
         grid: { drawOnChartArea: false },
         beginAtZero: true,
         max: 15

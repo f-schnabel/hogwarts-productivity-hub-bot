@@ -2,28 +2,30 @@
 
 {% block content %}
 <h1>Monthly Leaderboard</h1>
-<table>
-  <thead>
-    <tr>
-      <th>Rank</th>
-      <th>User</th>
-      <th>House</th>
-      <th>Points</th>
-      <th>Study Time</th>
-      <th>Streak</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for user in users %}
-    <tr>
-      <td class="rank">#{{ user.rank }}</td>
-      <td><a href="/user/{{ user.discordId }}" style="color:#e8d5b7;text-decoration:none">{{ user.displayName }}</a></td>
-      <td style="color:{{ user.houseColor }}">{{ user.house ?? "-" }}</td>
-      <td>{{ user.monthlyPoints }}</td>
-      <td>{{ user.studyTime }}</td>
-      <td>{{ user.messageStreak }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>User</th>
+        <th>House</th>
+        <th>Points</th>
+        <th>Study Time</th>
+        <th>Streak</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td class="rank {% if user.rank == 1 %}rank-1{% elseif user.rank == 2 %}rank-2{% elseif user.rank == 3 %}rank-3{% endif %}">#{{ user.rank }}</td>
+        <td><a href="/user/{{ user.discordId }}" class="user-link">{{ user.displayName }}</a></td>
+        <td style="color: {{ user.houseColor }}; font-weight: 500;">{{ user.house ?? "—" }}</td>
+        <td style="font-weight: 600; color: var(--accent-gold-bright);">{{ user.monthlyPoints }}</td>
+        <td style="color: var(--text-secondary);">{{ user.studyTime }}</td>
+        <td style="color: var(--text-secondary);">{{ user.messageStreak }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}
