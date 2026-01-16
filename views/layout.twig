@@ -454,20 +454,30 @@
       50% { box-shadow: 0 0 30px var(--bar-glow), 0 0 50px var(--bar-glow); }
     }
 
+    .progress-info {
+      display: flex;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.75rem;
+    }
+
+    .progress-info > span:first-child {
+      flex: 1;
+      text-align: left;
+    }
+
+    .progress-info > span:last-child {
+      flex: 1;
+      text-align: right;
+    }
+
     .progress-text {
-      text-align: center;
       font-weight: 600;
       font-size: 0.9rem;
       letter-spacing: 0.02em;
       color: rgba(240, 230, 211, 0.8);
-      margin-top: 0.5rem;
-    }
-
-    .year-info {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.85rem;
-      color: var(--text-muted);
+      text-align: center;
     }
 
     .next-rank {

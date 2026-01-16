@@ -35,9 +35,9 @@
   <div class="progress-container">
     <div class="progress-bar" style="width: {{ yearProgress.percent }}%; --bar-start: {{ yearProgress.barStart }}; --bar-end: {{ yearProgress.barEnd }}; --bar-glow: {{ yearProgress.barGlow }}"></div>
   </div>
-  <div class="progress-text">{{ yearProgress.text }}</div>
-  <div class="year-info">
+  <div class="progress-info">
     <span>{{ yearProgress.leftLabel }}</span>
+    <span class="progress-text">{{ yearProgress.text }}</span>
     <span class="next-rank" {% if yearProgress.isMax %}style="color: var(--accent-gold-bright)"{% endif %}>{{ yearProgress.rightLabel }}</span>
   </div>
 </div>
