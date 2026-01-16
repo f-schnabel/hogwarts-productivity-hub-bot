@@ -45,10 +45,11 @@ export async function announceYearPromotion(
     const channel = await member.guild.channels.fetch(YEAR_ANNOUNCEMENT_CHANNEL_ID);
     if (channel?.isTextBased()) {
       await channel.send({
+        content: `Congratulations ${member.toString()}!`,
         embeds: [
           {
             title: "New Activity Rank Attained!",
-            description: `Congratulations ${member.toString()}!\n\n${message}`,
+            description: message,
             color: HOUSE_COLORS[user.house],
           },
         ],
