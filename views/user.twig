@@ -39,17 +39,134 @@
   <div class="chart-container">
     <canvas id="studyChart"></canvas>
   </div>
+  <div class="todo-orbs-legend">
+    <span class="orb-sample"></span>
+    <span class="orb-label">= 5 to-do points</span>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<style>
+.todo-orbs-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 0.75rem;
+  padding-right: 0.5rem;
+}
+
+.orb-sample {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff8e7, #d4a853 60%, #a67c30);
+  box-shadow: 0 0 8px rgba(212, 168, 83, 0.9), 0 0 16px rgba(212, 168, 83, 0.4);
+}
+
+.orb-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+</style>
+
 <script>
+const todoPoints = {{ chartTodoPoints|json_encode|raw }};
+const hasThirdRow = todoPoints.some(p => p >= 15);
+
+const orbPlugin = {
+  id: 'todoOrbs',
+  afterDatasetsDraw(chart) {
+    const { ctx, scales: { x } } = chart;
+    const bottomY = chart.chartArea.bottom;
+    const orbRadius = 5;
+    const orbGap = 3;
+    const topRowY = bottomY + 36;
+    const bottomRowY = topRowY + orbRadius * 2 + 4;
+
+    const time = Date.now() / 1000;
+
+    function drawOrb(drawX, drawY, isActive, phase) {
+      const pulse = isActive ? 1 + Math.sin(phase * 2) * 0.12 : 1;
+      const r = orbRadius * pulse;
+
+      ctx.save();
+
+      if (isActive) {
+        const glow = ctx.createRadialGradient(drawX, drawY, 0, drawX, drawY, r * 3);
+        glow.addColorStop(0, 'rgba(212, 168, 83, 0.4)');
+        glow.addColorStop(0.5, 'rgba(212, 168, 83, 0.15)');
+        glow.addColorStop(1, 'rgba(212, 168, 83, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(drawX, drawY, r * 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        const gradient = ctx.createRadialGradient(
+          drawX - r * 0.3, drawY - r * 0.3, 0,
+          drawX, drawY, r
+        );
+        gradient.addColorStop(0, '#fff8e7');
+        gradient.addColorStop(0.4, '#f0c674');
+        gradient.addColorStop(0.8, '#d4a853');
+        gradient.addColorStop(1, '#a67c30');
+        ctx.fillStyle = gradient;
+      } else {
+        const dimGradient = ctx.createRadialGradient(
+          drawX - r * 0.2, drawY - r * 0.2, 0,
+          drawX, drawY, r
+        );
+        dimGradient.addColorStop(0, 'rgba(80, 80, 100, 0.5)');
+        dimGradient.addColorStop(1, 'rgba(40, 40, 60, 0.4)');
+        ctx.fillStyle = dimGradient;
+      }
+
+      ctx.beginPath();
+      ctx.arc(drawX, drawY, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (isActive) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.beginPath();
+        ctx.arc(drawX - r * 0.35, drawY - r * 0.35, r * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    todoPoints.forEach((points, i) => {
+      const centerX = x.getPixelForValue(i);
+      const dotCount = Math.floor(points / 5);
+
+      // Top row: 2 dots max (horizontal)
+      for (let d = 0; d < 2; d++) {
+        const isActive = d < dotCount;
+        const offsetX = (d - 0.5) * (orbRadius * 2 + orbGap);
+        const phase = time + i * 0.15 + d * 0.3;
+        drawOrb(centerX + offsetX, topRowY, isActive, phase);
+      }
+
+      // Bottom row: 1 dot centered (only show if 15+ pts)
+      if (dotCount >= 3) {
+        const phase = time + i * 0.15 + 2 * 0.3;
+        drawOrb(centerX, bottomRowY, true, phase);
+      }
+    });
+  }
+};
+
+Chart.register(orbPlugin);
+
 Chart.defaults.font.family = "'Outfit', system-ui, sans-serif";
-new Chart(document.getElementById('studyChart'), {
+
+const chart = new Chart(document.getElementById('studyChart'), {
+  type: 'line',
   data: {
     labels: {{ chartLabels|json_encode|raw }},
     datasets: [{
-      type: 'line',
       label: 'Study Hours',
       data: {{ chartHours|json_encode|raw }},
       borderColor: '{{ houseColor }}',
@@ -61,85 +178,80 @@ new Chart(document.getElementById('studyChart'), {
       pointHoverBackgroundColor: '{{ houseColor }}',
       pointHoverBorderColor: '#fff',
       pointHoverBorderWidth: 2,
-      borderWidth: 2,
-      yAxisID: 'y'
-    }, {
-      type: 'bar',
-      label: 'To-Do Points',
-      data: {{ chartTodoPoints|json_encode|raw }},
-      backgroundColor: 'rgba(212, 168, 83, 0.4)',
-      borderColor: 'rgba(212, 168, 83, 0.8)',
-      borderWidth: 1,
-      borderRadius: 4,
-      yAxisID: 'y1'
+      borderWidth: 2.5
     }]
   },
   options: {
     responsive: true,
     maintainAspectRatio: true,
+    layout: {
+      padding: { bottom: hasThirdRow ? 58 : 38 }
+    },
     interaction: {
       intersect: false,
       mode: 'index'
     },
     plugins: {
-      legend: {
-        display: true,
-        position: 'top',
-        labels: {
-          color: 'rgba(240, 230, 211, 0.7)',
-          padding: 20,
-          usePointStyle: true,
-          pointStyle: 'circle'
-        }
-      },
+      legend: { display: false },
       tooltip: {
-        backgroundColor: 'rgba(20, 20, 35, 0.95)',
+        backgroundColor: 'rgba(15, 15, 25, 0.95)',
         titleColor: '#f0e6d3',
-        bodyColor: 'rgba(240, 230, 211, 0.8)',
-        borderColor: 'rgba(212, 168, 83, 0.3)',
+        titleFont: { family: "'Cinzel', serif", size: 13, weight: 600 },
+        bodyColor: 'rgba(240, 230, 211, 0.85)',
+        bodyFont: { size: 12 },
+        borderColor: 'rgba(212, 168, 83, 0.4)',
         borderWidth: 1,
-        cornerRadius: 8,
-        padding: 12
+        cornerRadius: 10,
+        padding: 14,
+        displayColors: false,
+        callbacks: {
+          afterBody: function(context) {
+            const idx = context[0].dataIndex;
+            const pts = todoPoints[idx];
+            if (pts > 0) {
+              const dots = Math.floor(pts / 5);
+              return '\n✦ ' + pts + ' to-do pts (' + '●'.repeat(dots) + ')';
+            }
+            return '';
+          }
+        }
       }
     },
     scales: {
       x: {
         ticks: {
           color: 'rgba(240, 230, 211, 0.5)',
-          maxRotation: 45,
-          font: { size: 11 }
+          maxRotation: 0,
+          font: { size: 10 }
         },
-        grid: { color: 'rgba(255, 255, 255, 0.05)' }
+        grid: { color: 'rgba(255, 255, 255, 0.04)' }
       },
       y: {
-        type: 'linear',
-        position: 'left',
         title: {
           display: true,
-          text: 'Hours',
-          color: 'rgba(240, 230, 211, 0.5)',
-          font: { size: 11 }
+          text: 'Study Hours',
+          color: 'rgba(240, 230, 211, 0.45)',
+          font: { size: 11, family: "'Outfit', sans-serif" }
         },
-        ticks: { color: 'rgba(240, 230, 211, 0.5)' },
-        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+        ticks: {
+          color: 'rgba(240, 230, 211, 0.45)',
+          font: { size: 10 }
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.04)' },
         beginAtZero: true
-      },
-      y1: {
-        type: 'linear',
-        position: 'right',
-        title: {
-          display: true,
-          text: 'To-Do Pts',
-          color: 'rgba(240, 230, 211, 0.5)',
-          font: { size: 11 }
-        },
-        ticks: { color: 'rgba(240, 230, 211, 0.5)', stepSize: 5 },
-        grid: { drawOnChartArea: false },
-        beginAtZero: true,
-        max: 15
       }
+    },
+    animation: {
+      duration: 1200,
+      easing: 'easeOutQuart'
     }
   }
 });
+
+function animateOrbs() {
+  chart.draw();
+  requestAnimationFrame(animateOrbs);
+}
+animateOrbs();
 </script>
 {% endblock %}
