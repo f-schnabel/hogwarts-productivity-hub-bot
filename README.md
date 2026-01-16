@@ -1,53 +1,69 @@
 # Hogwarts Productivity Hub Bot
 
+Discord bot for a Hogwarts-themed productivity community. Track voice time, earn points for your house, and progress through years.
+
+## Features
+
+- **House System** - Users join Gryffindor, Hufflepuff, Ravenclaw, or Slytherin
+- **Voice Tracking** - Earn points for time spent in voice channels (5 pts first hour, 2 pts/hr after)
+- **Year Progression** - Advance Year 1-7 based on monthly voice time
+- **Message Streaks** - Maintain daily message streaks shown in nickname
+- **Submissions** - Submit screenshots for bonus points, reviewed by staff
+- **Scoreboards** - House and user leaderboards
+- **Analytics Dashboard** - Web dashboard for stats
+
 ## Quick Start
 
-**Step 1:** [Create a Discord Bot](https://discord.com/developers/applications)
-**Step 2:** Download & Configure
-**Step 3:** Start the Bot
-
 <details>
-<summary><b>Detailed Setup Guide (Click to expand)</b></summary>
+<summary><b>Setup Guide (Click to expand)</b></summary>
 
-### **Prerequisites**
+### Prerequisites
 
-```bash
-# You'll need these installed:
-- Node.js (v16 or higher)
-- PostgreSQL (v12 or higher)
-- Git
-```
+- Node.js v18+
+- PostgreSQL v12+
+- pnpm
 
-### **Quick Install**
+### Install
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/Shadow-Devil/hogwarts-productivity-hub-bot.git
 cd hogwarts-productivity-hub-bot
-
-# 2. Install dependencies
 pnpm install
 
-# 3. Setup environment
 cp .env.example .env
-# Edit .env with your Discord bot token and database URL
+# Edit .env with your config
 
-# 4. Setup database
 npx drizzle-kit migrate
-
-# 5. Register commands and start
 pnpm run register
 pnpm start
 ```
 
 </details>
 
-### Verify It's Working
+## Commands
 
-In your Discord server, try:
+| Command | Description |
+|---------|-------------|
+| `/user` | View your profile and stats |
+| `/timezone` | Set your timezone for daily resets |
+| `/submit` | Submit screenshot for points |
+| `/scoreboard` | View house/user leaderboards |
+| `/admin` | Admin commands (staff only) |
 
-- `/tasks add Learn something new` - Add your first task
-- `/stats` - Check your progress
-- `/timer 25 5` - Start a focus session
+## Environment Variables
 
-**🎉 That's it! Your productivity bot is ready to transform your community.**
+See `.env.example` for all required variables:
+
+- Discord: `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`
+- Database: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+- Roles: House roles, staff roles, year roles
+- Channels: Submission channels, announcement channel
+
+## Development
+
+```bash
+pnpm start           # Run bot
+pnpm analytics:dev   # Run analytics dashboard
+pnpm test            # Run tests
+pnpm validate        # Lint + typecheck
+```
