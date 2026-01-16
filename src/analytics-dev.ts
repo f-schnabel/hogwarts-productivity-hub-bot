@@ -26,7 +26,7 @@ const mockGuild = {
   },
 };
 client.guilds = {
-  cache: { 
+  cache: {
     get: () => mockGuild,
   },
 } as unknown as typeof client.guilds;
