@@ -5,6 +5,8 @@ import { desc, eq, sql, and, gte } from "drizzle-orm";
 import type { House } from "./types.ts";
 import { client } from "./client.ts";
 import dayjs from "dayjs";
+import { getYearFromMonthlyVoiceTime } from "./utils/yearRoleUtils.ts";
+import { YEAR_THRESHOLDS_HOURS } from "./utils/constants.ts";
 
 export const analyticsRouter: RouterType = Router();
 
@@ -111,6 +113,49 @@ const layout = (title: string, content: string, script?: string) => `
       display: flex;
       justify-content: space-between;
     }
+    .year-rank {
+      background: rgba(0,0,0,0.4);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+    }
+    .year-rank h2 { margin-bottom: 1rem; }
+    .year-badge {
+      display: inline-block;
+      font-size: 1.8rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .progress-container {
+      background: rgba(0,0,0,0.5);
+      border-radius: 12px;
+      height: 28px;
+      overflow: hidden;
+      position: relative;
+      margin: 1rem 0;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 12px;
+      transition: width 0.5s ease;
+      background: linear-gradient(90deg, var(--bar-start) 0%, var(--bar-end) 100%);
+      box-shadow: 0 0 10px var(--bar-glow);
+    }
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+    .year-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+    .next-rank { text-align: right; color: #ffd700; }
   </style>
 </head>
 <body>
@@ -319,6 +364,73 @@ analyticsRouter.get("/user/:id", async (req, res) => {
 
   const houseColor = user.house ? HOUSE_HEX[user.house] : "#888";
 
+  // Year rank progress calculation
+  const currentYear = getYearFromMonthlyVoiceTime(user.monthlyVoiceTime);
+  const currentHours = user.monthlyVoiceTime / 3600;
+  let yearRankHtml: string;
+
+  if (currentYear === null) {
+    // Year 0 -> Year 1
+    const nextThreshold = YEAR_THRESHOLDS_HOURS[0];
+    const progress = Math.min((currentHours / nextThreshold) * 100, 100);
+    yearRankHtml = `
+      <div class="year-rank">
+        <h2>⚡ Year Progress</h2>
+        <div class="year-badge" style="color: #888">Year 0</div>
+        <div class="progress-container">
+          <div class="progress-bar" style="width: ${progress}%; --bar-start: #4a4a4a; --bar-end: #6a6a6a; --bar-glow: #555"></div>
+          <div class="progress-text">${currentHours.toFixed(1)}h / ${nextThreshold}h</div>
+        </div>
+        <div class="year-info">
+          <span>0h</span>
+          <span class="next-rank">Next: Year 1 (${nextThreshold}h)</span>
+        </div>
+      </div>`;
+  } else if (currentYear === 7) {
+    // Max year
+    yearRankHtml = `
+      <div class="year-rank">
+        <h2>⚡ Year Progress</h2>
+        <div class="year-badge" style="color: #ffd700">✨ Year 7 ✨</div>
+        <div class="progress-container">
+          <div class="progress-bar" style="width: 100%; --bar-start: #ffd700; --bar-end: #ffec8b; --bar-glow: #ffd700"></div>
+          <div class="progress-text">${currentHours.toFixed(1)}h - Maximum Rank!</div>
+        </div>
+        <div class="year-info">
+          <span>${YEAR_THRESHOLDS_HOURS[6]}h</span>
+          <span style="color: #ffd700">🏆 Maximum rank achieved</span>
+        </div>
+      </div>`;
+  } else {
+    // Years 1-6 (currentYear is typed as 1|2|3|4|5|6 here)
+    const thresholdIndex = (currentYear - 1) as 0 | 1 | 2 | 3 | 4 | 5;
+    const currentThreshold = YEAR_THRESHOLDS_HOURS[thresholdIndex];
+    const nextThreshold = YEAR_THRESHOLDS_HOURS[currentYear];
+    const progress = ((currentHours - currentThreshold) / (nextThreshold - currentThreshold)) * 100;
+    const barColors: Record<1 | 2 | 3 | 4 | 5 | 6, { start: string; end: string; glow: string }> = {
+      1: { start: "#8b4513", end: "#a0522d", glow: "#8b4513" },
+      2: { start: "#cd7f32", end: "#daa520", glow: "#cd7f32" },
+      3: { start: "#c0c0c0", end: "#d3d3d3", glow: "#c0c0c0" },
+      4: { start: "#ffd700", end: "#ffec8b", glow: "#ffd700" },
+      5: { start: "#00ced1", end: "#40e0d0", glow: "#00ced1" },
+      6: { start: "#9370db", end: "#ba55d3", glow: "#9370db" },
+    };
+    const colors = barColors[currentYear];
+    yearRankHtml = `
+      <div class="year-rank">
+        <h2>⚡ Year Progress</h2>
+        <div class="year-badge" style="color: ${colors.start}">Year ${currentYear}</div>
+        <div class="progress-container">
+          <div class="progress-bar" style="width: ${progress}%; --bar-start: ${colors.start}; --bar-end: ${colors.end}; --bar-glow: ${colors.glow}"></div>
+          <div class="progress-text">${currentHours.toFixed(1)}h / ${nextThreshold}h</div>
+        </div>
+        <div class="year-info">
+          <span>${currentThreshold}h</span>
+          <span class="next-rank">Next: Year ${currentYear + 1} (${nextThreshold}h)</span>
+        </div>
+      </div>`;
+  }
+
   res.send(
     layout(
       displayName,
@@ -350,6 +462,8 @@ analyticsRouter.get("/user/:id", async (req, res) => {
         <div class="stat-label">All-Time Study</div>
       </div>
     </div>
+
+    ${yearRankHtml}
 
     <div class="sessions">
       <h2 style="margin-bottom:1rem">Activity This Month</h2>
