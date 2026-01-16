@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType } from "express";
-import { db, getMonthStartDate } from "./db/db.ts";
+import { db, getMonthStartDate, getVCEmoji } from "./db/db.ts";
 import { userTable, voiceSessionTable, submissionTable } from "./db/schema.ts";
 import { desc, eq, sql, and, gte } from "drizzle-orm";
 import type { House } from "./types.ts";
@@ -25,6 +25,13 @@ function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function cleanDisplayName(name: string, vcEmoji: string): string {
+  return name
+    .replace(/⚡\d+/g, "") // Remove streak
+    .replace(new RegExp(` ${vcEmoji}`, "g"), "") // Remove VC emoji
+    .trim();
 }
 
 // Home - House scoreboard
@@ -77,10 +84,11 @@ analyticsRouter.get("/leaderboard", async (_req, res) => {
     }
   }
 
+  const vcEmoji = await getVCEmoji();
   const users = userData.map((u, i) => ({
     rank: i + 1,
     discordId: u.discordId,
-    displayName: displayNames.get(u.discordId) ?? u.username,
+    displayName: cleanDisplayName(displayNames.get(u.discordId) ?? u.username, vcEmoji),
     house: u.house,
     houseColor: getHouseColor(u.house),
     monthlyPoints: u.monthlyPoints,
@@ -105,7 +113,8 @@ analyticsRouter.get("/user/:id", async (req, res) => {
   // Fetch display name from Discord
   const guild = client.guilds.cache.get(process.env.GUILD_ID);
   const member = guild ? await guild.members.fetch(id).catch(() => null) : null;
-  const displayName = member?.displayName ?? user.username;
+  const vcEmoji = await getVCEmoji();
+  const displayName = cleanDisplayName(member?.displayName ?? user.username, vcEmoji);
 
   const monthStart = await getMonthStartDate();
   const sessions = await db
