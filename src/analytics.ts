@@ -256,14 +256,14 @@ function calculateYearProgress(monthlyVoiceTime: number): YearProgress {
   const nextThreshold = YEAR_THRESHOLDS_HOURS[currentYear];
   const progress = ((currentHours - currentThreshold) / (nextThreshold - currentThreshold)) * 100;
 
-  const barColors: Record<1 | 2 | 3 | 4 | 5 | 6, { start: string; end: string; glow: string }> = {
+  const barColors = {
     1: { start: "#8b4513", end: "#a0522d", glow: "#8b4513" },
     2: { start: "#cd7f32", end: "#daa520", glow: "#cd7f32" },
     3: { start: "#c0c0c0", end: "#d3d3d3", glow: "#c0c0c0" },
     4: { start: "#ffd700", end: "#ffec8b", glow: "#ffd700" },
     5: { start: "#00ced1", end: "#40e0d0", glow: "#00ced1" },
     6: { start: "#9370db", end: "#ba55d3", glow: "#9370db" },
-  };
+  } as const;
   const colors = barColors[currentYear];
 
   return {

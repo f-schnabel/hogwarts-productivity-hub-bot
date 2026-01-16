@@ -450,8 +450,8 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
-      animation: shimmer 2s infinite;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+      animation: shimmer 7s ease-in-out infinite;
     }
 
     .progress-text {
@@ -530,8 +530,11 @@
     }
 
     @keyframes shimmer {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(100%); }
+      0% { transform: translateX(-100%); opacity: 0; }
+      10% { opacity: 1; }
+      70% { opacity: 1; }
+      80% { transform: translateX(100%); opacity: 0; }
+      100% { transform: translateX(100%); opacity: 0; }
     }
 
     /* Staggered animations for grid items */
