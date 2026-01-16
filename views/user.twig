@@ -203,6 +203,9 @@
 
   @media (max-width: 640px) {
     .user-header { padding: 2rem 1.5rem; }
+    .todo-orbs-legend { margin-top: 0.5rem; gap: 4px; }
+    .orb-sample { width: 7px; height: 7px; }
+    .orb-label { font-size: 0.6rem; }
   }
 </style>
 {% endblock %}
@@ -258,6 +261,7 @@
 const todoPoints = {{ chartTodoPoints|json_encode|raw }};
 const yearLines = {{ yearLines|json_encode|raw }};
 const hasThirdRow = todoPoints.some(p => p >= 15);
+const isMobileInit = window.innerWidth < 500;
 
 // Plugin to draw year threshold horizontal lines
 const yearLinesPlugin = {
@@ -266,7 +270,9 @@ const yearLinesPlugin = {
     const { ctx, chartArea, scales: { y } } = chart;
     if (!chartArea) return;
 
-    yearLines.forEach(line => {
+    const isMobile = chartArea.width < 400;
+
+    yearLines.forEach((line, index) => {
       const yPos = y.getPixelForValue(line.hours);
       if (yPos < chartArea.top || yPos > chartArea.bottom) return;
 
@@ -283,14 +289,49 @@ const yearLinesPlugin = {
       ctx.lineTo(chartArea.right, yPos);
       ctx.stroke();
 
-      // Draw label
+      // Draw label - on mobile, position inline on left side of line
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
-      ctx.font = "600 10px 'Cinzel', serif";
       ctx.fillStyle = line.color;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(line.label, chartArea.right - 4, yPos - 3);
+
+      if (isMobile) {
+        // Mobile: small badge on left, inline with line
+        ctx.font = "600 8px 'Cinzel', serif";
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+
+        const text = line.label.replace('Year ', 'Y');
+        const textWidth = ctx.measureText(text).width;
+        const padding = 4;
+        const badgeWidth = textWidth + padding * 2;
+        const badgeHeight = 14;
+        const badgeX = chartArea.left + 4;
+        const badgeY = yPos;
+
+        // Badge background
+        ctx.fillStyle = 'rgba(10, 10, 18, 0.85)';
+        ctx.beginPath();
+        ctx.roundRect(badgeX, badgeY - badgeHeight/2, badgeWidth, badgeHeight, 3);
+        ctx.fill();
+
+        // Badge border
+        ctx.strokeStyle = line.color;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.7;
+        ctx.stroke();
+
+        // Badge text
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = line.color;
+        ctx.fillText(text, badgeX + padding, badgeY + 1);
+      } else {
+        // Desktop: labels on right
+        ctx.font = "600 10px 'Cinzel', serif";
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(line.label, chartArea.right - 4, yPos - 3);
+      }
 
       ctx.restore();
     });
@@ -302,34 +343,41 @@ Chart.register(yearLinesPlugin);
 const orbPlugin = {
   id: 'todoOrbs',
   afterDatasetsDraw(chart) {
-    const { ctx, scales: { x } } = chart;
-    const bottomY = chart.chartArea.bottom;
-    const orbRadius = 5;
-    const orbGap = 3;
-    const topRowY = bottomY + 36;
-    const bottomRowY = topRowY + orbRadius * 2 + 4;
+    const { ctx, scales: { x }, chartArea } = chart;
+    const bottomY = chartArea.bottom;
+    const isMobile = chartArea.width < 400;
+
+    // Responsive sizing
+    const orbRadius = isMobile ? 3.5 : 5;
+    const orbGap = isMobile ? 2 : 3;
+    const topRowY = bottomY + (isMobile ? 28 : 36);
+    const bottomRowY = topRowY + orbRadius * 2 + (isMobile ? 3 : 4);
 
     const time = Date.now() / 1000;
 
-    function drawOrb(drawX, drawY, isActive, phase) {
+    function drawOrb(drawX, drawY, isActive, phase, size) {
+      const r = size || orbRadius;
       const pulse = isActive ? 1 + Math.sin(phase * 2) * 0.12 : 1;
-      const r = orbRadius * pulse;
+      const finalR = r * pulse;
 
       ctx.save();
 
       if (isActive) {
-        const glow = ctx.createRadialGradient(drawX, drawY, 0, drawX, drawY, r * 3);
-        glow.addColorStop(0, 'rgba(212, 168, 83, 0.4)');
-        glow.addColorStop(0.5, 'rgba(212, 168, 83, 0.15)');
-        glow.addColorStop(1, 'rgba(212, 168, 83, 0)');
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(drawX, drawY, r * 3, 0, Math.PI * 2);
-        ctx.fill();
+        // Reduced glow on mobile
+        if (!isMobile) {
+          const glow = ctx.createRadialGradient(drawX, drawY, 0, drawX, drawY, finalR * 3);
+          glow.addColorStop(0, 'rgba(212, 168, 83, 0.4)');
+          glow.addColorStop(0.5, 'rgba(212, 168, 83, 0.15)');
+          glow.addColorStop(1, 'rgba(212, 168, 83, 0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(drawX, drawY, finalR * 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         const gradient = ctx.createRadialGradient(
-          drawX - r * 0.3, drawY - r * 0.3, 0,
-          drawX, drawY, r
+          drawX - finalR * 0.3, drawY - finalR * 0.3, 0,
+          drawX, drawY, finalR
         );
         gradient.addColorStop(0, '#fff8e7');
         gradient.addColorStop(0.4, '#f0c674');
@@ -338,8 +386,8 @@ const orbPlugin = {
         ctx.fillStyle = gradient;
       } else {
         const dimGradient = ctx.createRadialGradient(
-          drawX - r * 0.2, drawY - r * 0.2, 0,
-          drawX, drawY, r
+          drawX - finalR * 0.2, drawY - finalR * 0.2, 0,
+          drawX, drawY, finalR
         );
         dimGradient.addColorStop(0, 'rgba(80, 80, 100, 0.5)');
         dimGradient.addColorStop(1, 'rgba(40, 40, 60, 0.4)');
@@ -347,35 +395,48 @@ const orbPlugin = {
       }
 
       ctx.beginPath();
-      ctx.arc(drawX, drawY, r, 0, Math.PI * 2);
+      ctx.arc(drawX, drawY, finalR, 0, Math.PI * 2);
       ctx.fill();
 
-      if (isActive) {
+      if (isActive && !isMobile) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.beginPath();
-        ctx.arc(drawX - r * 0.35, drawY - r * 0.35, r * 0.25, 0, Math.PI * 2);
+        ctx.arc(drawX - finalR * 0.35, drawY - finalR * 0.35, finalR * 0.25, 0, Math.PI * 2);
         ctx.fill();
       }
 
       ctx.restore();
     }
 
+    // On mobile, only show orbs for days with points (skip inactive)
     todoPoints.forEach((points, i) => {
       const centerX = x.getPixelForValue(i);
       const dotCount = Math.floor(points / 5);
 
-      // Top row: 2 dots max (horizontal)
-      for (let d = 0; d < 2; d++) {
-        const isActive = d < dotCount;
-        const offsetX = (d - 0.5) * (orbRadius * 2 + orbGap);
-        const phase = time + i * 0.15 + d * 0.3;
-        drawOrb(centerX + offsetX, topRowY, isActive, phase);
-      }
+      if (isMobile) {
+        // Mobile: single stacked column, only show active orbs
+        if (dotCount > 0) {
+          for (let d = 0; d < Math.min(dotCount, 3); d++) {
+            const offsetY = d * (orbRadius * 2 + 2);
+            const phase = time + i * 0.15 + d * 0.3;
+            drawOrb(centerX, topRowY + offsetY, true, phase);
+          }
+        }
+      } else {
+        // Desktop: original layout
+        // Top row: 2 dots max (horizontal)
+        for (let d = 0; d < 2; d++) {
+          const isActive = d < dotCount;
+          const offsetX = (d - 0.5) * (orbRadius * 2 + orbGap);
+          const phase = time + i * 0.15 + d * 0.3;
+          drawOrb(centerX + offsetX, topRowY, isActive, phase);
+        }
 
-      // Bottom row: 1 dot centered (only show if 15+ pts)
-      if (dotCount >= 3) {
-        const phase = time + i * 0.15 + 2 * 0.3;
-        drawOrb(centerX, bottomRowY, true, phase);
+        // Bottom row: 1 dot centered (only show if 15+ pts)
+        if (dotCount >= 3) {
+          const phase = time + i * 0.15 + 2 * 0.3;
+          drawOrb(centerX, bottomRowY, true, phase);
+        }
       }
     });
   }
@@ -408,7 +469,7 @@ const chart = new Chart(document.getElementById('studyChart'), {
     responsive: true,
     maintainAspectRatio: true,
     layout: {
-      padding: { bottom: hasThirdRow ? 58 : 38 }
+      padding: { bottom: isMobileInit ? (hasThirdRow ? 42 : 28) : (hasThirdRow ? 58 : 38) }
     },
     interaction: {
       intersect: false,
