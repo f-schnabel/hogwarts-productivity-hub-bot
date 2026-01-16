@@ -1,5 +1,7 @@
 import client from "prom-client";
 import express from "express";
+import Twig from "twig";
+import path from "path";
 import { createLogger } from "./utils/logger.ts";
 import { analyticsRouter } from "./analytics.ts";
 
@@ -47,6 +49,10 @@ export function startServers() {
 
   // Analytics server (public)
   const analyticsApp = express();
+  analyticsApp.set("view engine", "twig");
+  analyticsApp.set("views", path.join(import.meta.dirname, "..", "views"));
+  analyticsApp.set("twig options", { allowAsync: true, strict_variables: false });
+  Twig.cache(process.env.NODE_ENV === "production");
   analyticsApp.use(analyticsRouter);
   const analyticsServer = analyticsApp.listen(3001, "0.0.0.0", () => {
     log.info("Analytics server started", { opId: "monitor", url: "http://localhost:3001" });

@@ -1,0 +1,111 @@
+{% extends "layout.twig" %}
+
+{% block content %}
+<div class="user-header">
+  <h1>{{ displayName }}</h1>
+  <p style="color:{{ houseColor }};font-size:1.2rem">{{ house ?? "No House" }}</p>
+</div>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat-value">{{ monthlyPoints }}</div>
+    <div class="stat-label">Monthly Points</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">{{ monthlyStudy }}</div>
+    <div class="stat-label">Monthly Study</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">{{ messageStreak }}</div>
+    <div class="stat-label">Message Streak</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">{{ totalPoints }}</div>
+    <div class="stat-label">All-Time Points</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">{{ totalStudy }}</div>
+    <div class="stat-label">All-Time Study</div>
+  </div>
+</div>
+
+<div class="year-rank">
+  <h2>Year Progress</h2>
+  <div class="year-badge" style="color: {{ yearProgress.badgeColor }}">{{ yearProgress.badge }}</div>
+  <div class="progress-container">
+    <div class="progress-bar" style="width: {{ yearProgress.percent }}%; --bar-start: {{ yearProgress.barStart }}; --bar-end: {{ yearProgress.barEnd }}; --bar-glow: {{ yearProgress.barGlow }}"></div>
+    <div class="progress-text">{{ yearProgress.text }}</div>
+  </div>
+  <div class="year-info">
+    <span>{{ yearProgress.leftLabel }}</span>
+    <span class="next-rank" {% if yearProgress.isMax %}style="color: #ffd700"{% endif %}>{{ yearProgress.rightLabel }}</span>
+  </div>
+</div>
+
+<div class="sessions">
+  <h2 style="margin-bottom:1rem">Activity This Month</h2>
+  <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:1rem">
+    <canvas id="studyChart"></canvas>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+new Chart(document.getElementById('studyChart'), {
+  data: {
+    labels: {{ chartLabels|json_encode|raw }},
+    datasets: [{
+      type: 'line',
+      label: 'Study Hours',
+      data: {{ chartHours|json_encode|raw }},
+      borderColor: '{{ houseColor }}',
+      backgroundColor: '{{ houseColor }}33',
+      fill: true,
+      tension: 0.3,
+      yAxisID: 'y'
+    }, {
+      type: 'bar',
+      label: 'To-Do Points',
+      data: {{ chartTodoPoints|json_encode|raw }},
+      backgroundColor: '#ffd70088',
+      borderColor: '#ffd700',
+      borderWidth: 1,
+      yAxisID: 'y1'
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        display: true,
+        labels: { color: '#e8d5b7' }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#e8d5b7', maxRotation: 45 },
+        grid: { color: 'rgba(255,255,255,0.1)' }
+      },
+      y: {
+        type: 'linear',
+        position: 'left',
+        title: { display: true, text: 'Hours', color: '#e8d5b7' },
+        ticks: { color: '#e8d5b7' },
+        grid: { color: 'rgba(255,255,255,0.1)' },
+        beginAtZero: true
+      },
+      y1: {
+        type: 'linear',
+        position: 'right',
+        title: { display: true, text: 'To-Do Pts', color: '#e8d5b7' },
+        ticks: { color: '#e8d5b7', stepSize: 5 },
+        grid: { drawOnChartArea: false },
+        beginAtZero: true,
+        max: 15
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

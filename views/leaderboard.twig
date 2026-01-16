@@ -1,0 +1,29 @@
+{% extends "layout.twig" %}
+
+{% block content %}
+<h1>Monthly Leaderboard</h1>
+<table>
+  <thead>
+    <tr>
+      <th>Rank</th>
+      <th>User</th>
+      <th>House</th>
+      <th>Points</th>
+      <th>Study Time</th>
+      <th>Streak</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for user in users %}
+    <tr>
+      <td class="rank">#{{ user.rank }}</td>
+      <td><a href="/user/{{ user.discordId }}" style="color:#e8d5b7;text-decoration:none">{{ user.displayName }}</a></td>
+      <td style="color:{{ user.houseColor }}">{{ user.house ?? "-" }}</td>
+      <td>{{ user.monthlyPoints }}</td>
+      <td>{{ user.studyTime }}</td>
+      <td>{{ user.messageStreak }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

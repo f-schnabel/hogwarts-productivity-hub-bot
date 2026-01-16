@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} - Hogwarts Productivity</title>
+  {% if includeChartJs %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  {% endif %}
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Georgia', serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e8d5b7;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 {
+      text-align: center;
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+    nav {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+    }
+    nav a {
+      color: #ffd700;
+      margin: 0 1rem;
+      text-decoration: none;
+      font-size: 1.1rem;
+    }
+    nav a:hover { text-decoration: underline; }
+    .house-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+    .house-card {
+      background: rgba(0,0,0,0.4);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      border: 3px solid;
+    }
+    .house-card h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .house-card .points { font-size: 2rem; font-weight: bold; }
+    .house-card .members { font-size: 0.9rem; opacity: 0.8; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td { padding: 1rem; text-align: left; }
+    th { background: rgba(0,0,0,0.5); color: #ffd700; }
+    tr:nth-child(even) { background: rgba(255,255,255,0.05); }
+    tr:hover { background: rgba(255,255,255,0.1); }
+    .rank { font-weight: bold; color: #ffd700; }
+    .user-header {
+      background: rgba(0,0,0,0.4);
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .stat {
+      background: rgba(0,0,0,0.3);
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-value { font-size: 1.5rem; font-weight: bold; color: #ffd700; }
+    .stat-label { font-size: 0.9rem; opacity: 0.8; }
+    .sessions { margin-top: 2rem; }
+    .session {
+      background: rgba(0,0,0,0.3);
+      padding: 0.75rem 1rem;
+      margin: 0.5rem 0;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .year-rank {
+      background: rgba(0,0,0,0.4);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+    }
+    .year-rank h2 { margin-bottom: 1rem; }
+    .year-badge {
+      display: inline-block;
+      font-size: 1.8rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .progress-container {
+      background: rgba(0,0,0,0.5);
+      border-radius: 12px;
+      height: 28px;
+      overflow: hidden;
+      position: relative;
+      margin: 1rem 0;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 12px;
+      transition: width 0.5s ease;
+      background: linear-gradient(90deg, var(--bar-start) 0%, var(--bar-end) 100%);
+      box-shadow: 0 0 10px var(--bar-glow);
+    }
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+    .year-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+    .next-rank { text-align: right; color: #ffd700; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a href="/">Houses</a>
+      <a href="/leaderboard">Leaderboard</a>
+    </nav>
+    {% block content %}{% endblock %}
+  </div>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
