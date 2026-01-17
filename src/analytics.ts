@@ -21,7 +21,7 @@ const YEAR_COLORS: Record<number, string> = {
   1: "#cd8b62",
   2: "#d3d3d3",
   3: "#ffd700",
-  4: "#40e0d0",
+  4: "#5f9ea0",
   5: "#ba55d3",
   6: "#39ff14",
   7: "#ff4654",
