@@ -45,19 +45,24 @@
     box-shadow: 0 0 12px rgba(212, 168, 83, 0.2);
   }
 
-  .filter-pill.gryffindor { --pill-color: #ff2000; }
-  .filter-pill.hufflepuff { --pill-color: #f8d301; }
-  .filter-pill.ravenclaw { --pill-color: #5b7fc7; }
-  .filter-pill.slytherin { --pill-color: #07ad34; }
+  .filter-pill.gryffindor { --pill-color: {{ houseColors.Gryffindor }}; }
+  .filter-pill.hufflepuff { --pill-color: {{ houseColors.Hufflepuff }}; }
+  .filter-pill.ravenclaw { --pill-color: {{ houseColors.Ravenclaw }}; }
+  .filter-pill.slytherin { --pill-color: {{ houseColors.Slytherin }}; }
 
   .filter-pill.gryffindor:hover,
-  .filter-pill.gryffindor.active { border-color: var(--pill-color); color: var(--pill-color); background: rgba(255, 32, 0, 0.1); box-shadow: 0 0 12px rgba(255, 32, 0, 0.2); }
+  .filter-pill.gryffindor.active,
   .filter-pill.hufflepuff:hover,
-  .filter-pill.hufflepuff.active { border-color: var(--pill-color); color: var(--pill-color); background: rgba(248, 211, 1, 0.1); box-shadow: 0 0 12px rgba(248, 211, 1, 0.2); }
+  .filter-pill.hufflepuff.active,
   .filter-pill.ravenclaw:hover,
-  .filter-pill.ravenclaw.active { border-color: var(--pill-color); color: var(--pill-color); background: rgba(91, 127, 199, 0.1); box-shadow: 0 0 12px rgba(91, 127, 199, 0.2); }
+  .filter-pill.ravenclaw.active,
   .filter-pill.slytherin:hover,
-  .filter-pill.slytherin.active { border-color: var(--pill-color); color: var(--pill-color); background: rgba(7, 173, 52, 0.1); box-shadow: 0 0 12px rgba(7, 173, 52, 0.2); }
+  .filter-pill.slytherin.active {
+    border-color: var(--pill-color);
+    color: var(--pill-color);
+    background: color-mix(in srgb, var(--pill-color) 10%, transparent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--pill-color) 20%, transparent);
+  }
 
   .sort-controls {
     display: flex;
@@ -149,14 +154,14 @@
     letter-spacing: 0.02em;
   }
 
-  .year-badge.year-0 { background: rgba(100, 100, 100, 0.3); color: #888; }
-  .year-badge.year-1 { background: rgba(139, 69, 19, 0.3); color: #cd8b62; }
-  .year-badge.year-2 { background: rgba(205, 127, 50, 0.3); color: #daa520; }
-  .year-badge.year-3 { background: rgba(192, 192, 192, 0.3); color: #d3d3d3; }
-  .year-badge.year-4 { background: rgba(255, 215, 0, 0.3); color: #ffd700; }
-  .year-badge.year-5 { background: rgba(0, 206, 209, 0.3); color: #40e0d0; }
-  .year-badge.year-6 { background: rgba(147, 112, 219, 0.3); color: #ba55d3; }
-  .year-badge.year-7 { background: rgba(255, 215, 0, 0.4); color: #ffd700; box-shadow: 0 0 8px rgba(255, 215, 0, 0.3); }
+  {% for year, color in yearColors %}
+  .year-badge.year-{{ year }} {
+    --year-color: {{ color }};
+    background: color-mix(in srgb, var(--year-color) 30%, transparent);
+    color: var(--year-color);
+    {% if year == 7 %}box-shadow: 0 0 8px color-mix(in srgb, var(--year-color) 30%, transparent);{% endif %}
+  }
+  {% endfor %}
 
   .points-cell {
     position: relative;

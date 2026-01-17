@@ -15,6 +15,18 @@ const ANALYTICS_HOUSE_COLORS: Partial<Record<House, number>> = {
   Ravenclaw: 0x5b7fc7, // Lighter steel blue for dark background
 };
 
+// Year badge/line colors
+const YEAR_COLORS: Record<number, string> = {
+  0: "#888888",
+  1: "#cd8b62",
+  2: "#d3d3d3",
+  3: "#ffd700",
+  4: "#40e0d0",
+  5: "#ba55d3",
+  6: "#39ff14",
+  7: "#ff4654",
+};
+
 const getHouseColor = (house: House | null) => {
   if (!house) return "#888";
   const color = ANALYTICS_HOUSE_COLORS[house] ?? HOUSE_COLORS[house];
@@ -117,7 +129,14 @@ analyticsRouter.get("/leaderboard", async (_req, res) => {
     };
   });
 
-  res.render("leaderboard", { title: "Leaderboard", users });
+  const houseColors = {
+    Gryffindor: getHouseColor("Gryffindor"),
+    Hufflepuff: getHouseColor("Hufflepuff"),
+    Ravenclaw: getHouseColor("Ravenclaw"),
+    Slytherin: getHouseColor("Slytherin"),
+  };
+
+  res.render("leaderboard", { title: "Leaderboard", users, houseColors, yearColors: YEAR_COLORS });
 });
 
 // User detail
@@ -205,19 +224,10 @@ analyticsRouter.get("/user/:id", async (req, res) => {
   const yearProgress = calculateYearProgress(user.monthlyVoiceTime);
 
   // Calculate year threshold lines for chart (all years)
-  const yearColors: Record<number, string> = {
-    1: "#cd8b62",
-    2: "#daa520",
-    3: "#d3d3d3",
-    4: "#ffd700",
-    5: "#40e0d0",
-    6: "#ba55d3",
-    7: "#ffd700",
-  };
   const yearLines = YEAR_THRESHOLDS_HOURS.map((hours, i) => ({
     hours,
     label: `Year ${i + 1}`,
-    color: yearColors[i + 1] ?? "#888",
+    color: YEAR_COLORS[i + 1] ?? "#888",
   }));
 
   // Chart Y-axis max: next year threshold + 5, or null if at max year (auto-scale)
