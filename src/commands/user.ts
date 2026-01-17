@@ -7,7 +7,7 @@ import { formatDuration, errorReply, inGuild, requireRole } from "../utils/inter
 import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "../utils/constants.ts";
 import { getYearFromMonthlyVoiceTime } from "../utils/yearRoleUtils.ts";
 import type { CommandOptions } from "../types.ts";
-import { calculatePointsHelper } from "../services/pointsService.ts";
+
 import { stripIndent } from "common-tags";
 import assert from "node:assert";
 
@@ -132,18 +132,22 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
 
   // Group by day in user's timezone
   const tz = userData.timezone;
-  const dailyData = new Map<string, { voiceSeconds: number; submissionPoints: number; submissionCount: number }>();
+  const dailyData = new Map<
+    string,
+    { voiceSeconds: number; voicePoints: number; submissionPoints: number; submissionCount: number }
+  >();
 
   for (const session of voiceSessions) {
     const day = dayjs(session.joinedAt).tz(tz).format("YYYY-MM-DD");
-    const existing = dailyData.get(day) ?? { voiceSeconds: 0, submissionPoints: 0, submissionCount: 0 };
+    const existing = dailyData.get(day) ?? { voiceSeconds: 0, voicePoints: 0, submissionPoints: 0, submissionCount: 0 };
     existing.voiceSeconds += session.duration ?? 0;
+    existing.voicePoints += session.points ?? 0;
     dailyData.set(day, existing);
   }
 
   for (const submission of submissions) {
     const day = dayjs(submission.submittedAt).tz(tz).format("YYYY-MM-DD");
-    const existing = dailyData.get(day) ?? { voiceSeconds: 0, submissionPoints: 0, submissionCount: 0 };
+    const existing = dailyData.get(day) ?? { voiceSeconds: 0, voicePoints: 0, submissionPoints: 0, submissionCount: 0 };
     existing.submissionPoints += submission.points;
     existing.submissionCount += 1;
     dailyData.set(day, existing);
@@ -154,8 +158,14 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
   const currentWeekStart = now.startOf("week");
 
   // Separate current week days vs previous weeks
-  const currentWeekDays: [string, { voiceSeconds: number; submissionPoints: number; submissionCount: number }][] = [];
-  const weeklyData = new Map<string, { voiceSeconds: number; submissionPoints: number; submissionCount: number }>();
+  const currentWeekDays: [
+    string,
+    { voiceSeconds: number; voicePoints: number; submissionPoints: number; submissionCount: number },
+  ][] = [];
+  const weeklyData = new Map<
+    string,
+    { voiceSeconds: number; voicePoints: number; submissionPoints: number; submissionCount: number }
+  >();
 
   for (const [day, data] of dailyData.entries()) {
     const dayDate = dayjs(day).tz(tz);
@@ -164,8 +174,14 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
     } else {
       // Group by week start (Sunday)
       const weekStart = dayDate.startOf("week").format("YYYY-MM-DD");
-      const existing = weeklyData.get(weekStart) ?? { voiceSeconds: 0, submissionPoints: 0, submissionCount: 0 };
+      const existing = weeklyData.get(weekStart) ?? {
+        voiceSeconds: 0,
+        voicePoints: 0,
+        submissionPoints: 0,
+        submissionCount: 0,
+      };
       existing.voiceSeconds += data.voiceSeconds;
+      existing.voicePoints += data.voicePoints;
       existing.submissionPoints += data.submissionPoints;
       existing.submissionCount += data.submissionCount;
       weeklyData.set(weekStart, existing);
@@ -174,12 +190,11 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
 
   const formatLine = (
     label: string,
-    data: { voiceSeconds: number; submissionPoints: number; submissionCount: number },
+    data: { voiceSeconds: number; voicePoints: number; submissionPoints: number; submissionCount: number },
   ) => {
-    const voicePoints = calculatePointsHelper(data.voiceSeconds);
-    const total = voicePoints + data.submissionPoints;
+    const total = data.voicePoints + data.submissionPoints;
     const parts: string[] = [];
-    if (data.voiceSeconds > 0) parts.push(`${formatDuration(data.voiceSeconds)} (${voicePoints} pt)`);
+    if (data.voiceSeconds > 0) parts.push(`${formatDuration(data.voiceSeconds)} (${data.voicePoints} pt)`);
     if (data.submissionPoints > 0) {
       const todoLabel = data.submissionCount === 1 ? "To-Do List" : "To-Do Lists";
       parts.push(`${todoLabel} (${data.submissionPoints} pt)`);
