@@ -2,7 +2,8 @@ import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import dayjs from "dayjs";
 import { db, getMonthStartDate } from "../db/db.ts";
 import { submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte, isNull } from "drizzle-orm";
+import { calculatePoints } from "../services/pointsService.ts";
 import { formatDuration, errorReply, inGuild, requireRole } from "../utils/interactionUtils.ts";
 import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "../utils/constants.ts";
 import { getYearFromMonthlyVoiceTime } from "../utils/yearRoleUtils.ts";
@@ -127,6 +128,29 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
     )
     .orderBy(asc(voiceSessionTable.joinedAt));
 
+  // Get active (ongoing) voice session if any
+  const [activeSession] = await db
+    .select({
+      channelName: voiceSessionTable.channelName,
+      joinedAt: voiceSessionTable.joinedAt,
+    })
+    .from(voiceSessionTable)
+    .where(
+      and(
+        eq(voiceSessionTable.discordId, user.id),
+        eq(voiceSessionTable.isTracked, false),
+        isNull(voiceSessionTable.leftAt),
+      ),
+    );
+
+  // Calculate active session duration and points (without saving)
+  let activeSessionDuration = 0;
+  let activeSessionPoints = 0;
+  if (activeSession) {
+    activeSessionDuration = Math.floor((Date.now() - activeSession.joinedAt.getTime()) / 1000);
+    activeSessionPoints = calculatePoints(userData.dailyVoiceTime, userData.dailyVoiceTime + activeSessionDuration);
+  }
+
   const totalSubmissionPoints = submissions.reduce((sum, s) => sum + s.points, 0);
   const totalVoiceSeconds = voiceSessions.reduce((sum, s) => sum + (s.duration ?? 0), 0);
 
@@ -150,6 +174,15 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
     const existing = dailyData.get(day) ?? { voiceSeconds: 0, voicePoints: 0, submissionPoints: 0, submissionCount: 0 };
     existing.submissionPoints += submission.points;
     existing.submissionCount += 1;
+    dailyData.set(day, existing);
+  }
+
+  // Add active session to daily data (blend in with completed sessions)
+  if (activeSession) {
+    const day = dayjs(activeSession.joinedAt).tz(tz).format("YYYY-MM-DD");
+    const existing = dailyData.get(day) ?? { voiceSeconds: 0, voicePoints: 0, submissionPoints: 0, submissionCount: 0 };
+    existing.voiceSeconds += activeSessionDuration;
+    existing.voicePoints += activeSessionPoints;
     dailyData.set(day, existing);
   }
 
@@ -263,9 +296,9 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
           {
             name: "Monthly Totals",
             value: stripIndent`
-              Study: ${formatDuration(totalVoiceSeconds)}
+              Study: ${formatDuration(totalVoiceSeconds)}${activeSessionDuration > 0 ? ` (+${formatDuration(activeSessionDuration)} pending)` : ""}
               Submissions: ${totalSubmissionPoints} pts
-              **Total: ${userData.monthlyPoints} pts**`,
+              **Total: ${userData.monthlyPoints} pts**${activeSessionPoints > 0 ? ` (+${activeSessionPoints} pending)` : ""}`,
           },
           {
             name: "Year Progress",
