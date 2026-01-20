@@ -11,6 +11,8 @@ import { announceYearPromotion, calculateYearRoles } from "../utils/yearRoleUtil
 
 const log = createLogger("VoiceEvent");
 
+const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
+
 export async function execute(oldState: VoiceState, newState: VoiceState) {
   const member = newState.member ?? oldState.member;
   if (!member || member.user.bot) return; // Ignore bots
@@ -23,6 +25,22 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
   const username = member.user.username;
   const oldChannel = oldState.channel;
   const newChannel = newState.channel;
+
+  // Check if channels should be excluded
+  const oldChannelExcluded = oldChannel === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(oldChannel.id);
+  const newChannelExcluded = newChannel === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(newChannel.id);
+
+  // Ignore updates that don't involve tracked channels
+  if (oldChannelExcluded && newChannelExcluded) {
+    log.debug("Ignored excluded channel update", {
+      opId,
+      userId: discordId,
+      user: username,
+      from: oldChannel?.name ?? "none",
+      to: newChannel?.name ?? "none",
+    });
+    return;
+  }
 
   const ctx = {
     opId,
@@ -52,14 +70,20 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
   // Serialize voice events per user to prevent race conditions on fast channel switches
   await wrapWithAlerting(
     async () => {
-      // User joined a voice channel
-      if (!oldChannel && newChannel) {
+      // User joined a tracked voice channel (from excluded/none)
+      if (oldChannelExcluded && !newChannelExcluded) {
         event = "join";
         await join(newVoiceSession, member, opId);
-      } else if (oldChannel && !newChannel) {
+      } else if (!oldChannelExcluded && newChannelExcluded) {
+        // User left a tracked voice channel (to excluded/none)
         event = "leave";
         await leave(oldVoiceSession, member, opId);
-      } else if (oldChannel && newChannel && oldChannel.id !== newChannel.id) {
+      } else if (
+        !oldChannelExcluded &&
+        !newChannelExcluded &&
+        oldVoiceSession.channelId !== newVoiceSession.channelId
+      ) {
+        // User switched between tracked voice channels
         event = "switch";
         await vcSwitch(oldVoiceSession, newVoiceSession, member, opId);
       }
