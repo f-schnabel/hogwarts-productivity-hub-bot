@@ -53,6 +53,7 @@ export function startServers() {
   analyticsApp.set("views", path.join(import.meta.dirname, "..", "views"));
   analyticsApp.set("twig options", { allowAsync: true, strict_variables: false });
   Twig.cache(process.env.NODE_ENV === "production");
+  analyticsApp.use(express.static(path.join(import.meta.dirname, "..", "public")));
   analyticsApp.use(analyticsRouter);
   const analyticsServer = analyticsApp.listen(3001, "0.0.0.0", () => {
     log.info("Analytics server started", { opId: "monitor", url: "http://localhost:3001" });
