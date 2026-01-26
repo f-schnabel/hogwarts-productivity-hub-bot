@@ -106,15 +106,10 @@ analyticsRouter.get("/", async (req, res) => {
     }));
 
   // Calculate ranks with ties (same points = same rank)
-  for (let i = 0; i < houses.length; i++) {
-    const current = houses[i]!;
+  houses.forEach((current, i) => {
     const prev = houses[i - 1];
-    if (prev && current.rawPoints === prev.rawPoints) {
-      current.rank = prev.rank;
-    } else {
-      current.rank = i + 1;
-    }
-  }
+    current.rank = prev?.rawPoints === current.rawPoints ? prev.rank : i + 1;
+  });
 
   const mysteryMode = isInMysteryPeriod() || req.query["mystery"] === "1";
   if (mysteryMode) {
