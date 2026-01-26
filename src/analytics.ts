@@ -99,7 +99,7 @@ analyticsRouter.get("/", async (req, res) => {
       };
     });
 
-  const mysteryMode = isInMysteryPeriod() || req.query.mystery === "1";
+  const mysteryMode = isInMysteryPeriod() || req.query["mystery"] === "1";
   if (mysteryMode) {
     // Shuffle houses so order doesn't reveal ranking
     houses = houses.sort(() => Math.random() - 0.5);
