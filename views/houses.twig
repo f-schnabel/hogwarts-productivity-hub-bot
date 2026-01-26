@@ -805,7 +805,7 @@
       --house-color-dark: {{ house.color }}88;
       --house-color-fade: {{ house.color }}50;
     ">
-      <div class="rank-badge rank-{{ loop.index }}">{{ ordinals[loop.index0] }}</div>
+      <div class="rank-badge rank-{{ house.rank }}">{{ ordinals[house.rank - 1] }}</div>
 
       <div class="hourglass-container">
         <div class="hourglass">

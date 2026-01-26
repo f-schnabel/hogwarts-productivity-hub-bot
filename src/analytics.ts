@@ -97,11 +97,24 @@ analyticsRouter.get("/", async (req, res) => {
     .map((h) => ({
       name: h.house,
       color: getHouseColor(h.house),
+      rawPoints: h.totalPoints,
       points: h.totalPoints.toLocaleString(),
       memberCount: h.memberCount,
       unweightedPoints: unweightedMap.get(h.house)?.unweightedPoints.toLocaleString() ?? "0",
       totalMemberCount: unweightedMap.get(h.house)?.totalMemberCount ?? 0,
+      rank: 1,
     }));
+
+  // Calculate ranks with ties (same points = same rank)
+  for (let i = 0; i < houses.length; i++) {
+    const current = houses[i]!;
+    const prev = houses[i - 1];
+    if (prev && current.rawPoints === prev.rawPoints) {
+      current.rank = prev.rank;
+    } else {
+      current.rank = i + 1;
+    }
+  }
 
   const mysteryMode = isInMysteryPeriod() || req.query["mystery"] === "1";
   if (mysteryMode) {
