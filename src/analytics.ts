@@ -48,7 +48,7 @@ function cleanDisplayName(name: string, vcEmoji: string): string {
 
 // Home - House scoreboard
 analyticsRouter.get("/", async (_req, res) => {
-  const houseData = await db
+  const unweightedHouseData = await db
     .select({
       house: userTable.house,
       totalPoints: sql<number>`sum(${userTable.monthlyPoints})`.as("total_points"),
@@ -59,14 +59,37 @@ analyticsRouter.get("/", async (_req, res) => {
     .groupBy(userTable.house)
     .orderBy(desc(sql`total_points`));
 
-  const houses = houseData
+  const weightedHouseData = await db
+    .select({
+      house: userTable.house,
+      totalPoints: sql<number>`sum(${userTable.monthlyPoints}) / count(*)`.as("total_points"),
+      memberCount: sql<number>`count(*)`.as("member_count"),
+    })
+    .from(userTable)
+    .where(and(sql`${userTable.house} IS NOT NULL`, gt(userTable.monthlyPoints, 15)))
+    .groupBy(userTable.house)
+    .orderBy(desc(sql`total_points`));
+
+  // Create a map from unweighted data
+  const unweightedMap = new Map(
+    unweightedHouseData
+      .filter((h): h is typeof h & { house: House } => h.house !== null)
+      .map((h) => [h.house, { unweightedPoints: h.totalPoints, totalMemberCount: h.memberCount }]),
+  );
+
+  const houses = weightedHouseData
     .filter((h): h is typeof h & { house: House } => h.house !== null)
-    .map((h) => ({
-      name: h.house,
-      color: getHouseColor(h.house),
-      points: h.totalPoints.toLocaleString(),
-      memberCount: h.memberCount,
-    }));
+    .map((h) => {
+      const unweighted = unweightedMap.get(h.house);
+      return {
+        name: h.house,
+        color: getHouseColor(h.house),
+        points: h.totalPoints.toLocaleString(),
+        memberCount: h.memberCount,
+        unweightedPoints: unweighted?.unweightedPoints.toLocaleString() ?? "0",
+        totalMemberCount: unweighted?.totalMemberCount ?? 0,
+      };
+    });
 
   res.render("houses", { title: "House Standings", houses });
 });

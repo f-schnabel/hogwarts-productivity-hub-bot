@@ -109,6 +109,7 @@
     <h2 style="color: {{ house.color }}">{{ house.name }}</h2>
     <div class="points" style="color: {{ house.color }}">{{ house.points }}</div>
     <div class="members">{{ house.memberCount }} members</div>
+    <div class="members">{{ house.unweightedPoints }} unweighted ({{ house.totalMemberCount }} members)</div>
   </div>
   {% endfor %}
 </div>
