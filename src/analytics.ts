@@ -46,8 +46,16 @@ function cleanDisplayName(name: string, vcEmoji: string): string {
     .trim();
 }
 
+// Check if we're in the last 3 days of the month (mystery mode)
+function isInMysteryPeriod(): boolean {
+  const now = dayjs();
+  const daysInMonth = now.daysInMonth();
+  const currentDay = now.date();
+  return currentDay > daysInMonth - 3;
+}
+
 // Home - House scoreboard
-analyticsRouter.get("/", async (_req, res) => {
+analyticsRouter.get("/", async (req, res) => {
   const unweightedHouseData = await db
     .select({
       house: userTable.house,
@@ -77,7 +85,7 @@ analyticsRouter.get("/", async (_req, res) => {
       .map((h) => [h.house, { unweightedPoints: h.totalPoints, totalMemberCount: h.memberCount }]),
   );
 
-  const houses = weightedHouseData
+  let houses = weightedHouseData
     .filter((h): h is typeof h & { house: House } => h.house !== null)
     .map((h) => {
       const unweighted = unweightedMap.get(h.house);
@@ -91,7 +99,13 @@ analyticsRouter.get("/", async (_req, res) => {
       };
     });
 
-  res.render("houses", { title: "House Standings", houses });
+  const mysteryMode = isInMysteryPeriod() || req.query.mystery === "1";
+  if (mysteryMode) {
+    // Shuffle houses so order doesn't reveal ranking
+    houses = houses.sort(() => Math.random() - 0.5);
+  }
+
+  res.render("houses", { title: "House Standings", houses, mysteryMode });
 });
 
 // Leaderboard
