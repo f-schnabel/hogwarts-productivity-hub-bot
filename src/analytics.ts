@@ -12,7 +12,7 @@ export const analyticsRouter: RouterType = Router();
 
 // Analytics-specific color overrides for dark background readability
 const ANALYTICS_HOUSE_COLORS: Partial<Record<House, number>> = {
-  Ravenclaw: 0x5b7fc7, // Lighter steel blue for dark background
+  Ravenclaw: 0x5b7fc7,
 };
 
 // Year badge/line colors
@@ -27,11 +27,11 @@ const YEAR_COLORS: Record<number, string> = {
   7: "#ff4654",
 };
 
-const getHouseColor = (house: House | null) => {
+function getHouseColor(house: House | null): string {
   if (!house) return "#888";
   const color = ANALYTICS_HOUSE_COLORS[house] ?? HOUSE_COLORS[house];
   return `#${color.toString(16).padStart(6, "0")}`;
-};
+}
 
 function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -49,9 +49,16 @@ function cleanDisplayName(name: string, vcEmoji: string): string {
 // Check if we're in the last 3 days of the month (mystery mode)
 function isInMysteryPeriod(): boolean {
   const now = dayjs();
-  const daysInMonth = now.daysInMonth();
-  const currentDay = now.date();
-  return currentDay > daysInMonth - 3;
+  return now.date() > now.daysInMonth() - 3;
+}
+
+async function fetchDisplayNames(discordIds: string[]): Promise<Map<string, string>> {
+  const guild = client.guilds.cache.get(process.env.GUILD_ID);
+  if (!guild) return new Map();
+  const members = await guild.members.fetch({ user: discordIds });
+  const displayNames = new Map<string, string>();
+  members.forEach((member, id) => displayNames.set(id, member.displayName));
+  return displayNames;
 }
 
 // Home - House scoreboard
@@ -87,17 +94,14 @@ analyticsRouter.get("/", async (req, res) => {
 
   let houses = weightedHouseData
     .filter((h): h is typeof h & { house: House } => h.house !== null)
-    .map((h) => {
-      const unweighted = unweightedMap.get(h.house);
-      return {
-        name: h.house,
-        color: getHouseColor(h.house),
-        points: h.totalPoints.toLocaleString(),
-        memberCount: h.memberCount,
-        unweightedPoints: unweighted?.unweightedPoints.toLocaleString() ?? "0",
-        totalMemberCount: unweighted?.totalMemberCount ?? 0,
-      };
-    });
+    .map((h) => ({
+      name: h.house,
+      color: getHouseColor(h.house),
+      points: h.totalPoints.toLocaleString(),
+      memberCount: h.memberCount,
+      unweightedPoints: unweightedMap.get(h.house)?.unweightedPoints.toLocaleString() ?? "0",
+      totalMemberCount: unweightedMap.get(h.house)?.totalMemberCount ?? 0,
+    }));
 
   const mysteryMode = isInMysteryPeriod() || req.query["mystery"] === "1";
   if (mysteryMode) {
@@ -108,63 +112,50 @@ analyticsRouter.get("/", async (req, res) => {
   res.render("houses", { title: "House Standings", houses, mysteryMode });
 });
 
-// Leaderboard
 analyticsRouter.get("/leaderboard", async (_req, res) => {
   const monthStart = await getMonthStartDate();
 
-  // Get todo points per user this month
-  const todoPointsData = await db
-    .select({
-      discordId: submissionTable.discordId,
-      todoPoints: sql<number>`COALESCE(sum(${submissionTable.points}), 0)`,
-    })
-    .from(submissionTable)
-    .where(and(gte(submissionTable.submittedAt, monthStart), eq(submissionTable.status, "APPROVED")))
-    .groupBy(submissionTable.discordId);
+  const [todoPointsData, userData, vcEmoji] = await Promise.all([
+    db
+      .select({
+        discordId: submissionTable.discordId,
+        todoPoints: sql<number>`COALESCE(sum(${submissionTable.points}), 0)`,
+      })
+      .from(submissionTable)
+      .where(and(gte(submissionTable.submittedAt, monthStart), eq(submissionTable.status, "APPROVED")))
+      .groupBy(submissionTable.discordId),
+    db
+      .select({
+        username: userTable.username,
+        discordId: userTable.discordId,
+        house: userTable.house,
+        monthlyPoints: userTable.monthlyPoints,
+        monthlyVoiceTime: userTable.monthlyVoiceTime,
+        messageStreak: userTable.messageStreak,
+      })
+      .from(userTable)
+      .where(gt(userTable.monthlyPoints, 0))
+      .orderBy(desc(userTable.monthlyPoints)),
+    getVCEmoji(),
+  ]);
+
   const todoPointsMap = new Map(todoPointsData.map((t) => [t.discordId, t.todoPoints]));
+  const displayNames = await fetchDisplayNames(userData.map((u) => u.discordId));
 
-  const userData = await db
-    .select({
-      username: userTable.username,
-      discordId: userTable.discordId,
-      house: userTable.house,
-      monthlyPoints: userTable.monthlyPoints,
-      monthlyVoiceTime: userTable.monthlyVoiceTime,
-      messageStreak: userTable.messageStreak,
-    })
-    .from(userTable)
-    .where(gt(userTable.monthlyPoints, 0))
-    .orderBy(desc(userTable.monthlyPoints));
-
-  // Fetch display names from Discord
-  const guild = client.guilds.cache.get(process.env.GUILD_ID);
-  const displayNames = new Map<string, string>();
-  if (guild) {
-    const members = await guild.members.fetch({ user: userData.map((u) => u.discordId) });
-    for (const [id, member] of members) {
-      displayNames.set(id, member.displayName);
-    }
-  }
-
-  const vcEmoji = await getVCEmoji();
-  const users = userData.map((u, i) => {
-    const todoPoints = todoPointsMap.get(u.discordId) ?? 0;
-    const voicePoints = Math.max(0, u.monthlyPoints - todoPoints);
-    return {
-      rank: i + 1,
-      discordId: u.discordId,
-      displayName: cleanDisplayName(displayNames.get(u.discordId) ?? u.username, vcEmoji),
-      house: u.house ?? "",
-      houseColor: getHouseColor(u.house),
-      monthlyPoints: u.monthlyPoints,
-      voicePoints,
-      todoPoints,
-      studyTime: formatTime(u.monthlyVoiceTime),
-      voiceTimeSeconds: u.monthlyVoiceTime,
-      yearRank: getYearFromMonthlyVoiceTime(u.monthlyVoiceTime) ?? 0,
-      messageStreak: `${u.messageStreak}`,
-    };
-  });
+  const users = userData.map((u, i) => ({
+    rank: i + 1,
+    discordId: u.discordId,
+    displayName: cleanDisplayName(displayNames.get(u.discordId) ?? u.username, vcEmoji),
+    house: u.house ?? "",
+    houseColor: getHouseColor(u.house),
+    monthlyPoints: u.monthlyPoints,
+    voicePoints: Math.max(0, u.monthlyPoints - (todoPointsMap.get(u.discordId) ?? 0)),
+    todoPoints: todoPointsMap.get(u.discordId) ?? 0,
+    studyTime: formatTime(u.monthlyVoiceTime),
+    voiceTimeSeconds: u.monthlyVoiceTime,
+    yearRank: getYearFromMonthlyVoiceTime(u.monthlyVoiceTime) ?? 0,
+    messageStreak: `${u.messageStreak}`,
+  }));
 
   const houseColors = {
     Gryffindor: getHouseColor("Gryffindor"),
@@ -176,123 +167,89 @@ analyticsRouter.get("/leaderboard", async (_req, res) => {
   res.render("leaderboard", { title: "Leaderboard", users, houseColors, yearColors: YEAR_COLORS });
 });
 
-// User detail
 analyticsRouter.get("/user/:id", async (req, res) => {
-  const { id } = req.params;
-
-  const [user] = await db.select().from(userTable).where(eq(userTable.discordId, id));
+  const userId = req.params.id;
+  const [user] = await db.select().from(userTable).where(eq(userTable.discordId, userId));
 
   if (!user) {
     res.status(404).render("error", { title: "Not Found", message: "User not found" });
     return;
   }
 
-  // Fetch display name from Discord
-  const guild = client.guilds.cache.get(process.env.GUILD_ID);
-  const member = guild ? await guild.members.fetch(id).catch(() => null) : null;
-  const vcEmoji = await getVCEmoji();
-  const displayName = cleanDisplayName(member?.displayName ?? user.username, vcEmoji);
+  const [monthStart, vcEmoji] = await Promise.all([getMonthStartDate(), getVCEmoji()]);
+  const displayNames = await fetchDisplayNames([userId]);
+  const displayName = cleanDisplayName(displayNames.get(userId) ?? user.username, vcEmoji);
 
-  const monthStart = await getMonthStartDate();
-  const sessions = await db
-    .select({
-      joinedAt: voiceSessionTable.joinedAt,
-      duration: voiceSessionTable.duration,
-    })
-    .from(voiceSessionTable)
-    .where(
-      and(
-        eq(voiceSessionTable.discordId, id),
-        eq(voiceSessionTable.isTracked, true),
-        gte(voiceSessionTable.joinedAt, monthStart),
+  const [sessions, submissions] = await Promise.all([
+    db
+      .select({ joinedAt: voiceSessionTable.joinedAt, duration: voiceSessionTable.duration })
+      .from(voiceSessionTable)
+      .where(
+        and(
+          eq(voiceSessionTable.discordId, userId),
+          eq(voiceSessionTable.isTracked, true),
+          gte(voiceSessionTable.joinedAt, monthStart),
+        ),
+      )
+      .orderBy(voiceSessionTable.joinedAt),
+    db
+      .select({ submittedAt: submissionTable.submittedAt, points: submissionTable.points })
+      .from(submissionTable)
+      .where(
+        and(
+          eq(submissionTable.discordId, userId),
+          eq(submissionTable.status, "APPROVED"),
+          gte(submissionTable.submittedAt, monthStart),
+        ),
       ),
-    )
-    .orderBy(voiceSessionTable.joinedAt);
-
-  const submissions = await db
-    .select({
-      submittedAt: submissionTable.submittedAt,
-      points: submissionTable.points,
-    })
-    .from(submissionTable)
-    .where(
-      and(
-        eq(submissionTable.discordId, id),
-        eq(submissionTable.status, "APPROVED"),
-        gte(submissionTable.submittedAt, monthStart),
-      ),
-    );
+  ]);
 
   const tz = user.timezone;
-
-  // Aggregate sessions by day (in user's timezone)
   const dailyHours = new Map<string, number>();
+  const dailyTodoPoints = new Map<string, number>();
+
   for (const s of sessions) {
     const day = dayjs(s.joinedAt).tz(tz).format("YYYY-MM-DD");
     dailyHours.set(day, (dailyHours.get(day) ?? 0) + (s.duration ?? 0) / 3600);
   }
-
-  // Aggregate submissions by day (in user's timezone)
-  const dailyTodoPoints = new Map<string, number>();
   for (const s of submissions) {
     const day = dayjs(s.submittedAt).tz(tz).format("YYYY-MM-DD");
     dailyTodoPoints.set(day, (dailyTodoPoints.get(day) ?? 0) + s.points);
   }
 
-  // Build chart data
+  const now = dayjs().tz(tz);
+  const daysInPeriod = now.diff(dayjs(monthStart).tz(tz), "day") + 1;
   const chartLabels: string[] = [];
   const chartHours: number[] = [];
   const chartTodoPoints: number[] = [];
   let cumulative = 0;
-  const now = dayjs().tz(tz);
-  const daysInPeriod = now.diff(dayjs(monthStart).tz(tz), "day") + 1;
+
   for (let i = daysInPeriod - 1; i >= 0; i--) {
-    const day = now.subtract(i, "day").format("YYYY-MM-DD");
-    const label = now.subtract(i, "day").format("MMM D");
+    const dayDate = now.subtract(i, "day");
+    const day = dayDate.format("YYYY-MM-DD");
     cumulative += dailyHours.get(day) ?? 0;
-    chartLabels.push(label);
+    chartLabels.push(dayDate.format("MMM D"));
     chartHours.push(Math.round(cumulative * 10) / 10);
     chartTodoPoints.push(dailyTodoPoints.get(day) ?? 0);
   }
 
-  const houseColor = getHouseColor(user.house);
-
-  // Year rank progress calculation
   const yearProgress = calculateYearProgress(user.monthlyVoiceTime);
-
-  // Calculate year threshold lines for chart (all years)
   const yearLines = YEAR_THRESHOLDS_HOURS.map((hours, i) => ({
     hours,
     label: `Year ${i + 1}`,
     color: YEAR_COLORS[i + 1] ?? "#888",
   }));
 
-  // Chart Y-axis max: next year threshold + 5, or null if at max year (auto-scale)
   const currentYear = getYearFromMonthlyVoiceTime(user.monthlyVoiceTime);
-  let chartYMax: number | null = null;
-  if (currentYear === null) {
-    chartYMax = YEAR_THRESHOLDS_HOURS[0] + 5;
-  } else if (currentYear === 1) {
-    chartYMax = YEAR_THRESHOLDS_HOURS[1] + 5;
-  } else if (currentYear === 2) {
-    chartYMax = YEAR_THRESHOLDS_HOURS[2] + 5;
-  } else if (currentYear === 3) {
-    chartYMax = YEAR_THRESHOLDS_HOURS[3] + 5;
-  } else if (currentYear === 4) {
-    chartYMax = YEAR_THRESHOLDS_HOURS[4] + 5;
-  } else if (currentYear === 5) {
-    chartYMax = YEAR_THRESHOLDS_HOURS[5] + 5;
-  } else if (currentYear === 6) {
-    chartYMax = YEAR_THRESHOLDS_HOURS[6] + 5;
-  }
-  // Year 7: chartYMax stays null (auto-scale)
+  const nextYearIndex = (currentYear ?? 0) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  const chartYMax = nextYearIndex < 7 ? YEAR_THRESHOLDS_HOURS[nextYearIndex] + 5 : null;
 
   res.render("user", {
     title: displayName,
     includeChartJs: true,
     displayName,
     house: user.house,
-    houseColor,
+    houseColor: getHouseColor(user.house),
     monthlyPoints: user.monthlyPoints,
     monthlyStudy: formatTime(user.monthlyVoiceTime),
     messageStreak: `${user.messageStreak}`,
@@ -320,20 +277,34 @@ interface YearProgress {
   isMax: boolean;
 }
 
-function calculateYearProgress(monthlyVoiceTime: number): YearProgress {
-  const currentYear = getYearFromMonthlyVoiceTime(monthlyVoiceTime);
-  const currentHours = monthlyVoiceTime / 3600;
+interface BarColors {
+  barStart: string;
+  barEnd: string;
+  barGlow: string;
+}
+const BAR_COLORS: Record<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, BarColors> = {
+  0: { barStart: "#4a4a4a", barEnd: "#6a6a6a", barGlow: "#555" },
+  1: { barStart: "#8b4513", barEnd: "#a0522d", barGlow: "#8b4513" },
+  2: { barStart: "#cd7f32", barEnd: "#daa520", barGlow: "#cd7f32" },
+  3: { barStart: "#c0c0c0", barEnd: "#d3d3d3", barGlow: "#c0c0c0" },
+  4: { barStart: "#ffd700", barEnd: "#ffec8b", barGlow: "#ffd700" },
+  5: { barStart: "#00ced1", barEnd: "#40e0d0", barGlow: "#00ced1" },
+  6: { barStart: "#9370db", barEnd: "#ba55d3", barGlow: "#9370db" },
+  7: { barStart: "#ffd700", barEnd: "#ffec8b", barGlow: "#ffd700" },
+};
 
-  if (currentYear === null) {
+function calculateYearProgress(monthlyVoiceTime: number): YearProgress {
+  const currentYear = (getYearFromMonthlyVoiceTime(monthlyVoiceTime) ?? 0) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  const currentHours = monthlyVoiceTime / 3600;
+  const colors = BAR_COLORS[currentYear];
+
+  if (currentYear === 0) {
     const nextThreshold = YEAR_THRESHOLDS_HOURS[0];
-    const progress = Math.min((currentHours / nextThreshold) * 100, 100);
     return {
       badge: "Year 0",
       badgeColor: "#888",
-      percent: progress,
-      barStart: "#4a4a4a",
-      barEnd: "#6a6a6a",
-      barGlow: "#555",
+      percent: Math.min((currentHours / nextThreshold) * 100, 100),
+      ...colors,
       text: `${currentHours.toFixed(1)}h / ${nextThreshold}h`,
       leftLabel: "0h",
       rightLabel: `Next: Year 1 (${nextThreshold}h)`,
@@ -346,9 +317,7 @@ function calculateYearProgress(monthlyVoiceTime: number): YearProgress {
       badge: "Year 7",
       badgeColor: "#ffd700",
       percent: 100,
-      barStart: "#ffd700",
-      barEnd: "#ffec8b",
-      barGlow: "#ffd700",
+      ...colors,
       text: `${currentHours.toFixed(1)}h - Maximum Rank!`,
       leftLabel: `${YEAR_THRESHOLDS_HOURS[6]}h`,
       rightLabel: "Maximum rank achieved",
@@ -356,31 +325,16 @@ function calculateYearProgress(monthlyVoiceTime: number): YearProgress {
     };
   }
 
-  // Years 1-6
-  const thresholdIndex = (currentYear - 1) as 0 | 1 | 2 | 3 | 4 | 5;
-  const currentThreshold = YEAR_THRESHOLDS_HOURS[thresholdIndex];
+  const prevThreshold = YEAR_THRESHOLDS_HOURS[(currentYear - 1) as 0 | 1 | 2 | 3 | 4 | 5];
   const nextThreshold = YEAR_THRESHOLDS_HOURS[currentYear];
-  const progress = ((currentHours - currentThreshold) / (nextThreshold - currentThreshold)) * 100;
-
-  const barColors = {
-    1: { start: "#8b4513", end: "#a0522d", glow: "#8b4513" },
-    2: { start: "#cd7f32", end: "#daa520", glow: "#cd7f32" },
-    3: { start: "#c0c0c0", end: "#d3d3d3", glow: "#c0c0c0" },
-    4: { start: "#ffd700", end: "#ffec8b", glow: "#ffd700" },
-    5: { start: "#00ced1", end: "#40e0d0", glow: "#00ced1" },
-    6: { start: "#9370db", end: "#ba55d3", glow: "#9370db" },
-  } as const;
-  const colors = barColors[currentYear];
 
   return {
     badge: `Year ${currentYear}`,
-    badgeColor: colors.start,
-    percent: progress,
-    barStart: colors.start,
-    barEnd: colors.end,
-    barGlow: colors.glow,
+    badgeColor: colors.barStart,
+    percent: ((currentHours - prevThreshold) / (nextThreshold - prevThreshold)) * 100,
+    ...colors,
     text: `${currentHours.toFixed(1)}h / ${nextThreshold}h`,
-    leftLabel: `${currentThreshold}h`,
+    leftLabel: `${prevThreshold}h`,
     rightLabel: `Next: Year ${currentYear + 1} (${nextThreshold}h)`,
     isMax: false,
   };

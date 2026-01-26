@@ -10,10 +10,7 @@
   }
 
   /* Mystery Mode - Last 3 days of month */
-  .mystery-mode .rank-badge {
-    display: none;
-  }
-
+  .mystery-mode .rank-badge,
   .mystery-mode .house-points-overlay {
     display: none;
   }
@@ -65,15 +62,14 @@
     animation: mysterySmokeAlt 7s ease-in-out infinite;
   }
 
-  /* Stagger animations per hourglass */
-  .mystery-mode .hourglass-wrapper:nth-child(1) .glass-bulb::after { animation-delay: 0s; }
-  .mystery-mode .hourglass-wrapper:nth-child(1) .glass-bulb.lower::after { animation-delay: -1.5s; }
-  .mystery-mode .hourglass-wrapper:nth-child(2) .glass-bulb::after { animation-delay: -2s; }
-  .mystery-mode .hourglass-wrapper:nth-child(2) .glass-bulb.lower::after { animation-delay: -4s; }
-  .mystery-mode .hourglass-wrapper:nth-child(3) .glass-bulb::after { animation-delay: -3.5s; }
-  .mystery-mode .hourglass-wrapper:nth-child(3) .glass-bulb.lower::after { animation-delay: -1s; }
-  .mystery-mode .hourglass-wrapper:nth-child(4) .glass-bulb::after { animation-delay: -5s; }
-  .mystery-mode .hourglass-wrapper:nth-child(4) .glass-bulb.lower::after { animation-delay: -2.5s; }
+  /* Stagger animations per hourglass via CSS custom properties */
+  .hourglass-wrapper:nth-child(1) { --smoke-delay: 0s; --smoke-lower-delay: -1.5s; --glow-delay: 0s; --pulse-delay: -0.5s; }
+  .hourglass-wrapper:nth-child(2) { --smoke-delay: -2s; --smoke-lower-delay: -4s; --glow-delay: -1.2s; --pulse-delay: -2s; }
+  .hourglass-wrapper:nth-child(3) { --smoke-delay: -3.5s; --smoke-lower-delay: -1s; --glow-delay: -2.8s; --pulse-delay: -3s; }
+  .hourglass-wrapper:nth-child(4) { --smoke-delay: -5s; --smoke-lower-delay: -2.5s; --glow-delay: -4s; --pulse-delay: -1s; }
+
+  .mystery-mode .glass-bulb::after { animation-delay: var(--smoke-delay); }
+  .mystery-mode .glass-bulb.lower::after { animation-delay: var(--smoke-lower-delay); }
 
   /* Ethereal glow around hourglass */
   .mystery-mode .hourglass-container::before {
@@ -87,21 +83,10 @@
     filter: blur(20px);
   }
 
-  /* Stagger glow per hourglass */
-  .mystery-mode .hourglass-wrapper:nth-child(1) .hourglass-container::before { animation-delay: 0s; }
-  .mystery-mode .hourglass-wrapper:nth-child(2) .hourglass-container::before { animation-delay: -1.2s; }
-  .mystery-mode .hourglass-wrapper:nth-child(3) .hourglass-container::before { animation-delay: -2.8s; }
-  .mystery-mode .hourglass-wrapper:nth-child(4) .hourglass-container::before { animation-delay: -4s; }
+  .mystery-mode .hourglass-container::before { animation-delay: var(--glow-delay); }
 
   /* Subtle pulsing on the whole hourglass */
-  .mystery-mode .hourglass {
-    animation: mysteryPulse 4s ease-in-out infinite;
-  }
-
-  .mystery-mode .hourglass-wrapper:nth-child(1) .hourglass { animation-delay: -0.5s; }
-  .mystery-mode .hourglass-wrapper:nth-child(2) .hourglass { animation-delay: -2s; }
-  .mystery-mode .hourglass-wrapper:nth-child(3) .hourglass { animation-delay: -3s; }
-  .mystery-mode .hourglass-wrapper:nth-child(4) .hourglass { animation-delay: -1s; }
+  .mystery-mode .hourglass { animation: mysteryPulse 4s ease-in-out infinite; animation-delay: var(--pulse-delay); }
 
   /* Rising bubbles - use dedicated elements */
   .mystery-bubbles {
@@ -124,38 +109,28 @@
     height: 4px;
     background: radial-gradient(circle, rgba(180, 150, 255, 0.9) 0%, rgba(150, 180, 255, 0.6) 50%, transparent 70%);
     border-radius: 50%;
-    animation: riseBubble linear infinite;
     box-shadow: 0 0 6px rgba(160, 140, 255, 0.8);
   }
+  /* Bubble base positions and sizes */
+  .mystery-mode .mystery-bubbles span:nth-child(1) { left: 15%; width: 3px; height: 3px; animation-duration: 4s; }
+  .mystery-mode .mystery-bubbles span:nth-child(2) { left: 35%; width: 5px; height: 5px; animation-duration: 5s; }
+  .mystery-mode .mystery-bubbles span:nth-child(3) { left: 55%; width: 3px; height: 3px; animation-duration: 4.5s; }
+  .mystery-mode .mystery-bubbles span:nth-child(4) { left: 75%; width: 4px; height: 4px; animation-duration: 5.5s; }
+  .mystery-mode .mystery-bubbles span:nth-child(5) { left: 25%; width: 2px; height: 2px; animation-duration: 3.5s; }
+  .mystery-mode .mystery-bubbles span:nth-child(6) { left: 65%; width: 3px; height: 3px; animation-duration: 4.2s; }
 
-  .mystery-mode .mystery-bubbles span:nth-child(1) { left: 15%; width: 3px; height: 3px; animation-duration: 4s; animation-delay: 0s; }
-  .mystery-mode .mystery-bubbles span:nth-child(2) { left: 35%; width: 5px; height: 5px; animation-duration: 5s; animation-delay: -1s; }
-  .mystery-mode .mystery-bubbles span:nth-child(3) { left: 55%; width: 3px; height: 3px; animation-duration: 4.5s; animation-delay: -2s; }
-  .mystery-mode .mystery-bubbles span:nth-child(4) { left: 75%; width: 4px; height: 4px; animation-duration: 5.5s; animation-delay: -0.5s; }
-  .mystery-mode .mystery-bubbles span:nth-child(5) { left: 25%; width: 2px; height: 2px; animation-duration: 3.5s; animation-delay: -3s; }
-  .mystery-mode .mystery-bubbles span:nth-child(6) { left: 65%; width: 3px; height: 3px; animation-duration: 4.2s; animation-delay: -1.5s; }
+  /* Bubble delays via CSS custom properties per hourglass */
+  .hourglass-wrapper:nth-child(1) { --b1: 0s; --b2: -1s; --b3: -2s; --b4: -0.5s; --b5: -3s; --b6: -1.5s; }
+  .hourglass-wrapper:nth-child(2) { --b1: -0.7s; --b2: -2.3s; --b3: -3.8s; --b4: -1.2s; --b5: -4.5s; --b6: -0.3s; }
+  .hourglass-wrapper:nth-child(3) { --b1: -1.5s; --b2: -3.2s; --b3: -0.8s; --b4: -2.7s; --b5: -1.1s; --b6: -4.0s; }
+  .hourglass-wrapper:nth-child(4) { --b1: -2.2s; --b2: -0.5s; --b3: -3.5s; --b4: -1.8s; --b5: -2.9s; --b6: -0.9s; }
 
-  /* Stagger per hourglass - different delays */
-  .mystery-mode .hourglass-wrapper:nth-child(2) .mystery-bubbles span:nth-child(1) { animation-delay: -0.7s; }
-  .mystery-mode .hourglass-wrapper:nth-child(2) .mystery-bubbles span:nth-child(2) { animation-delay: -2.3s; }
-  .mystery-mode .hourglass-wrapper:nth-child(2) .mystery-bubbles span:nth-child(3) { animation-delay: -3.8s; }
-  .mystery-mode .hourglass-wrapper:nth-child(2) .mystery-bubbles span:nth-child(4) { animation-delay: -1.2s; }
-  .mystery-mode .hourglass-wrapper:nth-child(2) .mystery-bubbles span:nth-child(5) { animation-delay: -4.5s; }
-  .mystery-mode .hourglass-wrapper:nth-child(2) .mystery-bubbles span:nth-child(6) { animation-delay: -0.3s; }
-
-  .mystery-mode .hourglass-wrapper:nth-child(3) .mystery-bubbles span:nth-child(1) { animation-delay: -1.5s; }
-  .mystery-mode .hourglass-wrapper:nth-child(3) .mystery-bubbles span:nth-child(2) { animation-delay: -3.2s; }
-  .mystery-mode .hourglass-wrapper:nth-child(3) .mystery-bubbles span:nth-child(3) { animation-delay: -0.8s; }
-  .mystery-mode .hourglass-wrapper:nth-child(3) .mystery-bubbles span:nth-child(4) { animation-delay: -2.7s; }
-  .mystery-mode .hourglass-wrapper:nth-child(3) .mystery-bubbles span:nth-child(5) { animation-delay: -1.1s; }
-  .mystery-mode .hourglass-wrapper:nth-child(3) .mystery-bubbles span:nth-child(6) { animation-delay: -4.0s; }
-
-  .mystery-mode .hourglass-wrapper:nth-child(4) .mystery-bubbles span:nth-child(1) { animation-delay: -2.2s; }
-  .mystery-mode .hourglass-wrapper:nth-child(4) .mystery-bubbles span:nth-child(2) { animation-delay: -0.5s; }
-  .mystery-mode .hourglass-wrapper:nth-child(4) .mystery-bubbles span:nth-child(3) { animation-delay: -3.5s; }
-  .mystery-mode .hourglass-wrapper:nth-child(4) .mystery-bubbles span:nth-child(4) { animation-delay: -1.8s; }
-  .mystery-mode .hourglass-wrapper:nth-child(4) .mystery-bubbles span:nth-child(5) { animation-delay: -2.9s; }
-  .mystery-mode .hourglass-wrapper:nth-child(4) .mystery-bubbles span:nth-child(6) { animation-delay: -0.9s; }
+  .mystery-mode .mystery-bubbles span:nth-child(1) { animation-delay: var(--b1); }
+  .mystery-mode .mystery-bubbles span:nth-child(2) { animation-delay: var(--b2); }
+  .mystery-mode .mystery-bubbles span:nth-child(3) { animation-delay: var(--b3); }
+  .mystery-mode .mystery-bubbles span:nth-child(4) { animation-delay: var(--b4); }
+  .mystery-mode .mystery-bubbles span:nth-child(5) { animation-delay: var(--b5); }
+  .mystery-mode .mystery-bubbles span:nth-child(6) { animation-delay: var(--b6); }
 
   @keyframes mysterySmoke {
     0%, 100% {
@@ -272,10 +247,10 @@
     animation: fadeSlideUp 0.6s ease-out both;
   }
 
-  .hourglass-wrapper:nth-child(1) { animation-delay: 0.1s; }
-  .hourglass-wrapper:nth-child(2) { animation-delay: 0.2s; }
-  .hourglass-wrapper:nth-child(3) { animation-delay: 0.3s; }
-  .hourglass-wrapper:nth-child(4) { animation-delay: 0.4s; }
+  .hourglass-wrapper:nth-child(1) { animation-delay: 0.1s; --entry-delay: 0.1s; }
+  .hourglass-wrapper:nth-child(2) { animation-delay: 0.2s; --entry-delay: 0.2s; }
+  .hourglass-wrapper:nth-child(3) { animation-delay: 0.3s; --entry-delay: 0.3s; }
+  .hourglass-wrapper:nth-child(4) { animation-delay: 0.4s; --entry-delay: 0.4s; }
 
   /* Ranking Badge */
   .rank-badge {
@@ -356,12 +331,11 @@
     content: '';
     position: absolute;
     left: 50%;
-    transform: translateX(-50%);
+    top: 50%;
+    transform: translate(-50%, -50%);
     width: 100px;
     height: 4px;
     background: linear-gradient(90deg, transparent 0%, rgba(255,215,0,0.25) 50%, transparent 100%);
-    top: 50%;
-    margin-top: -2px;
   }
 
   .hourglass-cap.top { top: 0; }
@@ -436,7 +410,7 @@
     );
   }
 
-  /* Glass shine effect */
+  /* Glass shine effect & sand texture base */
   .glass-bulb::before {
     content: '';
     position: absolute;
@@ -449,11 +423,9 @@
     z-index: 4;
   }
 
-  /* Sand texture base - grainy noise */
   .sand-fill,
   .sand-fill-upper {
-    background-image:
-      url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
     background-blend-mode: overlay;
   }
 
@@ -471,7 +443,7 @@
       inset 0 6px 12px rgba(255, 255, 255, 0.15);
   }
 
-  /* Sand bottom surface (flat) */
+  /* Sand fill upper - flat bottom surface */
   .sand-fill-upper::after {
     content: '';
     position: absolute;
@@ -482,7 +454,7 @@
     background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.25) 100%);
   }
 
-  /* Sand fill in lower bulb */
+  /* Sand fill lower */
   .sand-fill {
     position: absolute;
     bottom: 4px;
@@ -497,7 +469,7 @@
       0 0 20px var(--house-color-fade);
   }
 
-  /* Sand top surface (mounded) */
+  /* Sand fill lower - mounded top surface */
   .sand-fill::before {
     content: '';
     position: absolute;
@@ -509,7 +481,7 @@
     border-radius: 50%;
   }
 
-  /* Grain overlay for both */
+  /* Grain overlay */
   .sand-fill::after,
   .sand-fill-upper::before {
     content: '';
@@ -567,7 +539,7 @@
   .hourglass-neck::before { top: -4px; }
   .hourglass-neck::after { bottom: -4px; }
 
-  /* House Info Overlay - positioned in lower half of hourglass */
+  /* House info overlay */
   .house-overlay {
     position: absolute;
     bottom: 60px;
@@ -587,18 +559,6 @@
     display: block;
   }
 
-  .house-name-overlay {
-    font-family: 'Cinzel', serif;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #fff;
-    text-shadow:
-      0 0 10px rgba(0,0,0,0.9),
-      0 0 20px rgba(0,0,0,0.7),
-      0 2px 4px rgba(0,0,0,0.9);
-    letter-spacing: 0.05em;
-  }
-
   .house-points-overlay {
     font-family: 'Outfit', sans-serif;
     font-size: 1.6rem;
@@ -612,7 +572,6 @@
     margin-top: 0.15rem;
   }
 
-  /* Bottom info */
   .house-info {
     text-align: center;
     min-width: 110px;
@@ -623,7 +582,7 @@
     color: var(--text-muted);
   }
 
-  /* Hover glow */
+  /* Hover effects */
   .hourglass-wrapper:hover .glass-bulb {
     border-color: var(--house-color);
     box-shadow: inset 0 0 25px var(--house-color-fade);
@@ -734,98 +693,58 @@
     margin-top: 2.5rem;
   }
 
-  /* Responsive */
+  /* Responsive - tablet */
   @media (max-width: 700px) {
-    .hourglasses-container {
-      gap: 1rem;
-      padding: 1.5rem 0.5rem 2rem;
-    }
-
-    .hourglass {
-      width: 85px;
-      height: 320px;
-    }
-
-    .house-overlay {
-      bottom: 45px;
-    }
-
-    .hourglass-cap {
-      width: 95px;
-      height: 16px;
-    }
-
+    .hourglasses-container { gap: 1rem; padding: 1.5rem 0.5rem 2rem; }
+    .hourglass { width: 85px; height: 320px; }
+    .hourglass-cap { width: 95px; height: 16px; }
     .hourglass-cap::before { width: 70px; height: 3px; }
-
     .hourglass-pillar { width: 7px; }
     .hourglass-pillar.left { left: 6px; }
     .hourglass-pillar.right { right: 6px; }
-
-    .hourglass-glass {
-      top: 16px;
-      bottom: 16px;
-      left: 13px;
-      right: 13px;
-    }
-
+    .hourglass-glass { top: 16px; bottom: 16px; left: 13px; right: 13px; }
     .hourglass-neck { width: 16px; height: 20px; }
     .hourglass-neck::before, .hourglass-neck::after { width: 26px; height: 6px; }
-
+    .house-overlay { bottom: 45px; }
     .house-crest { width: 2rem; height: 2rem; }
     .house-name-overlay { font-size: 0.7rem; }
     .house-points-overlay { font-size: 1.3rem; }
     .house-members { font-size: 0.7rem; }
     .rank-badge { font-size: 0.95rem; padding: 0.4rem 0.8rem; }
-
     .unweighted-grid { grid-template-columns: repeat(2, 1fr); }
     .unweighted-card { padding: 1rem; }
     .unweighted-name { font-size: 0.8rem; }
     .unweighted-points { font-size: 1.2rem; }
   }
 
+  /* Responsive - mobile */
   @media (max-width: 480px) {
-    .hourglass {
-      width: 65px;
-      height: 260px;
-    }
-
-    .house-overlay {
-      bottom: 35px;
-    }
-
+    .hourglasses-container { gap: 0.5rem; }
+    .hourglass { width: 65px; height: 260px; }
     .hourglass-cap { width: 75px; height: 14px; }
     .hourglass-pillar { width: 6px; }
     .hourglass-pillar.left { left: 4px; }
     .hourglass-pillar.right { right: 4px; }
-
-    .hourglass-glass {
-      top: 14px;
-      bottom: 14px;
-      left: 10px;
-      right: 10px;
-    }
-
+    .hourglass-glass { top: 14px; bottom: 14px; left: 10px; right: 10px; }
     .hourglass-neck { width: 12px; height: 16px; }
     .hourglass-neck::before, .hourglass-neck::after { width: 20px; height: 5px; }
-
+    .house-overlay { bottom: 35px; }
     .house-crest { width: 1.5rem; height: 1.5rem; }
     .house-name-overlay { font-size: 0.6rem; }
     .house-points-overlay { font-size: 1.1rem; }
-
-    .hourglasses-container { gap: 0.5rem; }
     .rank-badge { font-size: 0.8rem; padding: 0.3rem 0.6rem; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-{# House crest images #}
 {% set houseCrests = {
   'Gryffindor': '/assets/8854-gryffindor.png',
   'Hufflepuff': '/assets/5200-hufflepuff.png',
   'Ravenclaw': '/assets/3661-ravenclaw.png',
   'Slytherin': '/assets/8854-slytherin.png'
 } %}
+{% set ordinals = ['1st', '2nd', '3rd', '4th'] %}
 
 <div class="{{ mysteryMode ? 'mystery-mode' : '' }}">
 
@@ -842,37 +761,19 @@
 
 <div class="hourglasses-container">
   {% for house in houses %}
-    {# Calculate fill percentage - max at 300 points #}
-    {% set maxPointsBase = 300 %}
-    {% set lowerFillPercent = ((house.points / maxPointsBase) * 100) %}
-    {% set lowerFillPercent = lowerFillPercent > 100 ? 100 : lowerFillPercent %}
-    {% set lowerFillPercent = lowerFillPercent < 10 and house.points > 0 ? 10 : lowerFillPercent %}
-
-    {# Overflow into upper bulb if > 300 points #}
-    {% set overflowPoints = house.points > maxPointsBase ? house.points - maxPointsBase : 0 %}
-    {% set upperFillPercent = overflowPoints > 0 ? ((overflowPoints / maxPointsBase) * 100) : 35 %}
-    {% set upperFillPercent = upperFillPercent > 100 ? 100 : upperFillPercent %}
-
-    {# Determine rank class #}
-    {% set rankClass = 'rank-' ~ loop.index %}
-
-    {# Generate color variants #}
-    {% set houseColorLight = house.color ~ 'dd' %}
-    {% set houseColorDark = house.color ~ '88' %}
-    {% set houseColorFade = house.color ~ '50' %}
+    {% set maxPoints = 300 %}
+    {% set rawLower = (house.points / maxPoints) * 100 %}
+    {% set lowerFillPercent = min(100, rawLower < 10 and house.points > 0 ? 10 : rawLower) %}
+    {% set overflowPoints = max(0, house.points - maxPoints) %}
+    {% set upperFillPercent = overflowPoints > 0 ? min(100, (overflowPoints / maxPoints) * 100) : 35 %}
 
     <div class="hourglass-wrapper" style="
       --house-color: {{ house.color }};
-      --house-color-light: {{ houseColorLight }};
-      --house-color-dark: {{ houseColorDark }};
-      --house-color-fade: {{ houseColorFade }};
+      --house-color-light: {{ house.color }}dd;
+      --house-color-dark: {{ house.color }}88;
+      --house-color-fade: {{ house.color }}50;
     ">
-      <div class="rank-badge {{ rankClass }}">
-        {% if loop.index == 1 %}1st
-        {% elseif loop.index == 2 %}2nd
-        {% elseif loop.index == 3 %}3rd
-        {% else %}4th{% endif %}
-      </div>
+      <div class="rank-badge rank-{{ loop.index }}">{{ ordinals[loop.index0] }}</div>
 
       <div class="hourglass-container">
         <div class="hourglass">
@@ -895,10 +796,8 @@
           </div>
         </div>
 
-        <!-- Overlay: Crest + Name + Points -->
         <div class="house-overlay">
           <img class="house-crest" src="{{ houseCrests[house.name] }}" alt="{{ house.name }}">
-          {# <div class="house-name-overlay">{{ house.name }}</div> #}
           <div class="house-points-overlay">{{ house.points|number_format }}</div>
         </div>
       </div>
@@ -915,12 +814,7 @@
 
   <div class="unweighted-grid">
     {% for house in houses %}
-      <div class="unweighted-card" style="
-        --house-color: {{ house.color }};
-        --house-color-light: {{ house.color }}dd;
-        --house-color-dark: {{ house.color }}88;
-        --house-color-fade: {{ house.color }}40;
-      ">
+      <div class="unweighted-card" style="--house-color: {{ house.color }}; --house-color-light: {{ house.color }}dd; --house-color-dark: {{ house.color }}88; --house-color-fade: {{ house.color }}40;">
         <div class="unweighted-dot"></div>
         <div class="unweighted-info">
           <div class="unweighted-name">{{ house.name }}</div>
