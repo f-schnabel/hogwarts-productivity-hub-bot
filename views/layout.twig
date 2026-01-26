@@ -282,12 +282,40 @@
       100% { background-position: -200% center; }
     }
 
-    /* Responsive */
+    /* Responsive - tablet */
+    @media (max-width: 768px) {
+      /* Perf: disable noise texture early */
+      body::after { display: none; }
+      /* Perf: reduce backdrop blur */
+      nav, .card, .table-wrapper {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+    }
+
+    /* Responsive - mobile */
     @media (max-width: 640px) {
       .page-wrapper { padding: 1rem; }
       nav { flex-wrap: wrap; }
       .table-wrapper { overflow-x: auto; }
       th, td { padding: 0.75rem 1rem; font-size: 0.9rem; }
+
+      /* Perf: disable expensive backdrop-filter, use solid bg */
+      nav, .card, .table-wrapper {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: rgba(20, 20, 35, 0.95);
+      }
+      /* Perf: disable fixed overlays (cause scroll jank) */
+      body::before, body::after { display: none; }
+      /* Perf: disable shimmer animation */
+      h1 { animation: fadeSlideDown 0.8s ease-out 0.1s both; }
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; }
+      html { scroll-behavior: auto; }
     }
   </style>
   {% block styles %}{% endblock %}
