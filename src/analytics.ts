@@ -52,13 +52,24 @@ function isInMysteryPeriod(): boolean {
   return now.date() > now.daysInMonth() - 3;
 }
 
-async function fetchDisplayNames(discordIds: string[]): Promise<Map<string, string>> {
+interface MemberInfo {
+  displayName: string;
+  isProfessor: boolean;
+}
+
+async function fetchMemberInfo(discordIds: string[]): Promise<Map<string, MemberInfo>> {
   const guild = client.guilds.cache.get(process.env.GUILD_ID);
   if (!guild) return new Map();
   const members = await guild.members.fetch({ user: discordIds });
-  const displayNames = new Map<string, string>();
-  members.forEach((member, id) => displayNames.set(id, member.displayName));
-  return displayNames;
+  const info = new Map<string, MemberInfo>();
+  const professorRoleId = process.env.PROFESSOR_ROLE_ID;
+  members.forEach((member, id) =>
+    info.set(id, {
+      displayName: member.displayName,
+      isProfessor: professorRoleId ? member.roles.cache.has(professorRoleId) : false,
+    }),
+  );
+  return info;
 }
 
 // Home - House scoreboard
@@ -148,22 +159,25 @@ analyticsRouter.get("/leaderboard", async (_req, res) => {
   ]);
 
   const todoPointsMap = new Map(todoPointsData.map((t) => [t.discordId, t.todoPoints]));
-  const displayNames = await fetchDisplayNames(userData.map((u) => u.discordId));
+  const memberInfo = await fetchMemberInfo(userData.map((u) => u.discordId));
 
-  const users = userData.map((u, i) => ({
-    rank: i + 1,
-    discordId: u.discordId,
-    displayName: cleanDisplayName(displayNames.get(u.discordId) ?? u.username, vcEmoji),
-    house: u.house ?? "",
-    houseColor: getHouseColor(u.house),
-    monthlyPoints: u.monthlyPoints,
-    voicePoints: Math.max(0, u.monthlyPoints - (todoPointsMap.get(u.discordId) ?? 0)),
-    todoPoints: todoPointsMap.get(u.discordId) ?? 0,
-    studyTime: formatTime(u.monthlyVoiceTime),
-    voiceTimeSeconds: u.monthlyVoiceTime,
-    yearRank: getYearFromMonthlyVoiceTime(u.monthlyVoiceTime) ?? 0,
-    messageStreak: `${u.messageStreak}`,
-  }));
+  const users = userData.map((u, i) => {
+    const info = memberInfo.get(u.discordId);
+    return {
+      rank: i + 1,
+      discordId: u.discordId,
+      displayName: cleanDisplayName(info?.displayName ?? u.username, vcEmoji),
+      house: u.house ?? "",
+      houseColor: getHouseColor(u.house),
+      monthlyPoints: u.monthlyPoints,
+      voicePoints: Math.max(0, u.monthlyPoints - (todoPointsMap.get(u.discordId) ?? 0)),
+      todoPoints: todoPointsMap.get(u.discordId) ?? 0,
+      studyTime: formatTime(u.monthlyVoiceTime),
+      voiceTimeSeconds: u.monthlyVoiceTime,
+      yearRank: getYearFromMonthlyVoiceTime(u.monthlyVoiceTime) ?? 0,
+      messageStreak: info?.isProfessor ? "-" : `${u.messageStreak}`,
+    };
+  });
 
   const houseColors = {
     Gryffindor: getHouseColor("Gryffindor"),
@@ -185,8 +199,9 @@ analyticsRouter.get("/user/:id", async (req, res) => {
   }
 
   const [monthStart, vcEmoji] = await Promise.all([getMonthStartDate(), getVCEmoji()]);
-  const displayNames = await fetchDisplayNames([userId]);
-  const displayName = cleanDisplayName(displayNames.get(userId) ?? user.username, vcEmoji);
+  const memberInfo = await fetchMemberInfo([userId]);
+  const info = memberInfo.get(userId);
+  const displayName = cleanDisplayName(info?.displayName ?? user.username, vcEmoji);
 
   const [sessions, submissions] = await Promise.all([
     db
@@ -260,7 +275,7 @@ analyticsRouter.get("/user/:id", async (req, res) => {
     houseColor: getHouseColor(user.house),
     monthlyPoints: user.monthlyPoints,
     monthlyStudy: formatTime(user.monthlyVoiceTime),
-    messageStreak: `${user.messageStreak}`,
+    messageStreak: info?.isProfessor ? "-" : `${user.messageStreak}`,
     totalPoints: user.totalPoints,
     totalStudy: formatTime(user.totalVoiceTime),
     yearProgress,
