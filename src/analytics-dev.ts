@@ -39,6 +39,7 @@ app.set("view engine", "twig");
 app.set("views", path.join(import.meta.dirname, "..", "views"));
 app.set("twig options", { allowAsync: true, strict_variables: false });
 Twig.cache(false); // Disable cache for dev - instant template reloads
+app.use(express.static(path.join(import.meta.dirname, "..", "public")));
 app.use(analyticsRouter);
 
 const PORT = 3001;
