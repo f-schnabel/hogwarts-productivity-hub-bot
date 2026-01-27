@@ -269,14 +269,15 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
     yearProgressValue = `**Year 7** (${YEAR_THRESHOLDS_HOURS[6]}h+)\n${"▓".repeat(width)} (${currentHours.toFixed(0)}h)\nMaximum rank achieved`;
   } else {
     const nextThreshold = YEAR_THRESHOLDS_HOURS[currentYear];
-    const nextNextThreshold = YEAR_THRESHOLDS_HOURS[currentYear + 1];
-    assert(nextNextThreshold !== undefined, "Next next threshold should be defined for years < 7");
+    assert(nextThreshold !== undefined, "Next threshold should be defined for years < 7");
     const currentThreshold = YEAR_THRESHOLDS_HOURS[currentYear - 1];
     assert(currentThreshold !== undefined, "Current threshold should be defined for years >= 1");
     const progress = (currentHours - currentThreshold) / (nextThreshold - currentThreshold);
     const filled = Math.round(progress * width);
     const bar = "▓".repeat(filled) + "░".repeat(width - filled);
-    yearProgressValue = `**Year ${currentYear}** (${currentThreshold}h - ${nextThreshold}h)\n${bar} ${currentHours.toFixed(0)}/${nextThreshold}h\nNext rank: **Year ${currentYear + 1}** (${nextThreshold}h - ${nextNextThreshold}h)`;
+    const nextNextThreshold = YEAR_THRESHOLDS_HOURS[currentYear + 1];
+    const nextRankRange = nextNextThreshold !== undefined ? `${nextThreshold}h - ${nextNextThreshold}h` : `${nextThreshold}h+`;
+    yearProgressValue = `**Year ${currentYear}** (${currentThreshold}h - ${nextThreshold}h)\n${bar} ${currentHours.toFixed(0)}/${nextThreshold}h\nNext rank: **Year ${currentYear + 1}** (${nextRankRange})`;
   }
 
   await interaction.editReply({
