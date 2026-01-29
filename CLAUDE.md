@@ -42,14 +42,14 @@ npx drizzle-kit generate   # Generate new migration from schema changes
 
 **Entry Point**: `src/index.ts` initializes bot, registers events, starts scheduler, handles graceful shutdown.
 
-**Events**: Located in `src/events/`:
+**Events**: Located in `src/discord/events/`:
 
 - `clientReady.ts` - Bot startup
 - `interactionCreate.ts` - Slash commands & button interactions
 - `messageCreate.ts` - Message tracking for streaks
 - `voiceStateUpdate.ts` - Voice channel join/leave/switch
 
-**Commands**: Located in `src/commands/`, registered in `src/commands.ts`:
+**Commands**: Located in `src/discord/commands/`, registered in `src/discord/commands.ts`:
 
 - `admin.ts` - Admin commands (adjust-points, reset-monthly-points, reset-total-points, refresh-ranks, vc-emoji)
 - `scoreboard.ts` - House/user scoreboards
@@ -67,8 +67,22 @@ Each command exports:
 **Services** (in `src/services/`):
 
 - `pointsService.ts` - Points awarding logic
+- `centralResetService.ts` - Timezone-based daily resets
+
+**Discord Utils** (in `src/discord/utils/`):
+
 - `scoreboardService.ts` - Scoreboard management
 - `voiceStateScanner.ts` - Voice state scanning on startup
+- `voiceUtils.ts` - Voice session tracking
+- `yearRoleUtils.ts` - Year role progression
+- `alerting.ts` - Error alerting to bot owner
+
+**Common** (in `src/common/`):
+
+- `logger.ts` - Structured logging
+- `console.ts` - Syslog-style console output
+- `monitoring.ts` - Prometheus metrics
+- `constants.ts` - Shared constants
 
 ### Database Schema
 
@@ -90,13 +104,13 @@ Each command exports:
 - Max 12 hours tracked per day
 - Points also awarded via submissions
 
-**Year Roles** (`src/utils/yearRoleUtils.ts`):
+**Year Roles** (`src/discord/utils/yearRoleUtils.ts`):
 
 - Users progress Year 1-7 based on monthly voice time
 - Thresholds: 1, 10, 20, 40, 80, 100, 120 hours
 - Announcements sent to configured channel on promotion
 
-**Timezone-Based Daily Resets** (`src/scheduler/centralResetService.ts`):
+**Timezone-Based Daily Resets** (`src/services/centralResetService.ts`):
 
 - Runs hourly cron job to check users needing reset
 - Per-user timezone handling (users reset at their local midnight)
@@ -105,7 +119,7 @@ Each command exports:
 - Handles message streaks (resets to 0 if user didn't meet min messages)
 - Server boosters get automatic daily streak credit
 
-**Voice Session Tracking** (`src/utils/voiceUtils.ts`):
+**Voice Session Tracking** (`src/discord/utils/voiceUtils.ts`):
 
 - Sessions tracked in DB with join/leave timestamps
 - Points awarded on session end (only if >= 1 min and user in DB)
@@ -118,29 +132,29 @@ Each command exports:
 - Streak increments once per day on threshold hit
 - Boosters automatically maintain streak
 
-**Analytics Dashboard** (`src/analytics.ts`):
+**Analytics Dashboard** (`src/web/analytics.ts`):
 
 - Web dashboard with Twig templates (in `views/`)
 - Routes: house scoreboard, leaderboard, user profiles
 - Templates: houses.twig, leaderboard.twig, user.twig
 
-**Monitoring** (`src/monitoring.ts`):
+**Monitoring** (`src/common/monitoring.ts`):
 
 - Prometheus metrics exposed on http://localhost:8080/metrics
 - Tracks interaction execution time, voice session duration, reset duration
 - Express server for metrics endpoint
 
-**Logging** (`src/utils/logger.ts`):
+**Logging** (`src/common/logger.ts`):
 
 - Structured logging with operation IDs for tracing
 - Format: `[Scope] [opId] key=value message`
 - OpId prefixes: cmd, vc, rst, msg, vcscan, start, shtdwn
-- Logs sent to stdout with syslog priority levels (via `src/console.ts`)
+- Logs sent to stdout with syslog priority levels (via `src/common/console.ts`)
 - Use `createLogger(scope)` to create scoped loggers with debug/info/warn/error methods
 
 **Error Handling**:
 
-- `src/utils/alerting.ts` - Alert bot owner on critical errors
+- `src/discord/utils/alerting.ts` - Alert bot owner on critical errors
 - Uncaught exceptions/rejections sent to owner via DM
 - Graceful shutdown closes voice sessions before exit
 
@@ -160,6 +174,7 @@ Required in `.env` (see `.env.example`):
 - `YEAR_ANNOUNCEMENT_CHANNEL_ID` - Channel for year promotions
 - `EXCLUDE_VOICE_CHANNEL_IDS` - Voice channels to exclude from tracking
 - `SUBMISSION_CHANNEL_IDS` - Channels for submissions
+- `MYSTERY_SECRET` - (optional) Secret to bypass mystery mode in analytics
 
 ### Command Pattern
 

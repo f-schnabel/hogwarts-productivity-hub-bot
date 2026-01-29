@@ -114,7 +114,7 @@ export async function join(newVoiceSession: VoiceSession, member: GuildMember, o
   });
 }
 
-export async function leave(oldVoiceSession: VoiceSession, member: GuildMember, opId: string) {
+async function leave(oldVoiceSession: VoiceSession, member: GuildMember, opId: string) {
   const ctx = { opId, userId: member.id, username: member.user.username };
 
   const [user, nickname, vcRole] = await Promise.all([
@@ -139,7 +139,7 @@ export async function leave(oldVoiceSession: VoiceSession, member: GuildMember, 
   }
 }
 
-export async function vcSwitch(
+async function vcSwitch(
   oldVoiceSession: VoiceSession,
   newVoiceSession: VoiceSession,
   member: GuildMember,

@@ -45,7 +45,7 @@ export async function VCEmojiNeedsAdding(ctx: Ctx, member: GuildMember): Promise
   return VCEmojiNeedsAddingSync(ctx, member, await getVCEmoji());
 }
 
-export function VCEmojiNeedsAddingSync(ctx: Ctx, member: GuildMember, emoji: string): string | null {
+function VCEmojiNeedsAddingSync(ctx: Ctx, member: GuildMember, emoji: string): string | null {
   if (hasAnyRole(member, Role.PROFESSOR)) return null;
   if (member.nickname?.includes(" " + emoji)) return null;
 

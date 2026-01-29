@@ -19,12 +19,12 @@
     "discord",
     "bot",
     "productivity",
-    "pomodoro",
-    "timer"
+    "hogwarts",
+    "voice-tracking"
   ],
-  "author": "",
+  "author": "Felix Schnabel",
   "license": "ISC",
-  "description": "Discord Productivity Bot with task management, Pomodoro timers, and gamified points system",
+  "description": "Discord bot for Hogwarts-themed productivity community with voice tracking, house points, and year progression",
   "dependencies": {
     "common-tags": "^1.8.2",
     "dayjs": "^1.11.19",
