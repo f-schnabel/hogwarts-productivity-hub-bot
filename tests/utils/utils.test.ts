@@ -12,6 +12,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { GuildMember } from "discord.js";
 
+vi.mock("@/db/db.ts", () => ({
+  getVCEmoji: vi.fn().mockResolvedValue("🎧"),
+}));
+
 import * as utils from "@/discord/utils/nicknameUtils.ts";
 
 describe("updateMessageStreakInNickname", () => {
@@ -134,5 +138,85 @@ describe("updateMessageStreakInNickname", () => {
 
     expect(mockMember.setNickname).toHaveBeenCalledExactlyOnceWith(expected, `Updating message streak to ${streak}`);
     expect(mockMember.nickname).toBe(expected);
+  });
+});
+
+describe("VCEmojiNeedsAdding", () => {
+  let mockMember: GuildMember;
+  const ctx = { opId: "test-op-id" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMember = {
+      displayName: "TestUser",
+      nickname: null,
+      roles: { cache: new Map() },
+    } as unknown as GuildMember;
+  });
+
+  it("returns null if member is professor", async () => {
+    mockMember.roles.cache.set(process.env.PROFESSOR_ROLE_ID, {} as any);
+    const result = await utils.VCEmojiNeedsAdding(ctx, mockMember);
+    expect(result).toBeNull();
+  });
+
+  it("returns null if nickname already has emoji", async () => {
+    mockMember.nickname = "TestUser 🎧";
+    const result = await utils.VCEmojiNeedsAdding(ctx, mockMember);
+    expect(result).toBeNull();
+  });
+
+  it("returns new nickname with emoji appended", async () => {
+    const result = await utils.VCEmojiNeedsAdding(ctx, mockMember);
+    expect(result).toBe("TestUser 🎧");
+  });
+
+  it("returns null if new nickname would exceed 32 chars", async () => {
+    (mockMember as any).displayName = "VeryLongDisplayNameThatIs30Char";
+    const result = await utils.VCEmojiNeedsAdding(ctx, mockMember);
+    expect(result).toBeNull();
+  });
+});
+
+describe("VCEmojiNeedsRemoval", () => {
+  let mockMember: GuildMember;
+  const ctx = { opId: "test-op-id" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMember = {
+      displayName: "TestUser",
+      nickname: "TestUser 🎧",
+      roles: { cache: new Map() },
+    } as unknown as GuildMember;
+  });
+
+  it("returns null if member is professor", async () => {
+    mockMember.roles.cache.set(process.env.PROFESSOR_ROLE_ID, {} as any);
+    const result = await utils.VCEmojiNeedsRemoval(ctx, mockMember);
+    expect(result).toBeNull();
+  });
+
+  it("returns null if nickname does not have emoji", async () => {
+    mockMember.nickname = "TestUser";
+    const result = await utils.VCEmojiNeedsRemoval(ctx, mockMember);
+    expect(result).toBeNull();
+  });
+
+  it("returns nickname with emoji removed", async () => {
+    const result = await utils.VCEmojiNeedsRemoval(ctx, mockMember);
+    expect(result).toBe("TestUser");
+  });
+
+  it("returns null if removing emoji would result in empty string", async () => {
+    mockMember.nickname = " 🎧";
+    const result = await utils.VCEmojiNeedsRemoval(ctx, mockMember);
+    expect(result).toBeNull();
+  });
+
+  it("removes multiple occurrences of emoji", async () => {
+    mockMember.nickname = "Test 🎧 User 🎧";
+    const result = await utils.VCEmojiNeedsRemoval(ctx, mockMember);
+    expect(result).toBe("Test User");
   });
 });
