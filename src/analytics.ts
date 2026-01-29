@@ -122,7 +122,8 @@ analyticsRouter.get("/", async (req, res) => {
     current.rank = prev?.rawPoints === current.rawPoints ? prev.rank : i + 1;
   });
 
-  const mysteryMode = isInMysteryPeriod() || req.query["mystery"] === "1";
+  const hasValidSecret = req.query["secret"] === process.env["MYSTERY_SECRET"];
+  const mysteryMode = !hasValidSecret && (isInMysteryPeriod() || req.query["mystery"] === "1");
   if (mysteryMode) {
     // Shuffle houses so order doesn't reveal ranking
     houses = houses.sort(() => Math.random() - 0.5);
