@@ -1,8 +1,8 @@
 import type { GuildMember } from "discord.js";
 import { hasAnyRole } from "./roleUtils.ts";
-import { createLogger, type Ctx } from "./logger.ts";
-import { Role } from "./constants.ts";
-import { getVCEmoji } from "../db/db.ts";
+import { createLogger, type Ctx } from "../../common/logger.ts";
+import { Role } from "../../common/constants.ts";
+import { getVCEmoji } from "../../db/db.ts";
 
 const log = createLogger("Streak");
 

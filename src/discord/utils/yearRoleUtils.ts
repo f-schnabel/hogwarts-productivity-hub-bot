@@ -1,12 +1,12 @@
 import { roleMention, type Guild, type GuildMember } from "discord.js";
-import { db } from "../db/db.ts";
-import { userTable } from "../db/schema.ts";
-import { createLogger, type Ctx } from "./logger.ts";
+import { db } from "@/db/db.ts";
+import { userTable } from "@/db/schema.ts";
+import { createLogger, type Ctx } from "../../common/logger.ts";
 import assert from "node:assert";
-import type { House } from "../types.ts";
-import { HOUSE_COLORS, YEAR_MESSAGES, YEAR_THRESHOLDS_HOURS, type YEAR } from "./constants.ts";
+import type { House } from "@/common/types.ts";
+import { HOUSE_COLORS, YEAR_MESSAGES, YEAR_THRESHOLDS_HOURS, type YEAR } from "../../common/constants.ts";
 import { eq, isNotNull } from "drizzle-orm";
-import { updateMember, type UpdateMemberParams } from "../events/voiceStateUpdate.ts";
+import { updateMember, type UpdateMemberParams } from "@/discord/events/voiceStateUpdate.ts";
 
 const log = createLogger("YearRole");
 

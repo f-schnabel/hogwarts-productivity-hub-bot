@@ -1,7 +1,7 @@
 import type { GuildMember, Role as RoleType } from "discord.js";
-import { Role } from "./constants.ts";
+import { Role } from "../../common/constants.ts";
 import { alertOwner } from "./alerting.ts";
-import { createLogger, type Ctx } from "./logger.ts";
+import { createLogger, type Ctx } from "../../common/logger.ts";
 
 const VC_ROLE_ID = process.env.VC_ROLE_ID;
 const log = createLogger("RoleUtils");

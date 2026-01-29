@@ -1,4 +1,4 @@
-import type { House } from "../types.ts";
+import type { House } from "@/common/types.ts";
 
 export const BOT_COLORS = {
   SUCCESS: 0x00c853,
@@ -52,3 +52,15 @@ export const YEAR_MESSAGES: Record<House, string> = {
   Hufflepuff: "🌟 Your consistency shines brightest. {ROLE} earned through **{HOURS}** in the study halls.",
   Ravenclaw: "✒️ Each hour sharpened your mind — {ROLE} is now yours after **{HOURS}**. Wisdom suits you.",
 } as const;
+
+// Year badge/line colors
+export const YEAR_COLORS: Record<number, string> = {
+  0: "#888888",
+  1: "#cd8b62",
+  2: "#d3d3d3",
+  3: "#ffd700",
+  4: "#5f9ea0",
+  5: "#ba55d3",
+  6: "#39ff14",
+  7: "#ff4654",
+};

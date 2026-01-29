@@ -2,8 +2,8 @@ import client from "prom-client";
 import express from "express";
 import Twig from "twig";
 import path from "path";
-import { createLogger } from "./utils/logger.ts";
-import { analyticsRouter } from "./analytics.ts";
+import { createLogger } from "./logger.ts";
+import { analyticsRouter } from "../web/analytics.ts";
 
 const log = createLogger("Monitoring");
 

@@ -1,12 +1,12 @@
 import { type MessageEditOptions } from "discord.js";
 import { and, desc, eq, gt } from "drizzle-orm";
-import type { DbOrTx } from "../db/db.ts";
-import { userTable } from "../db/schema.ts";
-import type { House } from "../types.ts";
-import { HOUSE_COLORS } from "../utils/constants.ts";
-import { client } from "../client.ts";
-import { createLogger } from "../utils/logger.ts";
-import { getGuild } from "../events/clientReady.ts";
+import type { DbOrTx } from "@/db/db.ts";
+import { userTable } from "@/db/schema.ts";
+import type { House } from "@/common/types.ts";
+import { HOUSE_COLORS } from "@/common/constants.ts";
+import { client } from "@/discord/client.ts";
+import { createLogger } from "@/common/logger.ts";
+import { getGuild } from "@/discord/events/clientReady.ts";
 
 const log = createLogger("Scoreboard");
 

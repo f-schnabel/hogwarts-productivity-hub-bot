@@ -1,15 +1,15 @@
 import cron from "node-cron";
 import dayjs from "dayjs";
-import { db, getOpenVoiceSessions, type Tx } from "../db/db.ts";
-import { userTable } from "../db/schema.ts";
+import { db, getOpenVoiceSessions, type Tx } from "@/db/db.ts";
+import { userTable } from "@/db/schema.ts";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
-import { wrapWithAlerting } from "../utils/alerting.ts";
-import { resetExecutionTimer } from "../monitoring.ts";
-import { updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
-import { createLogger, OpId } from "../utils/logger.ts";
+import { endVoiceSession, startVoiceSession } from "@/discord/utils/voiceUtils.ts";
+import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
+import { resetExecutionTimer } from "@/common/monitoring.ts";
+import { updateMessageStreakInNickname } from "@/discord/utils/nicknameUtils.ts";
+import { createLogger, OpId } from "@/common/logger.ts";
 import type { Guild } from "discord.js";
-import { getGuild } from "../events/clientReady.ts";
+import { getGuild } from "@/discord/events/clientReady.ts";
 
 const log = createLogger("Reset");
 

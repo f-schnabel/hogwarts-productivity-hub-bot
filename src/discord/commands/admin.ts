@@ -1,13 +1,13 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { db, getVCEmoji, setMonthStartDate, setVCEmoji } from "../db/db.ts";
-import { awardPoints } from "../services/pointsService.ts";
-import { errorReply, inGuild, requireRole } from "../utils/interactionUtils.ts";
-import { wrapWithAlerting } from "../utils/alerting.ts";
-import { pointAdjustmentTable, userTable } from "../db/schema.ts";
-import { Role } from "../utils/constants.ts";
-import { refreshAllYearRoles } from "../utils/yearRoleUtils.ts";
-import { createLogger } from "../utils/logger.ts";
-import type { CommandOptions } from "../types.ts";
+import { db, getVCEmoji, setMonthStartDate, setVCEmoji } from "@/db/db.ts";
+import { awardPoints } from "@/services/pointsService.ts";
+import { errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
+import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
+import { pointAdjustmentTable, userTable } from "@/db/schema.ts";
+import { Role } from "@/common/constants.ts";
+import { refreshAllYearRoles } from "@/discord/utils/yearRoleUtils.ts";
+import { createLogger } from "@/common/logger.ts";
+import type { CommandOptions } from "@/common/types.ts";
 
 const log = createLogger("Admin");
 

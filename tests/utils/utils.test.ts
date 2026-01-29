@@ -12,7 +12,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { GuildMember } from "discord.js";
 
-import * as utils from "../../src/utils/nicknameUtils.ts";
+import * as utils from "../../src/discord/utils/nicknameUtils.ts";
 
 describe("updateMessageStreakInNickname", () => {
   let mockMember: GuildMember;

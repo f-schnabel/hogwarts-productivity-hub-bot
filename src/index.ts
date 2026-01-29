@@ -1,5 +1,5 @@
 import "dotenv/config";
-import "./console.ts";
+import "@/common/console.ts";
 
 // Extend dayjs BEFORE any imports that use it
 import dayjs from "dayjs";
@@ -13,19 +13,19 @@ dayjs.extend(timezone);
 dayjs.extend(relativeTime);
 dayjs.tz.setDefault("UTC");
 
-import { startServers } from "./monitoring.ts";
-import * as CentralResetService from "./scheduler/centralResetService.ts";
-import { client } from "./client.ts";
+import { startServers } from "@/common/monitoring.ts";
+import * as CentralResetService from "@/services/centralResetService.ts";
+import { client } from "@/discord/client.ts";
 import { Events, SlashCommandSubcommandBuilder, type Client } from "discord.js";
-import * as VoiceStateUpdate from "./events/voiceStateUpdate.ts";
-import * as ClientReady from "./events/clientReady.ts";
-import * as InteractionCreate from "./events/interactionCreate.ts";
-import * as MessageCreate from "./events/messageCreate.ts";
-import { alertOwner } from "./utils/alerting.ts";
-import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTimer } from "./monitoring.ts";
-import { commands } from "./commands.ts";
+import * as VoiceStateUpdate from "@/discord/events/voiceStateUpdate.ts";
+import * as ClientReady from "@/discord/events/clientReady.ts";
+import * as InteractionCreate from "@/discord/events/interactionCreate.ts";
+import * as MessageCreate from "@/discord/events/messageCreate.ts";
+import { alertOwner } from "@/discord/utils/alerting.ts";
+import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTimer } from "@/common/monitoring.ts";
+import { commands } from "@/discord/commands.ts";
 import { promisify } from "node:util";
-import { createLogger, OpId } from "./utils/logger.ts";
+import { createLogger, OpId } from "@/common/logger.ts";
 
 const log = createLogger("Main");
 

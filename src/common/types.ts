@@ -4,7 +4,7 @@ import type {
   ChatInputCommandInteraction,
   SharedSlashCommand,
 } from "discord.js";
-import type { HOUSE_COLORS } from "./utils/constants.ts";
+import type { HOUSE_COLORS } from "./constants.ts";
 
 export interface CommandOptions {
   opId: string;
@@ -29,4 +29,23 @@ export interface VoiceSession {
   discordId: string;
   channelId: string | null;
   channelName: string | null;
+}
+
+export interface YearProgress {
+  badge: string;
+  badgeColor: string;
+  percent: number;
+  barStart: string;
+  barEnd: string;
+  barGlow: string;
+  text: string;
+  leftLabel: string;
+  rightLabel: string;
+  isMax: boolean;
+}
+
+export interface BarColors {
+  barStart: string;
+  barEnd: string;
+  barGlow: string;
 }

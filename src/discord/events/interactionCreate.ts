@@ -6,12 +6,12 @@ import {
   MessageFlags,
   type Interaction,
 } from "discord.js";
-import { commands } from "../commands.ts";
+import { commands } from "@/discord/commands.ts";
 import assert from "node:assert/strict";
-import { ensureUserExists } from "../db/db.ts";
-import { alertOwner } from "../utils/alerting.ts";
-import { interactionExecutionTimer } from "../monitoring.ts";
-import { createLogger, OpId, type Ctx } from "../utils/logger.ts";
+import { ensureUserExists } from "@/db/db.ts";
+import { alertOwner } from "@/discord/utils/alerting.ts";
+import { interactionExecutionTimer } from "@/common/monitoring.ts";
+import { createLogger, OpId, type Ctx } from "@/common/logger.ts";
 
 const log = createLogger("Command");
 

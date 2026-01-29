@@ -1,13 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
-import { BOT_COLORS } from "../utils/constants.ts";
+import { BOT_COLORS } from "@/common/constants.ts";
 import dayjs from "dayjs";
-import { db, getUserTimezone } from "../db/db.ts";
-import { userTable } from "../db/schema.ts";
+import { db, getUserTimezone } from "@/db/db.ts";
+import { userTable } from "@/db/schema.ts";
 import { eq } from "drizzle-orm";
-import { errorReply } from "../utils/interactionUtils.ts";
-import type { CommandOptions } from "../types.ts";
+import { errorReply } from "@/discord/utils/interactionUtils.ts";
+import type { CommandOptions } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@/common/logger.ts";
 
 const log = createLogger("Timezone");
 

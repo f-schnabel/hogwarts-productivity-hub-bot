@@ -15,6 +15,9 @@
     "types": ["node"],
     // and npm install -D @types/node
     "moduleResolution": "nodenext",
+    "paths": {
+      "@/*": ["./src/*"],
+    },
 
     // Other Outputs
     "sourceMap": true,

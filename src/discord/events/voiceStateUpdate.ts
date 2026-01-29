@@ -1,12 +1,12 @@
 import { GuildMember, type GuildMemberEditOptions, type VoiceState } from "discord.js";
-import { db, ensureUserExists } from "../db/db.ts";
+import { db, ensureUserExists } from "../../db/db.ts";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
-import { voiceSessionExecutionTimer } from "../monitoring.ts";
-import { createLogger, OpId } from "../utils/logger.ts";
+import { voiceSessionExecutionTimer } from "../../common/monitoring.ts";
+import { createLogger, OpId } from "../../common/logger.ts";
 import { VCEmojiNeedsAdding, VCEmojiNeedsRemoval } from "../utils/nicknameUtils.ts";
 import { VCRoleNeedsAdding, VCRoleNeedsRemoval } from "../utils/roleUtils.ts";
-import type { VoiceSession } from "../types.ts";
+import type { VoiceSession } from "../../common/types.ts";
 import { announceYearPromotion, calculateYearRoles } from "../utils/yearRoleUtils.ts";
 
 const log = createLogger("VoiceEvent");

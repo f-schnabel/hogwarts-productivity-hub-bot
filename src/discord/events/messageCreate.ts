@@ -1,11 +1,11 @@
 import type { Message, OmitPartialGroupDMChannel } from "discord.js";
-import { db, ensureUserExists } from "../db/db.ts";
-import { userTable } from "../db/schema.ts";
+import { db, ensureUserExists } from "../../db/db.ts";
+import { userTable } from "../../db/schema.ts";
 import { eq, sql } from "drizzle-orm";
-import { MIN_DAILY_MESSAGES_FOR_STREAK } from "../utils/constants.ts";
+import { MIN_DAILY_MESSAGES_FOR_STREAK } from "../../common/constants.ts";
 import assert from "node:assert";
 import { updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
-import { createLogger, OpId } from "../utils/logger.ts";
+import { createLogger, OpId } from "../../common/logger.ts";
 
 const log = createLogger("Message");
 

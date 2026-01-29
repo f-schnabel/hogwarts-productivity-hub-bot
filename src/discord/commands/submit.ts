@@ -13,16 +13,16 @@ import {
   userMention,
   type InteractionReplyOptions,
 } from "discord.js";
-import { awardPoints } from "../services/pointsService.ts";
-import { getHouseFromMember } from "../utils/houseUtils.ts";
-import { hasAnyRole } from "../utils/roleUtils.ts";
-import { errorReply, inGuild } from "../utils/interactionUtils.ts";
+import { awardPoints } from "@/services/pointsService.ts";
+import { getHouseFromMember } from "@/discord/utils/houseUtils.ts";
+import { hasAnyRole } from "@/discord/utils/roleUtils.ts";
+import { errorReply, inGuild } from "@/discord/utils/interactionUtils.ts";
 import assert from "node:assert";
-import { db } from "../db/db.ts";
-import { submissionTable } from "../db/schema.ts";
+import { db } from "@/db/db.ts";
+import { submissionTable } from "@/db/schema.ts";
 import { eq, sql } from "drizzle-orm";
-import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "../utils/constants.ts";
-import type { CommandOptions } from "../types.ts";
+import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "@/common/constants.ts";
+import type { CommandOptions } from "@/common/types.ts";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
 

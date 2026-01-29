@@ -1,6 +1,6 @@
 import { Collection } from "discord.js";
 import timezoneCommand from "./commands/timezone.ts";
-import type { Command } from "./types.ts";
+import type { Command } from "../common/types.ts";
 import submit from "./commands/submit.ts";
 import admin from "./commands/admin.ts";
 import scoreboard from "./commands/scoreboard.ts";

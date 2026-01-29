@@ -1,12 +1,12 @@
-import { type DbOrTx } from "../db/db.ts";
-import { userTable, voiceSessionTable } from "../db/schema.ts";
+import { type DbOrTx } from "../../db/db.ts";
+import { userTable, voiceSessionTable } from "../../db/schema.ts";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import type { VoiceSession } from "../types.ts";
+import type { VoiceSession } from "../../common/types.ts";
 import assert from "node:assert/strict";
-import { createLogger } from "./logger.ts";
+import { createLogger } from "../../common/logger.ts";
 import { formatDuration } from "./interactionUtils.ts";
 import { alertOwner } from "./alerting.ts";
-import { awardPoints, calculatePoints } from "../services/pointsService.ts";
+import { awardPoints, calculatePoints } from "../../services/pointsService.ts";
 import { oneLine } from "common-tags";
 
 const log = createLogger("Voice");

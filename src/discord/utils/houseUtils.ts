@@ -1,6 +1,6 @@
 import type { GuildMember } from "discord.js";
 import assert from "node:assert/strict";
-import type { House } from "../types.ts";
+import type { House } from "@/common/types.ts";
 
 // Simplified version
 const HOUSE_ROLES = [

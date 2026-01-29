@@ -1,9 +1,9 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import { db as globalDb, type DbOrTx } from "../db/db.ts";
-import { houseScoreboardTable, userTable } from "../db/schema.ts";
-import { getHousepointMessages, updateScoreboardMessages } from "./scoreboardService.ts";
-import { alertOwner } from "../utils/alerting.ts";
-import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "../utils/constants.ts";
+import { db as globalDb, type DbOrTx } from "@/db/db.ts";
+import { houseScoreboardTable, userTable } from "@/db/schema.ts";
+import { getHousepointMessages, updateScoreboardMessages } from "../discord/utils/scoreboardService.ts";
+import { alertOwner } from "@/discord/utils/alerting.ts";
+import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "@/common/constants.ts";
 
 export async function awardPoints(db: DbOrTx, discordId: string, points: number, opId: string) {
   // Update user's total points

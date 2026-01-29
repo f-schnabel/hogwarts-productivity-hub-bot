@@ -1,9 +1,9 @@
 import "dotenv/config";
 
 import { REST, Routes } from "discord.js";
-import { commands } from "./commands.ts";
+import { commands } from "@/discord/commands.ts";
 import assert from "node:assert/strict";
-import { db } from "./db/db.ts";
+import { db } from "@/db/db.ts";
 
 assert(process.env.CLIENT_ID);
 assert(process.env.DISCORD_TOKEN);

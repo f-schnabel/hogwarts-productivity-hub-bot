@@ -1,11 +1,11 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { db } from "../db/db.ts";
-import { houseScoreboardTable } from "../db/schema.ts";
-import type { Command, CommandOptions, House } from "../types.ts";
-import { inGuild, requireRole } from "../utils/interactionUtils.ts";
-import { getHousepointMessages } from "../services/scoreboardService.ts";
+import { db } from "@/db/db.ts";
+import { houseScoreboardTable } from "@/db/schema.ts";
+import type { Command, CommandOptions, House } from "@/common/types.ts";
+import { inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
+import { getHousepointMessages } from "@/discord/utils/scoreboardService.ts";
 import assert from "node:assert";
-import { Role } from "../utils/constants.ts";
+import { Role } from "@/common/constants.ts";
 
 export default {
   data: new SlashCommandBuilder()

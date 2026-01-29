@@ -1,6 +1,6 @@
 import type { ChatInputCommandInteraction } from "discord.js";
-import { BOT_COLORS, Role } from "./constants.ts";
-import { createLogger } from "./logger.ts";
+import { BOT_COLORS, Role } from "../../common/constants.ts";
+import { createLogger } from "../../common/logger.ts";
 import { hasAnyRole } from "./roleUtils.ts";
 
 const log = createLogger("Interaction");

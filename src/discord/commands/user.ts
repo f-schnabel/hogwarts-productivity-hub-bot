@@ -1,13 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import dayjs from "dayjs";
-import { db, getMonthStartDate } from "../db/db.ts";
-import { submissionTable, userTable, voiceSessionTable } from "../db/schema.ts";
+import { db, getMonthStartDate } from "@/db/db.ts";
+import { submissionTable, userTable, voiceSessionTable } from "@/db/schema.ts";
 import { and, asc, eq, gte, isNull } from "drizzle-orm";
-import { calculatePoints } from "../services/pointsService.ts";
-import { formatDuration, errorReply, inGuild, requireRole } from "../utils/interactionUtils.ts";
-import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "../utils/constants.ts";
-import { getYearFromMonthlyVoiceTime } from "../utils/yearRoleUtils.ts";
-import type { CommandOptions } from "../types.ts";
+import { calculatePoints } from "@/services/pointsService.ts";
+import { formatDuration, errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
+import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "@/common/constants.ts";
+import { getYearFromMonthlyVoiceTime } from "@/discord/utils/yearRoleUtils.ts";
+import type { CommandOptions } from "@/common/types.ts";
 
 import { stripIndent } from "common-tags";
 import assert from "node:assert";

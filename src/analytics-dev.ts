@@ -16,7 +16,7 @@ import Twig from "twig";
 import path from "path";
 
 // Mock the Discord client before importing analytics
-import { client } from "./client.ts";
+import { client } from "@/discord/client.ts";
 
 // Create a fake guild that returns usernames from DB as display names
 const mockGuild = {
@@ -32,7 +32,7 @@ client.guilds = {
 } as unknown as typeof client.guilds;
 
 // Now import analytics (will use mocked client)
-const { analyticsRouter } = await import("./analytics.ts");
+const { analyticsRouter } = await import("@/web/analytics.ts");
 
 const app = express();
 app.set("view engine", "twig");
