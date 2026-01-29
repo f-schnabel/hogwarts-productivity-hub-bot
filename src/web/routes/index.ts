@@ -1,5 +1,5 @@
 import type { House } from "@/common/types.ts";
-import { db } from "@/db/db.ts";
+import { db, getMonthStartDate } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import { desc } from "drizzle-orm";
 import { and, gt } from "drizzle-orm/sql/expressions/conditions";
@@ -8,14 +8,27 @@ import { getHouseColor } from "../utils.ts";
 import dayjs from "dayjs";
 import type { Router } from "express";
 
-// Check if we're in the last 3 days of the month (mystery mode)
-function isInMysteryPeriod(): boolean {
+/**
+ * Mystery mode: last 3 days of calendar month, but not within 2 days of reset
+ * Can be bypassed with secret param, or forced with mystery=1 param
+ */
+async function isMysteryMode(query: Record<string, unknown>): Promise<boolean> {
+  if (query["secret"] === process.env["MYSTERY_SECRET"]) return false;
+  if (query["mystery"] === "1") return true;
+
   const now = dayjs();
-  return now.date() > now.daysInMonth() - 3;
+  const isLastThreeDays = now.date() > now.daysInMonth() - 3;
+  if (!isLastThreeDays) return false;
+
+  const monthStart = await getMonthStartDate();
+  const daysSinceReset = now.diff(monthStart, "day");
+  if (daysSinceReset <= 1) return false;
+
+  return true;
 }
 
+// Home - House scoreboard
 export default function registerIndexRoute(app: Router) {
-  // Home - House scoreboard
   app.get("/", async (req, res) => {
     const unweightedHouseData = await db
       .select({
@@ -65,8 +78,7 @@ export default function registerIndexRoute(app: Router) {
       current.rank = prev?.rawPoints === current.rawPoints ? prev.rank : i + 1;
     });
 
-    const hasValidSecret = req.query["secret"] === process.env["MYSTERY_SECRET"];
-    const mysteryMode = !hasValidSecret && (isInMysteryPeriod() || req.query["mystery"] === "1");
+    const mysteryMode = await isMysteryMode(req.query);
     if (mysteryMode) {
       // Shuffle houses so order doesn't reveal ranking
       houses = houses.sort(() => Math.random() - 0.5);
