@@ -3,11 +3,12 @@ import { db, getVCEmoji, setMonthStartDate, setVCEmoji } from "@/db/db.ts";
 import { awardPoints } from "@/services/pointsService.ts";
 import { errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
-import { pointAdjustmentTable, userTable } from "@/db/schema.ts";
+import { houseScoreboardTable, pointAdjustmentTable, userTable } from "@/db/schema.ts";
 import { Role } from "@/common/constants.ts";
 import { refreshAllYearRoles } from "@/discord/utils/yearRoleUtils.ts";
 import { createLogger } from "@/common/logger.ts";
 import type { CommandOptions } from "@/common/types.ts";
+import { getHousepointMessages, updateScoreboardMessages } from "../utils/scoreboardService.ts";
 
 const log = createLogger("Admin");
 
@@ -108,6 +109,8 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
 
       // Store reset timestamp
       await setMonthStartDate(new Date());
+      const scoreboards = await db.select().from(houseScoreboardTable);
+      await updateScoreboardMessages(await getHousepointMessages(db, scoreboards), opId);
     },
     "Monthly reset processing",
     opId,
