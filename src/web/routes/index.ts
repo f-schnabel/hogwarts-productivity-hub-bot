@@ -1,4 +1,5 @@
 import type { House } from "@/common/types.ts";
+import { HOUSE_COLORS } from "@/common/constants.ts";
 import { db, getMonthStartDate } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import { desc } from "drizzle-orm";
@@ -59,18 +60,30 @@ export default function registerIndexRoute(app: Router) {
         .map((h) => [h.house, { unweightedPoints: h.totalPoints, totalMemberCount: h.memberCount }]),
     );
 
-    let houses = weightedHouseData
-      .filter((h): h is typeof h & { house: House } => h.house !== null)
-      .map((h) => ({
-        name: h.house,
-        color: getHouseColor(h.house),
-        rawPoints: h.totalPoints,
-        points: h.totalPoints.toLocaleString(),
-        memberCount: h.memberCount,
-        unweightedPoints: unweightedMap.get(h.house)?.unweightedPoints.toLocaleString() ?? "0",
-        totalMemberCount: unweightedMap.get(h.house)?.totalMemberCount ?? 0,
-        rank: 1,
-      }));
+    const weightedMap = new Map(
+      weightedHouseData
+        .filter((h): h is typeof h & { house: House } => h.house !== null)
+        .map((h) => [h.house, { totalPoints: h.totalPoints, memberCount: h.memberCount }]),
+    );
+
+    const allHouses = Object.keys(HOUSE_COLORS) as House[];
+
+    let houses = allHouses
+      .map((house) => {
+        const weighted = weightedMap.get(house);
+        const unweighted = unweightedMap.get(house);
+        return {
+          name: house,
+          color: getHouseColor(house),
+          rawPoints: weighted?.totalPoints ?? 0,
+          points: weighted?.totalPoints.toLocaleString() ?? "0",
+          memberCount: weighted?.memberCount ?? 0,
+          unweightedPoints: unweighted?.unweightedPoints.toLocaleString() ?? "0",
+          totalMemberCount: unweighted?.totalMemberCount ?? 0,
+          rank: 1,
+        };
+      })
+      .sort((a, b) => b.rawPoints - a.rawPoints);
 
     // Calculate ranks with ties (same points = same rank)
     houses.forEach((current, i) => {
