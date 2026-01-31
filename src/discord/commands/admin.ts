@@ -59,9 +59,6 @@ export default {
       case "reset-monthly-points":
         await resetMonthlyPoints(interaction, opId);
         break;
-      case "reset-total-points":
-        await resetTotalPoints(interaction, opId);
-        break;
       case "refresh-ranks":
         await refreshYearRoles(interaction, opId);
         break;
@@ -116,21 +113,6 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
     opId,
   );
   await interaction.editReply("Monthly points have been reset for all users.");
-}
-
-async function resetTotalPoints(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
-  await wrapWithAlerting(
-    async () => {
-      const result = await db.update(userTable).set({
-        totalPoints: 0,
-        totalVoiceTime: 0,
-      });
-      log.info("Total reset complete", { opId, usersReset: result.rowCount });
-    },
-    "Total reset processing",
-    opId,
-  );
-  await interaction.editReply("Total points have been reset for all users.");
 }
 
 async function refreshYearRoles(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
