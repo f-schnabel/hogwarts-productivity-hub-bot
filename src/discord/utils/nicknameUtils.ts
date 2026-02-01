@@ -68,7 +68,10 @@ export function VCEmojiNeedsRemovalSync(ctx: Ctx, member: GuildMember, emoji: st
   if (hasAnyRole(member, Role.PROFESSOR)) return null;
   if (!member.nickname?.includes(" " + emoji)) return null;
 
-  const newNickname = member.nickname.replaceAll(" " + emoji, "");
+  const newNickname = member.nickname
+    .replaceAll(" " + emoji, "")
+    .replaceAll(emoji, "")
+    .trim();
   if (newNickname.length === 0) return null;
 
   log.debug("Removing VC emoji from nickname", { ...ctx, newNickname });
