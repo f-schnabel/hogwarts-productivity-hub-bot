@@ -49,3 +49,9 @@ export interface BarColors {
   barEnd: string;
   barGlow: string;
 }
+
+export interface Sums {
+  total: number;
+  monthly: number;
+  daily: number;
+}
