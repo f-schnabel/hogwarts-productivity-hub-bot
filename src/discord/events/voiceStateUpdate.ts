@@ -9,7 +9,7 @@ import { VCRoleNeedsAdding, VCRoleNeedsRemoval } from "../utils/roleUtils.ts";
 import type { VoiceSession } from "../../common/types.ts";
 import { announceYearPromotion, calculateYearRoles } from "../utils/yearRoleUtils.ts";
 
-const log = createLogger("VoiceEvent");
+const log = createLogger("Voice");
 
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
