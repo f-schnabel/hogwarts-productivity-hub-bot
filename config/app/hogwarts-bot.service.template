@@ -1,0 +1,15 @@
+[Unit]
+Description=Hogwarts Productivity Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__REPO_DIR__
+ExecStart=__HOME__/n/bin/pnpm start
+TimeoutStopSec=60
+Restart=always
+RestartSec=10
+Environment=PATH=__HOME__/n/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+
+[Install]
+WantedBy=default.target

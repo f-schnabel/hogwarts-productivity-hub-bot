@@ -30,7 +30,7 @@ jobs:
             pnpm typecheck &&
             pnpm register &&
             npx drizzle-kit migrate &&
-            systemctl --user restart discord-bot.service &&
+            systemctl --user restart hogwarts-bot.service &&
             curl -k -X POST https://localhost:3000/api/annotations \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${{ secrets.OCI_GRAFANA_API_KEY }}" \
