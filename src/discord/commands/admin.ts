@@ -39,9 +39,6 @@ export default {
       subcommand.setName("reset-monthly-points").setDescription("Resets monthly points for all users"),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName("reset-total-points").setDescription("Resets total points for all users"),
-    )
-    .addSubcommand((subcommand) =>
       subcommand
         .setName("refresh-ranks")
         .setDescription("Refreshes year roles for all users based on monthly voice time"),
