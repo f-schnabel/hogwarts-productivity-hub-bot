@@ -13,13 +13,14 @@ import {
   userMention,
   type InteractionReplyOptions,
 } from "discord.js";
+import dayjs from "dayjs";
 import { awardPoints } from "@/services/pointsService.ts";
 import { getHouseFromMember } from "@/discord/utils/houseUtils.ts";
 import { hasAnyRole } from "@/discord/utils/roleUtils.ts";
 import { errorReply, inGuild } from "@/discord/utils/interactionUtils.ts";
 import assert from "node:assert";
 import { db } from "@/db/db.ts";
-import { submissionTable } from "@/db/schema.ts";
+import { submissionTable, userTable } from "@/db/schema.ts";
 import { eq, sql } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "@/common/constants.ts";
 import type { CommandOptions } from "@/common/types.ts";
@@ -70,7 +71,14 @@ export default {
       .returning();
     assert(submission, "Failed to create submission");
 
-    await interaction.reply(submissionMessage(submission));
+    // Fetch user's timezone for display
+    const user = await db.query.userTable.findFirst({
+      columns: { timezone: true },
+      where: eq(userTable.discordId, interaction.member.id),
+    });
+    const userTimezone = user?.timezone ?? "UTC";
+
+    await interaction.reply(submissionMessage(submission, userTimezone));
   },
 
   async buttonHandler(
@@ -133,7 +141,14 @@ export default {
 
     assert(submission, `Failed to update submission with ID ${submissionId}`);
 
-    await interaction.message.fetch().then((m) => m.edit(submissionMessage(submission, reason)));
+    // Fetch the submitter's timezone for display
+    const submitter = await db.query.userTable.findFirst({
+      columns: { timezone: true },
+      where: eq(userTable.discordId, submission.discordId),
+    });
+    const userTimezone = submitter?.timezone ?? "UTC";
+
+    await interaction.message.fetch().then((m) => m.edit(submissionMessage(submission, userTimezone, reason)));
 
     if (event === "approve") {
       await awardPoints(db, submission.discordId, submission.points, opId);
@@ -141,7 +156,7 @@ export default {
   },
 };
 
-function submissionMessage(submissionData: typeof submissionTable.$inferSelect, reason?: string) {
+function submissionMessage(submissionData: typeof submissionTable.$inferSelect, userTimezone: string, reason?: string) {
   let components: InteractionReplyOptions["components"] = [];
   if (submissionData.status === "PENDING") {
     components = [
@@ -165,6 +180,9 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect, 
     ];
   }
 
+  // Format the submitted time in the user's timezone
+  const formattedSubmittedAt = dayjs(submissionData.submittedAt).tz(userTimezone).format("h:mm:ss A [on] MMM D (z)");
+
   const embed = new EmbedBuilder({
     title: submissionData.house.toUpperCase(),
     color: SUBMISSION_COLORS[submissionData.status],
@@ -186,7 +204,7 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect, 
       },
       {
         name: "Submitted by",
-        value: `${userMention(submissionData.discordId)} at ${time(submissionData.submittedAt)}`,
+        value: `${userMention(submissionData.discordId)} at ${formattedSubmittedAt}`,
         inline: false,
       },
     ],
