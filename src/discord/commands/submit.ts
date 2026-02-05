@@ -181,7 +181,7 @@ function submissionMessage(submissionData: typeof submissionTable.$inferSelect, 
   }
 
   // Format the submitted time in the user's timezone
-  const formattedSubmittedAt = dayjs(submissionData.submittedAt).tz(userTimezone).format("h:mm:ss A [on] MMM D (z)");
+  const formattedSubmittedAt = dayjs(submissionData.submittedAt).tz(userTimezone).format("h:mm A [on] MMM D (z)");
 
   const embed = new EmbedBuilder({
     title: submissionData.house.toUpperCase(),
