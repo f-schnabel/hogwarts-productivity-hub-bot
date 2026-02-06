@@ -1,0 +1,1 @@
+ALTER TABLE "submission" ADD CONSTRAINT "submission_linked_submission_id_submission_id_fk" FOREIGN KEY ("linked_submission_id") REFERENCES "public"."submission"("id") ON DELETE no action ON UPDATE no action;
