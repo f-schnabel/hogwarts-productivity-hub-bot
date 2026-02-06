@@ -1,9 +1,9 @@
-import { type MessageEditOptions } from "discord.js";
+import { formatEmoji, type MessageEditOptions } from "discord.js";
 import { and, desc, eq, gt } from "drizzle-orm";
 import type { DbOrTx } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import type { House } from "@/common/types.ts";
-import { HOUSE_COLORS } from "@/common/constants.ts";
+import { HOUSE_COLORS, HOUSE_CREST_EMOJI_IDS } from "@/common/constants.ts";
 import { client } from "@/discord/client.ts";
 import { createLogger } from "@/common/logger.ts";
 import { getGuild } from "@/discord/events/clientReady.ts";
@@ -63,14 +63,16 @@ export async function getHousepointMessages<T extends { house: House }>(
 
     description += "```";
 
+    const title = `${formatEmoji(HOUSE_CREST_EMOJI_IDS[scoreboard.house])} ${scoreboard.house.toUpperCase()}`;
+
     result.push({
       ...scoreboard,
       message: {
         embeds: [
           {
             color: HOUSE_COLORS[scoreboard.house],
-            title: scoreboard.house.toUpperCase(),
-            description: description,
+            title,
+            description,
             footer: {
               text: `Last updated • ${new Date().toLocaleString("en-US", {
                 month: "long",

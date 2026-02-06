@@ -21,6 +21,10 @@ export declare global {
       SUBMISSION_CHANNEL_IDS: string;
       YEAR_ROLE_IDS: string;
       YEAR_ANNOUNCEMENT_CHANNEL_ID: string;
+      GRYFFINDOR_CREST_EMOJI_ID: string;
+      SLYTHERIN_CREST_EMOJI_ID: string;
+      HUFFLEPUFF_CREST_EMOJI_ID: string;
+      RAVENCLAW_CREST_EMOJI_ID: string;
     }
   }
 }

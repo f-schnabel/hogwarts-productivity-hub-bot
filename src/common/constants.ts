@@ -14,6 +14,14 @@ export const HOUSE_COLORS = {
   Slytherin: 0x07ad34,
 } as const;
 
+// Discord custom emoji IDs for house crests (from env vars)
+export const HOUSE_CREST_EMOJI_IDS = {
+  Gryffindor: process.env.GRYFFINDOR_CREST_EMOJI_ID,
+  Hufflepuff: process.env.HUFFLEPUFF_CREST_EMOJI_ID,
+  Ravenclaw: process.env.RAVENCLAW_CREST_EMOJI_ID,
+  Slytherin: process.env.SLYTHERIN_CREST_EMOJI_ID,
+} as const;
+
 export const SUBMISSION_COLORS = {
   PENDING: 0x979c9f,
   APPROVED: 0x2ecc70,
