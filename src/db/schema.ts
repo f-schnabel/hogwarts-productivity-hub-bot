@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, pgTable, serial, timestamp, text, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, serial, timestamp, text, varchar, foreignKey } from "drizzle-orm/pg-core";
 
 export const userTable = pgTable("user", {
   // Technical fields
@@ -59,31 +59,41 @@ export const voiceSessionTable = pgTable(
 );
 
 // Holds submission data so approvals/rejections persist bot restarts
-export const submissionTable = pgTable("submission", {
-  // Technical fields
-  id: serial().primaryKey(),
-  discordId: varchar({ length: 255 })
-    .notNull()
-    .references(() => userTable.discordId, { onDelete: "cascade" }),
-  submittedAt: timestamp().notNull().defaultNow(),
-  reviewedAt: timestamp(),
-  reviewedBy: varchar({ length: 255 }),
+export const submissionTable = pgTable(
+  "submission",
+  {
+    // Technical fields
+    id: serial().primaryKey(),
+    discordId: varchar({ length: 255 })
+      .notNull()
+      .references(() => userTable.discordId, { onDelete: "cascade" }),
+    submittedAt: timestamp().notNull().defaultNow(),
+    reviewedAt: timestamp(),
+    reviewedBy: varchar({ length: 255 }),
 
-  // Submission fields
-  house: varchar({
-    length: 50,
-    enum: ["Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin"],
-  }).notNull(),
-  houseId: integer().notNull(),
-  screenshotUrl: varchar({ length: 1000 }).notNull(),
-  points: integer().notNull(),
-  status: varchar({
-    length: 50,
-    enum: ["PENDING", "APPROVED", "REJECTED"],
-  })
-    .default("PENDING")
-    .notNull(),
-});
+    // Discord message reference fields (for cross-linking)
+    messageId: varchar({ length: 255 }),
+    channelId: varchar({ length: 255 }),
+
+    // Submission fields
+    house: varchar({
+      length: 50,
+      enum: ["Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin"],
+    }).notNull(),
+    houseId: integer().notNull(),
+    screenshotUrl: varchar({ length: 1000 }).notNull(),
+    points: integer().notNull(),
+    status: varchar({
+      length: 50,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+    })
+      .default("PENDING")
+      .notNull(),
+    // Self-reference to link finish submission to its start submission
+    linkedSubmissionId: integer(),
+  },
+  (table) => [foreignKey({ columns: [table.linkedSubmissionId], foreignColumns: [table.id] })],
+);
 
 // Holds message ids to be updated for house scoreboards
 export const houseScoreboardTable = pgTable("house_scoreboard", {
