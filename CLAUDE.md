@@ -197,7 +197,7 @@ export default {
 
 ### Testing
 
-Uses Vitest. Test files should be colocated with source or in `__tests__` directories.
+Uses Vitest. Test files should be in the `tests` directory.
 
 ### Code Style
 
