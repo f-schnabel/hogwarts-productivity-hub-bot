@@ -1,11 +1,20 @@
 import client from "prom-client";
 import express from "express";
+import rateLimit from "express-rate-limit";
 import Twig from "twig";
 import path from "path";
 import { createLogger } from "./logger.ts";
 import { analyticsRouter } from "../web/analytics.ts";
 
 const log = createLogger("Monitoring");
+
+// Rate limiter for public analytics server
+const analyticsLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  limit: 60, // 60 requests per minute per IP
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+});
 
 const register = new client.Registry();
 export const interactionExecutionTimer = new client.Histogram({
@@ -49,6 +58,7 @@ export function startServers() {
 
   // Analytics server (public)
   const analyticsApp = express();
+  analyticsApp.use(analyticsLimiter);
   analyticsApp.set("view engine", "twig");
   analyticsApp.set("views", path.join(import.meta.dirname, "..", "..", "views"));
   analyticsApp.set("twig options", { allowAsync: true, strict_variables: false });
