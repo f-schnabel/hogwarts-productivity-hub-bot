@@ -58,6 +58,7 @@ export function startServers() {
 
   // Analytics server (public)
   const analyticsApp = express();
+  analyticsApp.set("trust proxy", 1);
   analyticsApp.use(analyticsLimiter);
   analyticsApp.set("view engine", "twig");
   analyticsApp.set("views", path.join(import.meta.dirname, "..", "..", "views"));
