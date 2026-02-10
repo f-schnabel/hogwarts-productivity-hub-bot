@@ -187,7 +187,7 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
   }
 
   // Build activity lines: daily for current week, weekly aggregates for previous weeks
-  const now = dayjs().tz(tz);
+  const now = dayjs();
   const currentWeekStart = now.startOf("week");
 
   // Separate current week days vs previous weeks
@@ -201,7 +201,7 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
   >();
 
   for (const [day, data] of dailyData.entries()) {
-    const dayDate = dayjs(day).tz(tz);
+    const dayDate = dayjs(day);
     if (!dayDate.isBefore(currentWeekStart, "day")) {
       currentWeekDays.push([day, data]);
     } else {
