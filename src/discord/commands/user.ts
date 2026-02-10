@@ -206,7 +206,9 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
       currentWeekDays.push([day, data]);
     } else {
       // Group by week start (Sunday)
-      const weekStart = dayDate.startOf("week").format("YYYY-MM-DD");
+      const weekStart = dayDate.startOf("week").isAfter(startOfMonth)
+        ? dayDate.startOf("week").format("YYYY-MM-DD")
+        : dayjs(startOfMonth).format("YYYY-MM-DD");
       const existing = weeklyData.get(weekStart) ?? {
         voiceSeconds: 0,
         voicePoints: 0,
@@ -240,7 +242,7 @@ async function points(interaction: ChatInputCommandInteraction, opId: string) {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([weekStart, data]) => {
       const start = dayjs(weekStart);
-      const end = start.add(6, "day");
+      const end = start.endOf("week");
       const endFormat = start.month() !== end.month() ? "MMM D" : "D";
       const label = `${start.format("MMM D")} - ${end.format(endFormat)}`;
       return formatLine(label, data);
