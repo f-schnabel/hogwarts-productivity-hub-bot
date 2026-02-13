@@ -2,7 +2,7 @@ import cron from "node-cron";
 import dayjs from "dayjs";
 import { db, getOpenVoiceSessions, type Tx } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
-import { and, gt, inArray, lt, or, sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { endVoiceSession, startVoiceSession } from "@/discord/utils/voiceUtils.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import { resetExecutionTimer } from "@/common/monitoring.ts";
@@ -83,8 +83,6 @@ async function processDailyResets() {
             log.debug("Boosters preserving streak", { opId, count: boosterIds.size });
           }
 
-          await updateStreakNicknames(db, guild, opId, usersNeedingReset, boosterIds);
-
           // Met threshold → increment, booster (below threshold) → preserve, otherwise → reset
           const boosterGuard =
             boosterIds.size > 0
@@ -94,7 +92,7 @@ async function processDailyResets() {
                 )}) THEN ${userTable.messageStreak}`
               : sql``;
 
-          return await db
+          const result = await db
             .update(userTable)
             .set({
               dailyPoints: 0,
@@ -103,8 +101,11 @@ async function processDailyResets() {
               messageStreak: sql`CASE WHEN ${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK} THEN ${userTable.messageStreak} + 1 ${boosterGuard} ELSE 0 END`,
               dailyMessages: 0,
             })
-            .where(inArray(userTable.discordId, usersNeedingReset))
-            .then((result) => result.rowCount);
+            .where(inArray(userTable.discordId, usersNeedingReset));
+
+          await updateStreakNicknames(db, guild, opId, usersNeedingReset);
+
+          return result.rowCount;
         } finally {
           await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db, opId)));
         }
@@ -125,57 +126,20 @@ function getBoosterIds(guild: Guild, usersNeedingReset: string[]): Set<string> {
   );
 }
 
-async function updateStreakNicknames(
-  db: Tx,
-  guild: Guild,
-  opId: string,
-  usersNeedingReset: string[],
-  boosterIds: Set<string>,
-) {
+async function updateStreakNicknames(db: Tx, guild: Guild, opId: string, usersNeedingReset: string[]) {
   const users = await db
     .select({
       discordId: userTable.discordId,
       messageStreak: userTable.messageStreak,
-      dailyMessages: userTable.dailyMessages,
     })
     .from(userTable)
-    .where(
-      and(
-        inArray(userTable.discordId, usersNeedingReset),
-        or(
-          // Users gaining streak (met threshold)
-          sql`${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK}`,
-          // Users losing streak (didn't meet threshold, not a booster, but had one)
-          and(lt(userTable.dailyMessages, MIN_DAILY_MESSAGES_FOR_STREAK), gt(userTable.messageStreak, 0)),
-        ),
-      ),
-    );
-
-  if (users.length === 0) return;
-
-  const gaining = users.filter((u) => u.dailyMessages >= MIN_DAILY_MESSAGES_FOR_STREAK);
-  // Boosters below threshold keep their streak — no nickname change needed
-  const losing = users.filter((u) => u.dailyMessages < MIN_DAILY_MESSAGES_FOR_STREAK && !boosterIds.has(u.discordId));
-
-  if (losing.length > 0) {
-    log.debug("Streaks being reset", {
-      opId,
-      users: losing.map((u) => u.discordId).join(", "),
-    });
-  }
-  if (gaining.length > 0) {
-    log.debug("Streaks being incremented", {
-      opId,
-      users: gaining.map((u) => u.discordId).join(", "),
-    });
-  }
+    .where(inArray(userTable.discordId, usersNeedingReset));
 
   await Promise.all(
-    [...gaining, ...losing].map(async (row) => {
+    users.map(async (row) => {
       const member = guild.members.cache.get(row.discordId);
       if (!member) return;
-      const newStreak = row.dailyMessages >= MIN_DAILY_MESSAGES_FOR_STREAK ? row.messageStreak + 1 : 0;
-      await updateMessageStreakInNickname(member, newStreak, opId);
+      await updateMessageStreakInNickname(member, row.messageStreak, opId);
     }),
   );
 }
