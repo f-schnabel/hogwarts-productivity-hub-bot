@@ -84,13 +84,6 @@ async function processDailyResets() {
           }
 
           // Met threshold → increment, booster (below threshold) → preserve, otherwise → reset
-          const boosterGuard =
-            boosterIds.size > 0
-              ? sql`WHEN ${userTable.discordId} IN (${sql.join(
-                  [...boosterIds].map((id) => sql`${id}`),
-                  sql`, `,
-                )}) THEN ${userTable.messageStreak}`
-              : sql``;
 
           const updatedUsers = await db
             .update(userTable)
@@ -98,7 +91,19 @@ async function processDailyResets() {
               dailyPoints: 0,
               dailyVoiceTime: 0,
               lastDailyReset: new Date(),
-              messageStreak: sql`CASE WHEN ${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK} THEN ${userTable.messageStreak} + 1 ${boosterGuard} ELSE 0 END`,
+              messageStreak: sql`CASE
+                WHEN ${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK} 
+                  THEN ${userTable.messageStreak} + 1 
+                ${
+                  boosterIds.size > 0
+                    ? sql`WHEN ${userTable.discordId} IN (${sql.join(
+                        [...boosterIds].map((id) => sql`${id}`),
+                        sql`, `,
+                      )}) THEN ${userTable.messageStreak}`
+                    : sql``
+                }
+                ELSE 0
+                END`,
               dailyMessages: 0,
             })
             .where(inArray(userTable.discordId, usersNeedingReset))
