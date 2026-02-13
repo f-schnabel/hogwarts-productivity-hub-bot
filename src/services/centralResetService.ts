@@ -79,11 +79,9 @@ async function processDailyResets() {
           await Promise.all(usersInVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
 
           const boosterIds = getBoosterIds(guild, usersNeedingReset);
-          if (boosterIds.size > 0) {
-            log.debug("Boosters preserving streak", { opId, count: boosterIds.size });
+          if (boosterIds.length > 0) {
+            log.debug("Boosters preserving streak", { opId, count: boosterIds.length });
           }
-
-          // Met threshold → increment, booster (below threshold) → preserve, otherwise → reset
 
           const updatedUsers = await db
             .update(userTable)
@@ -91,17 +89,12 @@ async function processDailyResets() {
               dailyPoints: 0,
               dailyVoiceTime: 0,
               lastDailyReset: new Date(),
+              // Met threshold → increment, booster (below threshold) → preserve, otherwise → reset
               messageStreak: sql`CASE
                 WHEN ${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK} 
-                  THEN ${userTable.messageStreak} + 1 
-                ${
-                  boosterIds.size > 0
-                    ? sql`WHEN ${userTable.discordId} IN (${sql.join(
-                        [...boosterIds].map((id) => sql`${id}`),
-                        sql`, `,
-                      )}) THEN ${userTable.messageStreak}`
-                    : sql``
-                }
+                  THEN ${userTable.messageStreak} + 1
+                WHEN ${inArray(userTable.discordId, boosterIds)}
+                  THEN ${userTable.messageStreak}
                 ELSE 0
                 END`,
               dailyMessages: 0,
@@ -123,13 +116,11 @@ async function processDailyResets() {
   log.info("Daily reset complete", { opId, usersReset, ms: end({ action: "daily" }) });
 }
 
-function getBoosterIds(guild: Guild, usersNeedingReset: string[]): Set<string> {
+function getBoosterIds(guild: Guild, usersNeedingReset: string[]): string[] {
   const usersNeedingResetSet = new Set(usersNeedingReset);
-  return new Set(
-    guild.members.cache
-      .filter((member) => member.premiumSince !== null && usersNeedingResetSet.has(member.id))
-      .map((member) => member.id),
-  );
+  return guild.members.cache
+    .filter((member) => member.premiumSince !== null && usersNeedingResetSet.has(member.id))
+    .map((member) => member.id);
 }
 
 async function updateStreakNicknames(
