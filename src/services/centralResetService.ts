@@ -78,12 +78,21 @@ async function processDailyResets() {
         try {
           await Promise.all(usersInVoiceSessions.map((session) => endVoiceSession(session, db, opId)));
 
-          const boostersUpdated = await creditBoosters(db, guild, usersNeedingReset);
-          if (boostersUpdated > 0) {
-            log.debug("Boosters auto-credited", { opId, count: boostersUpdated });
+          const boosterIds = getBoosterIds(guild, usersNeedingReset);
+          if (boosterIds.size > 0) {
+            log.debug("Boosters preserving streak", { opId, count: boosterIds.size });
           }
 
-          await updateStreakNicknames(db, guild, opId, usersNeedingReset);
+          await updateStreakNicknames(db, guild, opId, usersNeedingReset, boosterIds);
+
+          // Met threshold → increment, booster (below threshold) → preserve, otherwise → reset
+          const boosterGuard =
+            boosterIds.size > 0
+              ? sql`WHEN ${userTable.discordId} IN (${sql.join(
+                  [...boosterIds].map((id) => sql`${id}`),
+                  sql`, `,
+                )}) THEN ${userTable.messageStreak}`
+              : sql``;
 
           return await db
             .update(userTable)
@@ -91,7 +100,7 @@ async function processDailyResets() {
               dailyPoints: 0,
               dailyVoiceTime: 0,
               lastDailyReset: new Date(),
-              messageStreak: sql`CASE WHEN ${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK} THEN ${userTable.messageStreak} + 1 ELSE 0 END`,
+              messageStreak: sql`CASE WHEN ${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK} THEN ${userTable.messageStreak} + 1 ${boosterGuard} ELSE 0 END`,
               dailyMessages: 0,
             })
             .where(inArray(userTable.discordId, usersNeedingReset))
@@ -107,26 +116,22 @@ async function processDailyResets() {
   log.info("Daily reset complete", { opId, usersReset, ms: end({ action: "daily" }) });
 }
 
-async function creditBoosters(db: Tx, guild: Guild, usersNeedingReset: string[]): Promise<number> {
+function getBoosterIds(guild: Guild, usersNeedingReset: string[]): Set<string> {
   const usersNeedingResetSet = new Set(usersNeedingReset);
-  const boosters = guild.members.cache
-    .filter((member) => member.premiumSince !== null && usersNeedingResetSet.has(member.id))
-    .map((member) => member.id);
-
-  if (boosters.length === 0) return 0;
-
-  // Ensure boosters meet the minimum message threshold so they maintain their streak
-  await db
-    .update(userTable)
-    .set({
-      dailyMessages: sql`GREATEST(${userTable.dailyMessages}, ${MIN_DAILY_MESSAGES_FOR_STREAK})`,
-    })
-    .where(inArray(userTable.discordId, boosters));
-
-  return boosters.length;
+  return new Set(
+    guild.members.cache
+      .filter((member) => member.premiumSince !== null && usersNeedingResetSet.has(member.id))
+      .map((member) => member.id),
+  );
 }
 
-async function updateStreakNicknames(db: Tx, guild: Guild, opId: string, usersNeedingReset: string[]) {
+async function updateStreakNicknames(
+  db: Tx,
+  guild: Guild,
+  opId: string,
+  usersNeedingReset: string[],
+  boosterIds: Set<string>,
+) {
   const users = await db
     .select({
       discordId: userTable.discordId,
@@ -140,7 +145,7 @@ async function updateStreakNicknames(db: Tx, guild: Guild, opId: string, usersNe
         or(
           // Users gaining streak (met threshold)
           sql`${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK}`,
-          // Users losing streak (didn't meet threshold but had one)
+          // Users losing streak (didn't meet threshold, not a booster, but had one)
           and(lt(userTable.dailyMessages, MIN_DAILY_MESSAGES_FOR_STREAK), gt(userTable.messageStreak, 0)),
         ),
       ),
@@ -149,7 +154,8 @@ async function updateStreakNicknames(db: Tx, guild: Guild, opId: string, usersNe
   if (users.length === 0) return;
 
   const gaining = users.filter((u) => u.dailyMessages >= MIN_DAILY_MESSAGES_FOR_STREAK);
-  const losing = users.filter((u) => u.dailyMessages < MIN_DAILY_MESSAGES_FOR_STREAK);
+  // Boosters below threshold keep their streak — no nickname change needed
+  const losing = users.filter((u) => u.dailyMessages < MIN_DAILY_MESSAGES_FOR_STREAK && !boosterIds.has(u.discordId));
 
   if (losing.length > 0) {
     log.debug("Streaks being reset", {
@@ -165,7 +171,7 @@ async function updateStreakNicknames(db: Tx, guild: Guild, opId: string, usersNe
   }
 
   await Promise.all(
-    users.map(async (row) => {
+    [...gaining, ...losing].map(async (row) => {
       const member = guild.members.cache.get(row.discordId);
       if (!member) return;
       const newStreak = row.dailyMessages >= MIN_DAILY_MESSAGES_FOR_STREAK ? row.messageStreak + 1 : 0;
