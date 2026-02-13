@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import dayjs from "dayjs";
-import { db, getOpenVoiceSessions, type Tx } from "@/db/db.ts";
+import { db, getOpenVoiceSessions } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import { inArray, sql } from "drizzle-orm";
 import { endVoiceSession, startVoiceSession } from "@/discord/utils/voiceUtils.ts";
@@ -92,7 +92,7 @@ async function processDailyResets() {
                 )}) THEN ${userTable.messageStreak}`
               : sql``;
 
-          const result = await db
+          const updatedUsers = await db
             .update(userTable)
             .set({
               dailyPoints: 0,
@@ -101,11 +101,12 @@ async function processDailyResets() {
               messageStreak: sql`CASE WHEN ${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK} THEN ${userTable.messageStreak} + 1 ${boosterGuard} ELSE 0 END`,
               dailyMessages: 0,
             })
-            .where(inArray(userTable.discordId, usersNeedingReset));
+            .where(inArray(userTable.discordId, usersNeedingReset))
+            .returning({ discordId: userTable.discordId, messageStreak: userTable.messageStreak });
 
-          await updateStreakNicknames(db, guild, opId, usersNeedingReset);
+          await updateStreakNicknames(guild, opId, updatedUsers);
 
-          return result.rowCount;
+          return updatedUsers.length;
         } finally {
           await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db, opId)));
         }
@@ -126,15 +127,11 @@ function getBoosterIds(guild: Guild, usersNeedingReset: string[]): Set<string> {
   );
 }
 
-async function updateStreakNicknames(db: Tx, guild: Guild, opId: string, usersNeedingReset: string[]) {
-  const users = await db
-    .select({
-      discordId: userTable.discordId,
-      messageStreak: userTable.messageStreak,
-    })
-    .from(userTable)
-    .where(inArray(userTable.discordId, usersNeedingReset));
-
+async function updateStreakNicknames(
+  guild: Guild,
+  opId: string,
+  users: { discordId: string; messageStreak: number }[],
+) {
   await Promise.all(
     users.map(async (row) => {
       const member = guild.members.cache.get(row.discordId);
