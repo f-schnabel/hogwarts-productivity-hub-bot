@@ -169,6 +169,13 @@
       "when": 1770395727510,
       "tag": "0023_closed_shockwave",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1770998312828,
+      "tag": "0024_brave_ezekiel",
+      "breakpoints": true
     }
   ]
 }
