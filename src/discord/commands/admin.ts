@@ -13,6 +13,7 @@ import {
 import { Role } from "@/common/constants.ts";
 import { refreshAllYearRoles } from "@/discord/utils/yearRoleUtils.ts";
 import { createLogger } from "@/common/logger.ts";
+import { updateMember } from "@/discord/events/voiceStateUpdate.ts";
 import type { CommandOptions, Sums } from "@/common/types.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../utils/scoreboardService.ts";
 import { eq } from "drizzle-orm";
@@ -139,8 +140,23 @@ async function refreshYearRoles(interaction: ChatInputCommandInteraction<"cached
 async function vcEmojiCommand(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
   const emoji = interaction.options.getString("emoji");
   if (emoji) {
+    const oldEmoji = await getVCEmoji();
     await setVCEmoji(emoji);
     log.info("VC emoji set", { opId, emoji });
+
+    if (oldEmoji !== emoji) {
+      const voiceMembers = interaction.guild.members.cache.filter((m) => m.voice.channel !== null);
+      await Promise.all(
+        voiceMembers.map(async (member) => {
+          if (!member.nickname?.includes(oldEmoji)) return;
+          const newNickname = member.nickname.replaceAll(oldEmoji, emoji).trim();
+          if (newNickname.length > 32 || newNickname === member.nickname) return;
+          await updateMember({ member, reason: "Swapping VC emoji", nickname: newNickname });
+        }),
+      );
+      log.info("Swapped VC emoji for voice members", { opId, count: voiceMembers.size });
+    }
+
     await interaction.editReply(`Voice channel emoji set to: ${emoji}`);
   } else {
     const currentEmoji = await getVCEmoji();
