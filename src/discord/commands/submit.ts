@@ -16,11 +16,10 @@ import {
 } from "discord.js";
 import dayjs from "dayjs";
 import { awardPoints } from "@/services/pointsService.ts";
-import { getHouseFromMember } from "@/discord/utils/houseUtils.ts";
 import { hasAnyRole } from "@/discord/utils/roleUtils.ts";
 import { errorReply, inGuild } from "@/discord/utils/interactionUtils.ts";
 import assert from "node:assert";
-import { db } from "@/db/db.ts";
+import { db, getHouseFromMember } from "@/db/db.ts";
 import { submissionTable, userTable } from "@/db/schema.ts";
 import { and, eq, gte, lt, or, sql } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "@/common/constants.ts";

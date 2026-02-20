@@ -2,10 +2,11 @@ import { drizzle, type NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import * as schema from "./schema.ts";
 import type { GuildMember } from "discord.js";
 import { eq, and, type ExtractTablesWithRelations, isNull, inArray, DefaultLogger } from "drizzle-orm";
-import { getHouseFromMember } from "../discord/utils/houseUtils.ts";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import dayjs from "dayjs";
 import { SETTINGS_KEYS } from "../common/constants.ts";
+import assert from "node:assert/strict";
+import type { House } from "@/common/types.ts";
 
 type Schema = typeof schema;
 
@@ -99,4 +100,23 @@ export async function getVCEmoji(): Promise<string> {
 
 export async function setVCEmoji(emoji: string) {
   await setSetting(SETTINGS_KEYS.VC_EMOJI, emoji);
+}
+
+const HOUSE_ROLES = [
+  [process.env.GRYFFINDOR_ROLE_ID, "Gryffindor"],
+  [process.env.SLYTHERIN_ROLE_ID, "Slytherin"],
+  [process.env.HUFFLEPUFF_ROLE_ID, "Hufflepuff"],
+  [process.env.RAVENCLAW_ROLE_ID, "Ravenclaw"],
+] as const;
+
+export function getHouseFromMember(member: GuildMember | null): House | undefined {
+  if (!member) return undefined;
+  const roles = member.roles.cache;
+
+  const houses = HOUSE_ROLES.filter(([roleId]) => roles.has(roleId));
+  assert(
+    houses.length <= 1,
+    `Member ${member.user.tag} has multiple house roles: ${houses.map(([, name]) => name).join(", ")}`,
+  );
+  return houses[0]?.[1];
 }
