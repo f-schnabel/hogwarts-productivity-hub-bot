@@ -13,7 +13,7 @@ dayjs.extend(timezone);
 dayjs.extend(relativeTime);
 dayjs.tz.setDefault("UTC");
 
-import { startServers } from "@/common/monitoring.ts";
+import { startMonitoringServer } from "@/common/monitoring.ts";
 import * as CentralResetService from "@/services/centralResetService.ts";
 import { client } from "@/discord/client.ts";
 import { Events, SlashCommandSubcommandBuilder, type Client } from "discord.js";
@@ -26,11 +26,14 @@ import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTi
 import { commands } from "@/discord/commands.ts";
 import { promisify } from "node:util";
 import { createLogger, OpId } from "@/common/logger.ts";
+import { startAnalyticsServer } from "./web/analytics.ts";
 
 const log = createLogger("Main");
 
 // Start the bot
-const { server, analyticsServer } = startServers();
+const { server } = startMonitoringServer();
+const { analyticsServer } = startAnalyticsServer();
+
 try {
   registerEvents(client);
   registerShutdownHandlers();
