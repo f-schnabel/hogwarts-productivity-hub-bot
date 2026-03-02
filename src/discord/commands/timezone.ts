@@ -43,10 +43,10 @@ export default {
     const scored: { score: number; name: string; value: string }[] = [];
 
     for (const tz of getTimeZones()) {
-      const primary = [tz.name, tz.alternativeName, tz.countryName, ...tz.mainCities].join(" ").toLowerCase();
+      const primary = [tz.name, tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase();
 
       let score: number;
-      if (tz.countryName.toLowerCase().startsWith(query)) {
+      if (tz.countryName.toLowerCase().includes(query)) {
         score = 3;
       } else if (primary.includes(query)) {
         score = 2;
