@@ -78,7 +78,14 @@ export default {
       let totalScore = 0;
       for (const word of words) {
         const offsetQuery = asOffsetQuery(word);
-        if (offsetQuery !== null && tz.offset.includes(offsetQuery)) totalScore += 6;
+        const hasSign = offsetQuery !== null && (offsetQuery.startsWith("+") || offsetQuery.startsWith("-"));
+        if (
+          offsetQuery !== null &&
+          (hasSign
+            ? tz.offset.startsWith(offsetQuery)
+            : tz.offset.startsWith(`+${offsetQuery}`) || tz.offset.startsWith(`-${offsetQuery}`))
+        )
+          totalScore += 6;
         else if (tz.abbr === word) totalScore += 5;
         else if (tz.tzName.includes(word)) totalScore += 4;
         else if (tz.country.includes(word)) totalScore += 3;
