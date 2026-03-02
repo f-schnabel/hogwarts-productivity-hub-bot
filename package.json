@@ -27,6 +27,7 @@
   "license": "ISC",
   "description": "Discord bot for Hogwarts-themed productivity community with voice tracking, house points, and year progression",
   "dependencies": {
+    "@vvo/tzdb": "^6.198.0",
     "common-tags": "^1.8.2",
     "dayjs": "^1.11.19",
     "discord.js": "^14.25.1",

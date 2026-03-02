@@ -8,6 +8,7 @@ import { errorReply } from "@/discord/utils/interactionUtils.ts";
 import type { CommandOptions } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import { createLogger } from "@/common/logger.ts";
+import { getTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");
 
@@ -38,18 +39,21 @@ export default {
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
-    const timezones = [];
     const query = interaction.options.getFocused().toLowerCase();
-    for (const timeZone of Intl.supportedValuesOf("timeZone")) {
-      if (timeZone.toLowerCase().includes(query)) {
-        timezones.push({
-          name: `${timeZone} (Currently ${dayjs().tz(timeZone).format("HH:mm")})`,
-          value: timeZone,
+    const results = [];
+    for (const tz of getTimeZones()) {
+      const searchable = [tz.name, tz.alternativeName, tz.countryName, ...tz.group, ...tz.mainCities]
+        .join(" ")
+        .toLowerCase();
+      if (searchable.includes(query)) {
+        results.push({
+          name: `${tz.name} - ${tz.alternativeName} (${dayjs().tz(tz.name).format("HH:mm")})`,
+          value: tz.name,
         });
       }
-      if (timezones.length >= 25) break;
+      if (results.length >= 25) break;
     }
-    await interaction.respond(timezones);
+    await interaction.respond(results);
   },
 };
 
@@ -67,16 +71,30 @@ async function viewTimezone(interaction: ChatInputCommandInteraction, discordId:
   });
 }
 
+/**
+ * Resolves a timezone string to its canonical IANA name using @vvo/tzdb.
+ * Accepts current names and legacy aliases (e.g. "Asia/Calcutta" → "Asia/Kolkata").
+ * Returns null if no match is found.
+ */
+function resolveTimezone(input: string): string | null {
+  const lower = input.toLowerCase();
+  for (const tz of getTimeZones()) {
+    if (tz.group.some((alias) => alias.toLowerCase() === lower)) {
+      return tz.name;
+    }
+  }
+  return null;
+}
+
 async function setTimezone(
   interaction: ChatInputCommandInteraction,
   discordId: string,
   newTimezone: string,
   opId: string,
 ) {
-  // Validate timezone
-  try {
-    dayjs().tz(newTimezone);
-  } catch {
+  // Resolve timezone, supporting both current names and legacy aliases
+  const resolvedTimezone = resolveTimezone(newTimezone);
+  if (!resolvedTimezone) {
     log.warn("Invalid timezone", { opId, user: discordId, username: interaction.user.username, tz: newTimezone });
     await errorReply(
       opId,
@@ -88,16 +106,17 @@ async function setTimezone(
     );
     return;
   }
+  const canonicalTimezone = resolvedTimezone;
 
   // Get current timezone for comparison
   const oldTimezone = await getUserTimezone(discordId);
-  if (oldTimezone === newTimezone) {
+  if (oldTimezone === canonicalTimezone) {
     await interaction.reply({
       embeds: [
         {
           color: BOT_COLORS.WARNING,
           title: `No Change Needed`,
-          description: `Your timezone is already set to \`${newTimezone}\`.`,
+          description: `Your timezone is already set to \`${canonicalTimezone}\`.`,
         },
       ],
     });
@@ -108,7 +127,7 @@ async function setTimezone(
   const result = await db
     .update(userTable)
     .set({
-      timezone: newTimezone,
+      timezone: canonicalTimezone,
     })
     .where(eq(userTable.discordId, discordId));
 
@@ -130,7 +149,7 @@ async function setTimezone(
         fields: [
           {
             name: "Your New Local Time",
-            value: dayjs().tz(newTimezone).format("dddd, MMMM D, YYYY [at] h:mm A"),
+            value: dayjs().tz(canonicalTimezone).format("dddd, MMMM D, YYYY [at] h:mm A"),
             inline: true,
           },
         ],
