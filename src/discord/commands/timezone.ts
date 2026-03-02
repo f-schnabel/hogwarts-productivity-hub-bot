@@ -46,7 +46,9 @@ export default {
       const primary = [tz.name, tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase();
 
       let score: number;
-      if (tz.countryName.toLowerCase().includes(query)) {
+      if (tz.abbreviation.toLowerCase() === query) {
+        score = 4;
+      } else if (tz.countryName.toLowerCase().includes(query)) {
         score = 3;
       } else if (primary.includes(query)) {
         score = 2;
