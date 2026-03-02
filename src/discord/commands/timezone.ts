@@ -6,11 +6,7 @@ import { userTable } from "@/db/schema.ts";
 import { eq } from "drizzle-orm";
 import { errorReply } from "@/discord/utils/interactionUtils.ts";
 import type { CommandOptions } from "@/common/types.ts";
-import { stripIndent } from "common-tags";
-import { createLogger } from "@/common/logger.ts";
 import { getTimeZones } from "@vvo/tzdb";
-
-const log = createLogger("Timezone");
 
 export default {
   data: new SlashCommandBuilder()
@@ -71,52 +67,21 @@ async function viewTimezone(interaction: ChatInputCommandInteraction, discordId:
   });
 }
 
-/**
- * Resolves a timezone string to its canonical IANA name using @vvo/tzdb.
- * Accepts current names and legacy aliases (e.g. "Asia/Calcutta" → "Asia/Kolkata").
- * Returns null if no match is found.
- */
-function resolveTimezone(input: string): string | null {
-  const lower = input.toLowerCase();
-  for (const tz of getTimeZones()) {
-    if (tz.group.some((alias) => alias.toLowerCase() === lower)) {
-      return tz.name;
-    }
-  }
-  return null;
-}
-
 async function setTimezone(
   interaction: ChatInputCommandInteraction,
   discordId: string,
   newTimezone: string,
   opId: string,
 ) {
-  // Resolve timezone, supporting both current names and legacy aliases
-  const resolvedTimezone = resolveTimezone(newTimezone);
-  if (!resolvedTimezone) {
-    log.warn("Invalid timezone", { opId, user: discordId, username: interaction.user.username, tz: newTimezone });
-    await errorReply(
-      opId,
-      interaction,
-      "Invalid Timezone",
-      stripIndent`
-      The timezone \`${newTimezone}\` is not valid.
-      Check [IANA timezone list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)`,
-    );
-    return;
-  }
-  const canonicalTimezone = resolvedTimezone;
-
   // Get current timezone for comparison
   const oldTimezone = await getUserTimezone(discordId);
-  if (oldTimezone === canonicalTimezone) {
+  if (oldTimezone === newTimezone) {
     await interaction.reply({
       embeds: [
         {
           color: BOT_COLORS.WARNING,
           title: `No Change Needed`,
-          description: `Your timezone is already set to \`${canonicalTimezone}\`.`,
+          description: `Your timezone is already set to \`${newTimezone}\`.`,
         },
       ],
     });
@@ -127,7 +92,7 @@ async function setTimezone(
   const result = await db
     .update(userTable)
     .set({
-      timezone: canonicalTimezone,
+      timezone: newTimezone,
     })
     .where(eq(userTable.discordId, discordId));
 
@@ -149,7 +114,7 @@ async function setTimezone(
         fields: [
           {
             name: "Your New Local Time",
-            value: dayjs().tz(canonicalTimezone).format("dddd, MMMM D, YYYY [at] h:mm A"),
+            value: dayjs().tz(newTimezone).format("dddd, MMMM D, YYYY [at] h:mm A"),
             inline: true,
           },
         ],
