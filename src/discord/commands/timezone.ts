@@ -12,6 +12,17 @@ import { rawTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");
 
+const processedTimezones = rawTimeZones.map((tz) => ({
+  name: tz.name,
+  displayBaseName: `${tz.name} - ${tz.alternativeName}`,
+  tzName: tz.name.toLowerCase(),
+  aliases: tz.group.join(" ").toLowerCase(),
+  altAndCities: [tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase(),
+  country: tz.countryName.toLowerCase(),
+  abbr: tz.abbreviation.toLowerCase(),
+  offset: tz.rawFormat.split(" ")[0].toLowerCase(),
+}));
+
 export default {
   data: new SlashCommandBuilder()
     .setName("timezone")
@@ -40,35 +51,31 @@ export default {
 
   async autocomplete(interaction: AutocompleteInteraction) {
     const words = interaction.options.getFocused().toLowerCase().trim().split(/\s+/).filter(Boolean);
-    const scored: { score: number; name: string; value: string }[] = [];
+    const scored: { score: number; displayBaseName: string; value: string }[] = [];
 
-    for (const tz of rawTimeZones) {
-      const tzName = tz.name.toLowerCase();
-      const aliases = tz.group.join(" ").toLowerCase();
-      const altAndCities = [tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase();
-      const country = tz.countryName.toLowerCase();
-      const abbr = tz.abbreviation.toLowerCase();
-
+    for (const tz of processedTimezones) {
       let totalScore = 0;
       for (const word of words) {
-        if (abbr === word) totalScore += 5;
-        else if (tzName.includes(word)) totalScore += 4;
-        else if (country.includes(word)) totalScore += 3;
-        else if (altAndCities.includes(word)) totalScore += 2;
-        else if (aliases.includes(word)) totalScore += 1;
+        if (tz.offset === word) totalScore += 6;
+        else if (tz.abbr === word) totalScore += 5;
+        else if (tz.tzName.includes(word)) totalScore += 4;
+        else if (tz.country.includes(word)) totalScore += 3;
+        else if (tz.altAndCities.includes(word)) totalScore += 2;
+        else if (tz.aliases.includes(word)) totalScore += 1;
       }
 
       if (totalScore === 0) continue;
 
-      scored.push({
-        score: totalScore,
-        name: `${tz.name} - ${tz.alternativeName} (${dayjs().tz(tz.name).format("HH:mm")})`,
-        value: tz.name,
-      });
+      scored.push({ score: totalScore, displayBaseName: tz.displayBaseName, value: tz.name });
     }
 
     scored.sort((a, b) => b.score - a.score);
-    await interaction.respond(scored.slice(0, 25).map(({ name, value }) => ({ name, value })));
+    await interaction.respond(
+      scored.slice(0, 25).map(({ displayBaseName, value }) => ({
+        name: `${displayBaseName} (${dayjs().tz(value).format("HH:mm")})`,
+        value,
+      })),
+    );
   },
 };
 
