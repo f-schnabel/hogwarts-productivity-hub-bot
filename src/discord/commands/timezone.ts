@@ -49,25 +49,14 @@ export default {
       const abbr = tz.abbreviation.toLowerCase();
 
       let totalScore = 0;
-      let allMatched = true;
       for (const word of words) {
-        let wordScore: number;
-        if (abbr === word) {
-          wordScore = 4;
-        } else if (country.includes(word)) {
-          wordScore = 3;
-        } else if (primary.includes(word)) {
-          wordScore = 2;
-        } else if (group.includes(word)) {
-          wordScore = 1;
-        } else {
-          allMatched = false;
-          break;
-        }
-        totalScore += wordScore;
+        if (abbr === word) totalScore += 4;
+        else if (country.includes(word)) totalScore += 3;
+        else if (primary.includes(word)) totalScore += 2;
+        else if (group.includes(word)) totalScore += 1;
       }
 
-      if (!allMatched || totalScore === 0) continue;
+      if (totalScore === 0) continue;
 
       scored.push({
         score: totalScore,
