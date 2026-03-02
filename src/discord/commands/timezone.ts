@@ -51,7 +51,7 @@ export default {
 
   async autocomplete(interaction: AutocompleteInteraction) {
     const words = interaction.options.getFocused().toLowerCase().trim().split(/\s+/).filter(Boolean);
-    const scored: { score: number; name: string; value: string }[] = [];
+    const scored: { score: number; displayBaseName: string; value: string }[] = [];
 
     for (const tz of processedTimezones) {
       let totalScore = 0;
@@ -66,15 +66,16 @@ export default {
 
       if (totalScore === 0) continue;
 
-      scored.push({
-        score: totalScore,
-        name: `${tz.displayBaseName} (${dayjs().tz(tz.name).format("HH:mm")})`,
-        value: tz.name,
-      });
+      scored.push({ score: totalScore, displayBaseName: tz.displayBaseName, value: tz.name });
     }
 
     scored.sort((a, b) => b.score - a.score);
-    await interaction.respond(scored.slice(0, 25).map(({ name, value }) => ({ name, value })));
+    await interaction.respond(
+      scored.slice(0, 25).map(({ displayBaseName, value }) => ({
+        name: `${displayBaseName} (${dayjs().tz(value).format("HH:mm")})`,
+        value,
+      })),
+    );
   },
 };
 
