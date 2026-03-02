@@ -48,10 +48,12 @@ export default {
       const altAndCities = [tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase();
       const country = tz.countryName.toLowerCase();
       const abbr = tz.abbreviation.toLowerCase();
+      const offset = tz.rawFormat.split(" ")[0].toLowerCase();
 
       let totalScore = 0;
       for (const word of words) {
-        if (abbr === word) totalScore += 5;
+        if (offset === word) totalScore += 6;
+        else if (abbr === word) totalScore += 5;
         else if (tzName.includes(word)) totalScore += 4;
         else if (country.includes(word)) totalScore += 3;
         else if (altAndCities.includes(word)) totalScore += 2;
