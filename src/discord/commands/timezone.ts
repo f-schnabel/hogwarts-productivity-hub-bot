@@ -8,7 +8,7 @@ import { errorReply } from "@/discord/utils/interactionUtils.ts";
 import type { CommandOptions } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import { createLogger } from "@/common/logger.ts";
-import { getTimeZones } from "@vvo/tzdb";
+import { rawTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");
 
@@ -39,27 +39,27 @@ export default {
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
-    const query = interaction.options.getFocused().toLowerCase();
+    const words = interaction.options.getFocused().toLowerCase().trim().split(/\s+/).filter(Boolean);
     const scored: { score: number; name: string; value: string }[] = [];
 
-    for (const tz of getTimeZones()) {
+    for (const tz of rawTimeZones) {
       const primary = [tz.name, tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase();
+      const group = tz.group.join(" ").toLowerCase();
+      const country = tz.countryName.toLowerCase();
+      const abbr = tz.abbreviation.toLowerCase();
 
-      let score: number;
-      if (tz.abbreviation.toLowerCase() === query) {
-        score = 4;
-      } else if (tz.countryName.toLowerCase().includes(query)) {
-        score = 3;
-      } else if (primary.includes(query)) {
-        score = 2;
-      } else if (tz.group.join(" ").toLowerCase().includes(query)) {
-        score = 1;
-      } else {
-        continue;
+      let totalScore = 0;
+      for (const word of words) {
+        if (abbr === word) totalScore += 4;
+        else if (country.includes(word)) totalScore += 3;
+        else if (primary.includes(word)) totalScore += 2;
+        else if (group.includes(word)) totalScore += 1;
       }
 
+      if (totalScore === 0) continue;
+
       scored.push({
-        score,
+        score: totalScore,
         name: `${tz.name} - ${tz.alternativeName} (${dayjs().tz(tz.name).format("HH:mm")})`,
         value: tz.name,
       });
