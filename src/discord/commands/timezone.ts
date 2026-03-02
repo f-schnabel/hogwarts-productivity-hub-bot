@@ -12,13 +12,25 @@ import { rawTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");
 
-/** Strips leading zeros from the hour part of an offset string, e.g. "+05:30" → "+5:30". */
-function normalizeOffset(s: string): string {
-  return s.replace(/^([+-]?)0*(\d+):(\d{2})$/, (_: string, sign: string, h: string, m: string) => `${sign}${h}:${m}`);
+/**
+ * Normalizes an offset string to ±HH:MM format (same as @vvo/tzdb rawFormat offsets):
+ * - adds "+" if no sign is present
+ * - zero-pads the hour to 2 digits
+ * - appends ":00" if no minutes are present
+ * e.g. "5" → "+05:00", "5:30" → "+05:30", "+5:30" → "+05:30", "+05:30" → "+05:30"
+ */
+export function normalizeOffset(s: string): string {
+  const hasSign = s.startsWith("+") || s.startsWith("-");
+  const sign = hasSign ? s.charAt(0) : "+";
+  const rest = hasSign ? s.slice(1) : s;
+  const colonIdx = rest.indexOf(":");
+  const h = colonIdx >= 0 ? rest.slice(0, colonIdx) : rest;
+  const m = colonIdx >= 0 ? rest.slice(colonIdx + 1) : "00";
+  return `${sign}${h.padStart(2, "0")}:${m}`;
 }
 
 /** Returns the normalized offset if the word looks like an offset (only digits, +, -, :), else null. */
-function asOffsetQuery(word: string): string | null {
+export function asOffsetQuery(word: string): string | null {
   return /^[+\-\d:]+$/.test(word) ? normalizeOffset(word) : null;
 }
 
@@ -32,6 +44,30 @@ const processedTimezones = rawTimeZones.map((tz) => ({
   abbr: tz.abbreviation.toLowerCase(),
   offset: normalizeOffset((tz.rawFormat.split(" ")[0] ?? "").toLowerCase()),
 }));
+
+export function scoreTimezones(words: string[]): { score: number; displayBaseName: string; value: string }[] {
+  const scored: { score: number; displayBaseName: string; value: string }[] = [];
+
+  for (const tz of processedTimezones) {
+    let totalScore = 0;
+    for (const word of words) {
+      const offsetQuery = asOffsetQuery(word);
+      if (offsetQuery !== null && tz.offset.startsWith(offsetQuery)) totalScore += 6;
+      else if (tz.abbr === word) totalScore += 5;
+      else if (tz.tzName.includes(word)) totalScore += 4;
+      else if (tz.country.includes(word)) totalScore += 3;
+      else if (tz.altAndCities.includes(word)) totalScore += 2;
+      else if (tz.aliases.includes(word)) totalScore += 1;
+    }
+
+    if (totalScore === 0) continue;
+
+    scored.push({ score: totalScore, displayBaseName: tz.displayBaseName, value: tz.name });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
+}
 
 export default {
   data: new SlashCommandBuilder()
@@ -72,26 +108,7 @@ export default {
       return;
     }
 
-    const scored: { score: number; displayBaseName: string; value: string }[] = [];
-
-    for (const tz of processedTimezones) {
-      let totalScore = 0;
-      for (const word of words) {
-        const offsetQuery = asOffsetQuery(word);
-        if (offsetQuery !== null && tz.offset.includes(offsetQuery)) totalScore += 6;
-        else if (tz.abbr === word) totalScore += 5;
-        else if (tz.tzName.includes(word)) totalScore += 4;
-        else if (tz.country.includes(word)) totalScore += 3;
-        else if (tz.altAndCities.includes(word)) totalScore += 2;
-        else if (tz.aliases.includes(word)) totalScore += 1;
-      }
-
-      if (totalScore === 0) continue;
-
-      scored.push({ score: totalScore, displayBaseName: tz.displayBaseName, value: tz.name });
-    }
-
-    scored.sort((a, b) => b.score - a.score);
+    const scored = scoreTimezones(words);
     await interaction.respond(
       scored.slice(0, 25).map(({ displayBaseName, value }) => ({
         name: `${displayBaseName} (${dayjs().tz(value).format("HH:mm")})`,
