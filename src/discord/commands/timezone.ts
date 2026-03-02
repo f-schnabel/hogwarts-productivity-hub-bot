@@ -8,6 +8,7 @@ import { errorReply } from "@/discord/utils/interactionUtils.ts";
 import type { CommandOptions } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import { createLogger } from "@/common/logger.ts";
+import { getTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");
 
@@ -38,18 +39,21 @@ export default {
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
-    const timezones = [];
     const query = interaction.options.getFocused().toLowerCase();
-    for (const timeZone of Intl.supportedValuesOf("timeZone")) {
-      if (timeZone.toLowerCase().includes(query)) {
-        timezones.push({
-          name: `${timeZone} (Currently ${dayjs().tz(timeZone).format("HH:mm")})`,
-          value: timeZone,
+    const results = [];
+    for (const tz of getTimeZones()) {
+      const searchable = [tz.name, tz.alternativeName, tz.countryName, ...tz.group, ...tz.mainCities]
+        .join(" ")
+        .toLowerCase();
+      if (searchable.includes(query)) {
+        results.push({
+          name: `${tz.name} - ${tz.alternativeName} (${dayjs().tz(tz.name).format("HH:mm")})`,
+          value: tz.name,
         });
       }
-      if (timezones.length >= 25) break;
+      if (results.length >= 25) break;
     }
-    await interaction.respond(timezones);
+    await interaction.respond(results);
   },
 };
 
