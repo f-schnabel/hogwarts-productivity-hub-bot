@@ -14,7 +14,7 @@ const log = createLogger("Timezone");
 
 /** Strips leading zeros from the hour part of an offset string, e.g. "+05:30" → "+5:30". */
 function normalizeOffset(s: string): string {
-  return s.replace(/^([+-]?)0*(\d+):(\d{2})$/, (_, sign, h, m) => `${sign}${h}:${m}`);
+  return s.replace(/^([+-]?)0*(\d+):(\d{2})$/, (_: string, sign: string, h: string, m: string) => `${sign}${h}:${m}`);
 }
 
 /** Returns the normalized offset if the word looks like an offset (only digits, +, -, :), else null. */
