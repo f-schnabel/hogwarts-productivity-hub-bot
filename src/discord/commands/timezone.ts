@@ -20,9 +20,12 @@ const log = createLogger("Timezone");
  * e.g. "5" → "+05:00", "5:30" → "+05:30", "+5:30" → "+05:30", "+05:30" → "+05:30"
  */
 export function normalizeOffset(s: string): string {
-  const sign = s.startsWith("+") || s.startsWith("-") ? s[0] : "+";
-  const rest = sign === s[0] ? s.slice(1) : s;
-  const [h, m] = rest.includes(":") ? rest.split(":") : [rest, "00"];
+  const hasSign = s.startsWith("+") || s.startsWith("-");
+  const sign = hasSign ? s.charAt(0) : "+";
+  const rest = hasSign ? s.slice(1) : s;
+  const colonIdx = rest.indexOf(":");
+  const h = colonIdx >= 0 ? rest.slice(0, colonIdx) : rest;
+  const m = colonIdx >= 0 ? rest.slice(colonIdx + 1) : "00";
   return `${sign}${h.padStart(2, "0")}:${m}`;
 }
 
@@ -49,8 +52,7 @@ export function scoreTimezones(words: string[]): { score: number; displayBaseNam
     let totalScore = 0;
     for (const word of words) {
       const offsetQuery = asOffsetQuery(word);
-      if (offsetQuery !== null && tz.offset.startsWith(offsetQuery))
-        totalScore += 6;
+      if (offsetQuery !== null && tz.offset.startsWith(offsetQuery)) totalScore += 6;
       else if (tz.abbr === word) totalScore += 5;
       else if (tz.tzName.includes(word)) totalScore += 4;
       else if (tz.country.includes(word)) totalScore += 3;
