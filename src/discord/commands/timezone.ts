@@ -20,10 +20,10 @@ const log = createLogger("Timezone");
  * e.g. "5" → "+05:00", "5:30" → "+05:30", "+5:30" → "+05:30", "+05:30" → "+05:30"
  */
 export function normalizeOffset(s: string): string {
-  return s.replace(
-    /^([+-]?)(\d{1,2})(?::(\d{2}))?$/,
-    (_: string, sign: string, h: string, m: string | undefined) => `${sign || "+"}${h.padStart(2, "0")}:${m ?? "00"}`,
-  );
+  const sign = s.startsWith("+") || s.startsWith("-") ? s[0] : "+";
+  const rest = sign === s[0] ? s.slice(1) : s;
+  const [h, m] = rest.includes(":") ? rest.split(":") : [rest, "00"];
+  return `${sign}${h.padStart(2, "0")}:${m}`;
 }
 
 /** Returns the normalized offset if the word looks like an offset (only digits, +, -, :), else null. */
