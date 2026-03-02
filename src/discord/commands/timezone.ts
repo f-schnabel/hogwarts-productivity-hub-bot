@@ -39,27 +39,38 @@ export default {
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
-    const query = interaction.options.getFocused().toLowerCase();
+    const words = interaction.options.getFocused().toLowerCase().trim().split(/\s+/).filter(Boolean);
     const scored: { score: number; name: string; value: string }[] = [];
 
     for (const tz of rawTimeZones) {
       const primary = [tz.name, tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase();
+      const group = tz.group.join(" ").toLowerCase();
+      const country = tz.countryName.toLowerCase();
+      const abbr = tz.abbreviation.toLowerCase();
 
-      let score: number;
-      if (tz.abbreviation.toLowerCase() === query) {
-        score = 4;
-      } else if (tz.countryName.toLowerCase().includes(query)) {
-        score = 3;
-      } else if (primary.includes(query)) {
-        score = 2;
-      } else if (tz.group.join(" ").toLowerCase().includes(query)) {
-        score = 1;
-      } else {
-        continue;
+      let minScore = Infinity;
+      let allMatched = true;
+      for (const word of words) {
+        let wordScore: number;
+        if (abbr === word) {
+          wordScore = 4;
+        } else if (country.includes(word)) {
+          wordScore = 3;
+        } else if (primary.includes(word)) {
+          wordScore = 2;
+        } else if (group.includes(word)) {
+          wordScore = 1;
+        } else {
+          allMatched = false;
+          break;
+        }
+        minScore = Math.min(minScore, wordScore);
       }
 
+      if (!allMatched || !isFinite(minScore)) continue;
+
       scored.push({
-        score,
+        score: minScore,
         name: `${tz.name} - ${tz.alternativeName} (${dayjs().tz(tz.name).format("HH:mm")})`,
         value: tz.name,
       });
