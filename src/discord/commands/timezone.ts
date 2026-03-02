@@ -12,6 +12,16 @@ import { rawTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");
 
+/** Strips leading zeros from the hour part of an offset string, e.g. "+05:30" → "+5:30". */
+function normalizeOffset(s: string): string {
+  return s.replace(/^([+-]?)0*(\d+):(\d{2})$/, (_: string, sign: string, h: string, m: string) => `${sign}${h}:${m}`);
+}
+
+/** Returns the normalized offset if the word looks like an offset (only digits, +, -, :), else null. */
+function asOffsetQuery(word: string): string | null {
+  return /^[+\-\d:]+$/.test(word) ? normalizeOffset(word) : null;
+}
+
 const processedTimezones = rawTimeZones.map((tz) => ({
   name: tz.name,
   displayBaseName: `${tz.name} - ${tz.alternativeName}`,
@@ -20,7 +30,7 @@ const processedTimezones = rawTimeZones.map((tz) => ({
   altAndCities: [tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase(),
   country: tz.countryName.toLowerCase(),
   abbr: tz.abbreviation.toLowerCase(),
-  offset: (tz.rawFormat.split(" ")[0] ?? "").toLowerCase(),
+  offset: normalizeOffset((tz.rawFormat.split(" ")[0] ?? "").toLowerCase()),
 }));
 
 export default {
@@ -51,12 +61,24 @@ export default {
 
   async autocomplete(interaction: AutocompleteInteraction) {
     const words = interaction.options.getFocused().toLowerCase().trim().split(/\s+/).filter(Boolean);
+
+    if (words.length === 0) {
+      await interaction.respond(
+        processedTimezones.slice(0, 25).map(({ displayBaseName, name }) => ({
+          name: `${displayBaseName} (${dayjs().tz(name).format("HH:mm")})`,
+          value: name,
+        })),
+      );
+      return;
+    }
+
     const scored: { score: number; displayBaseName: string; value: string }[] = [];
 
     for (const tz of processedTimezones) {
       let totalScore = 0;
       for (const word of words) {
-        if (tz.offset === word) totalScore += 6;
+        const offsetQuery = asOffsetQuery(word);
+        if (offsetQuery !== null && tz.offset.includes(offsetQuery)) totalScore += 6;
         else if (tz.abbr === word) totalScore += 5;
         else if (tz.tzName.includes(word)) totalScore += 4;
         else if (tz.country.includes(word)) totalScore += 3;
