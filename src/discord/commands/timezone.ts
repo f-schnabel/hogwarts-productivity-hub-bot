@@ -20,7 +20,7 @@ const processedTimezones = rawTimeZones.map((tz) => ({
   altAndCities: [tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase(),
   country: tz.countryName.toLowerCase(),
   abbr: tz.abbreviation.toLowerCase(),
-  offset: (tz.rawFormat.split(" ")[0] ?? "").toLowerCase(),
+  offset: (tz.rawFormat.split(" ")[0] ?? "").replace(/([+-])0(\d:)/, "$1$2").toLowerCase(),
 }));
 
 export default {
