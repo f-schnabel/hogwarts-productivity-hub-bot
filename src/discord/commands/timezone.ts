@@ -12,9 +12,9 @@ import { rawTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");
 
-/** Strips leading zeros from the hour part of an offset string, e.g. "+05:30" → "+5:30". */
+/** Normalizes an offset string: strips leading zeros and ensures a sign, e.g. "+05:30" → "+5:30", "05:30" → "+5:30". */
 export function normalizeOffset(s: string): string {
-  return s.replace(/^([+-]?)0*(\d+):(\d{2})$/, (_: string, sign: string, h: string, m: string) => `${sign}${h}:${m}`);
+  return s.replace(/^([+-]?)0*(\d+):(\d{2})$/, (_: string, sign: string, h: string, m: string) => `${sign || "+"}${h}:${m}`);
 }
 
 /** Returns the normalized offset if the word looks like an offset (only digits, +, -, :), else null. */
@@ -40,11 +40,7 @@ export function scoreTimezones(words: string[]): { score: number; displayBaseNam
     let totalScore = 0;
     for (const word of words) {
       const offsetQuery = asOffsetQuery(word);
-      const hasSign = offsetQuery !== null && (offsetQuery.startsWith("+") || offsetQuery.startsWith("-"));
-      if (
-        offsetQuery !== null &&
-        (hasSign ? tz.offset.startsWith(offsetQuery) : tz.offset.startsWith(`+${offsetQuery}`))
-      )
+      if (offsetQuery !== null && tz.offset.startsWith(offsetQuery))
         totalScore += 6;
       else if (tz.abbr === word) totalScore += 5;
       else if (tz.tzName.includes(word)) totalScore += 4;

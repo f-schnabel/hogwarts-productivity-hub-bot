@@ -14,19 +14,20 @@ describe("normalizeOffset", () => {
     expect(normalizeOffset("+0:00")).toBe("+0:00");
   });
 
-  it("handles unsigned input", () => {
-    expect(normalizeOffset("05:30")).toBe("5:30");
-    expect(normalizeOffset("0:00")).toBe("0:00");
+  it("adds + sign when missing", () => {
+    expect(normalizeOffset("05:30")).toBe("+5:30");
+    expect(normalizeOffset("0:00")).toBe("+0:00");
+    expect(normalizeOffset("5:30")).toBe("+5:30");
   });
 });
 
 describe("asOffsetQuery", () => {
   it("returns normalized offset for offset-like words", () => {
-    expect(asOffsetQuery("05:30")).toBe("5:30");
+    expect(asOffsetQuery("05:30")).toBe("+5:30");
     expect(asOffsetQuery("+05:30")).toBe("+5:30");
     expect(asOffsetQuery("-01:00")).toBe("-1:00");
-    expect(asOffsetQuery("5:30")).toBe("5:30");
-    expect(asOffsetQuery("0:00")).toBe("0:00");
+    expect(asOffsetQuery("5:30")).toBe("+5:30");
+    expect(asOffsetQuery("0:00")).toBe("+0:00");
   });
 
   it("returns null for non-offset words", () => {
