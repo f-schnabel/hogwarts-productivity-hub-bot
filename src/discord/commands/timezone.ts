@@ -6,6 +6,7 @@ import { userTable } from "@/db/schema.ts";
 import { eq } from "drizzle-orm";
 import { errorReply } from "@/discord/utils/interactionUtils.ts";
 import type { CommandOptions } from "@/common/types.ts";
+import { stripIndent } from "common-tags";
 import { getTimeZones } from "@vvo/tzdb";
 
 export default {
@@ -73,6 +74,21 @@ async function setTimezone(
   newTimezone: string,
   opId: string,
 ) {
+  // Validate timezone
+  try {
+    dayjs().tz(newTimezone);
+  } catch {
+    await errorReply(
+      opId,
+      interaction,
+      "Invalid Timezone",
+      stripIndent`
+      The timezone \`${newTimezone}\` is not valid.
+      Check [IANA timezone list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)`,
+    );
+    return;
+  }
+
   // Get current timezone for comparison
   const oldTimezone = await getUserTimezone(discordId);
   if (oldTimezone === newTimezone) {
