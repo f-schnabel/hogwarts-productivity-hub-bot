@@ -2,32 +2,42 @@ import { describe, expect, it } from "vitest";
 import { normalizeOffset, asOffsetQuery, scoreTimezones } from "../src/discord/commands/timezone.ts";
 
 describe("normalizeOffset", () => {
-  it("strips leading zero from hour", () => {
-    expect(normalizeOffset("+05:30")).toBe("+5:30");
-    expect(normalizeOffset("-01:00")).toBe("-1:00");
-    expect(normalizeOffset("+00:00")).toBe("+0:00");
+  it("is identity for already-normalized offsets", () => {
+    expect(normalizeOffset("+05:30")).toBe("+05:30");
+    expect(normalizeOffset("-11:00")).toBe("-11:00");
+    expect(normalizeOffset("+00:00")).toBe("+00:00");
+    expect(normalizeOffset("-09:30")).toBe("-09:30");
   });
 
-  it("leaves already-normalized offsets unchanged", () => {
-    expect(normalizeOffset("+5:30")).toBe("+5:30");
-    expect(normalizeOffset("-10:00")).toBe("-10:00");
-    expect(normalizeOffset("+0:00")).toBe("+0:00");
+  it("zero-pads the hour", () => {
+    expect(normalizeOffset("+5:30")).toBe("+05:30");
+    expect(normalizeOffset("-1:00")).toBe("-01:00");
+    expect(normalizeOffset("+0:00")).toBe("+00:00");
   });
 
   it("adds + sign when missing", () => {
-    expect(normalizeOffset("05:30")).toBe("+5:30");
-    expect(normalizeOffset("0:00")).toBe("+0:00");
-    expect(normalizeOffset("5:30")).toBe("+5:30");
+    expect(normalizeOffset("05:30")).toBe("+05:30");
+    expect(normalizeOffset("5:30")).toBe("+05:30");
+    expect(normalizeOffset("00:00")).toBe("+00:00");
+  });
+
+  it("adds :00 when minutes are missing", () => {
+    expect(normalizeOffset("5")).toBe("+05:00");
+    expect(normalizeOffset("+5")).toBe("+05:00");
+    expect(normalizeOffset("-5")).toBe("-05:00");
+    expect(normalizeOffset("11")).toBe("+11:00");
   });
 });
 
 describe("asOffsetQuery", () => {
   it("returns normalized offset for offset-like words", () => {
-    expect(asOffsetQuery("05:30")).toBe("+5:30");
-    expect(asOffsetQuery("+05:30")).toBe("+5:30");
-    expect(asOffsetQuery("-01:00")).toBe("-1:00");
-    expect(asOffsetQuery("5:30")).toBe("+5:30");
-    expect(asOffsetQuery("0:00")).toBe("+0:00");
+    expect(asOffsetQuery("05:30")).toBe("+05:30");
+    expect(asOffsetQuery("+05:30")).toBe("+05:30");
+    expect(asOffsetQuery("-01:00")).toBe("-01:00");
+    expect(asOffsetQuery("5:30")).toBe("+05:30");
+    expect(asOffsetQuery("0:00")).toBe("+00:00");
+    expect(asOffsetQuery("5")).toBe("+05:00");
+    expect(asOffsetQuery("+5")).toBe("+05:00");
   });
 
   it("returns null for non-offset words", () => {
@@ -100,6 +110,11 @@ describe("scoreTimezones offset matching", () => {
       const vals = values(scoreTimezones(["5:00"]));
       expect(vals).toContain("Asia/Karachi"); // UTC+5
       expect(vals).not.toContain("America/New_York"); // UTC-5
+    });
+
+    it("5 (no minutes) matches +05:00 timezones", () => {
+      const vals = values(scoreTimezones(["5"]));
+      expect(vals).toContain("Asia/Karachi"); // UTC+5:00
     });
   });
 

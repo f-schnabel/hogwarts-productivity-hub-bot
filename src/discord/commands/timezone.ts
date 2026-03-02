@@ -12,9 +12,18 @@ import { rawTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");
 
-/** Normalizes an offset string: strips leading zeros and ensures a sign, e.g. "+05:30" → "+5:30", "05:30" → "+5:30". */
+/**
+ * Normalizes an offset string to ±HH:MM format (same as @vvo/tzdb rawFormat offsets):
+ * - adds "+" if no sign is present
+ * - zero-pads the hour to 2 digits
+ * - appends ":00" if no minutes are present
+ * e.g. "5" → "+05:00", "5:30" → "+05:30", "+5:30" → "+05:30", "+05:30" → "+05:30"
+ */
 export function normalizeOffset(s: string): string {
-  return s.replace(/^([+-]?)0*(\d+):(\d{2})$/, (_: string, sign: string, h: string, m: string) => `${sign || "+"}${h}:${m}`);
+  return s.replace(
+    /^([+-]?)(\d{1,2})(?::(\d{2}))?$/,
+    (_: string, sign: string, h: string, m: string | undefined) => `${sign || "+"}${h.padStart(2, "0")}:${m ?? "00"}`,
+  );
 }
 
 /** Returns the normalized offset if the word looks like an offset (only digits, +, -, :), else null. */
