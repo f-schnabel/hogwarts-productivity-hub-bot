@@ -48,7 +48,7 @@ export default {
       const country = tz.countryName.toLowerCase();
       const abbr = tz.abbreviation.toLowerCase();
 
-      let minScore = Infinity;
+      let totalScore = 0;
       let allMatched = true;
       for (const word of words) {
         let wordScore: number;
@@ -64,13 +64,13 @@ export default {
           allMatched = false;
           break;
         }
-        minScore = Math.min(minScore, wordScore);
+        totalScore += wordScore;
       }
 
-      if (!allMatched || !isFinite(minScore)) continue;
+      if (!allMatched || totalScore === 0) continue;
 
       scored.push({
-        score: minScore,
+        score: totalScore,
         name: `${tz.name} - ${tz.alternativeName} (${dayjs().tz(tz.name).format("HH:mm")})`,
         value: tz.name,
       });
