@@ -40,20 +40,31 @@ export default {
 
   async autocomplete(interaction: AutocompleteInteraction) {
     const query = interaction.options.getFocused().toLowerCase();
-    const results = [];
+    const scored: { score: number; name: string; value: string }[] = [];
+
     for (const tz of getTimeZones()) {
-      const searchable = [tz.name, tz.alternativeName, tz.countryName, ...tz.group, ...tz.mainCities]
-        .join(" ")
-        .toLowerCase();
-      if (searchable.includes(query)) {
-        results.push({
-          name: `${tz.name} - ${tz.alternativeName} (${dayjs().tz(tz.name).format("HH:mm")})`,
-          value: tz.name,
-        });
+      const primary = [tz.name, tz.alternativeName, tz.countryName, ...tz.mainCities].join(" ").toLowerCase();
+
+      let score: number;
+      if (tz.countryName.toLowerCase().startsWith(query)) {
+        score = 3;
+      } else if (primary.includes(query)) {
+        score = 2;
+      } else if (tz.group.join(" ").toLowerCase().includes(query)) {
+        score = 1;
+      } else {
+        continue;
       }
-      if (results.length >= 25) break;
+
+      scored.push({
+        score,
+        name: `${tz.name} - ${tz.alternativeName} (${dayjs().tz(tz.name).format("HH:mm")})`,
+        value: tz.name,
+      });
     }
-    await interaction.respond(results);
+
+    scored.sort((a, b) => b.score - a.score);
+    await interaction.respond(scored.slice(0, 25).map(({ name, value }) => ({ name, value })));
   },
 };
 
