@@ -8,7 +8,7 @@ import { errorReply } from "@/discord/utils/interactionUtils.ts";
 import type { CommandOptions } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import { createLogger } from "@/common/logger.ts";
-import { getTimeZones } from "@vvo/tzdb";
+import { rawTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");
 
@@ -42,7 +42,7 @@ export default {
     const query = interaction.options.getFocused().toLowerCase();
     const scored: { score: number; name: string; value: string }[] = [];
 
-    for (const tz of getTimeZones()) {
+    for (const tz of rawTimeZones) {
       const primary = [tz.name, tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase();
 
       let score: number;
