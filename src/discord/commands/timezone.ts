@@ -51,12 +51,23 @@ export default {
 
   async autocomplete(interaction: AutocompleteInteraction) {
     const words = interaction.options.getFocused().toLowerCase().trim().split(/\s+/).filter(Boolean);
+
+    if (words.length === 0) {
+      await interaction.respond(
+        processedTimezones.slice(0, 25).map(({ displayBaseName, name }) => ({
+          name: `${displayBaseName} (${dayjs().tz(name).format("HH:mm")})`,
+          value: name,
+        })),
+      );
+      return;
+    }
+
     const scored: { score: number; displayBaseName: string; value: string }[] = [];
 
     for (const tz of processedTimezones) {
       let totalScore = 0;
       for (const word of words) {
-        if (tz.offset === word) totalScore += 6;
+        if (tz.offset.includes(word)) totalScore += 6;
         else if (tz.abbr === word) totalScore += 5;
         else if (tz.tzName.includes(word)) totalScore += 4;
         else if (tz.country.includes(word)) totalScore += 3;
