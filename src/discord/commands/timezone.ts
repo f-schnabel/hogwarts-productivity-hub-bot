@@ -43,17 +43,17 @@ export default {
     const scored: { score: number; name: string; value: string }[] = [];
 
     for (const tz of rawTimeZones) {
-      const primary = [tz.name, tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase();
-      const group = tz.group.join(" ").toLowerCase();
+      const tzName = tz.group.join(" ").toLowerCase();
+      const altAndCities = [tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase();
       const country = tz.countryName.toLowerCase();
       const abbr = tz.abbreviation.toLowerCase();
 
       let totalScore = 0;
       for (const word of words) {
-        if (abbr === word) totalScore += 4;
+        if (abbr === word) totalScore += 5;
+        else if (tzName.includes(word)) totalScore += 4;
         else if (country.includes(word)) totalScore += 3;
-        else if (primary.includes(word)) totalScore += 2;
-        else if (group.includes(word)) totalScore += 1;
+        else if (altAndCities.includes(word)) totalScore += 2;
       }
 
       if (totalScore === 0) continue;
