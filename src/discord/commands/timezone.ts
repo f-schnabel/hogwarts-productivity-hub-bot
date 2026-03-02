@@ -44,7 +44,7 @@ export default {
 
     for (const tz of rawTimeZones) {
       const tzName = tz.name.toLowerCase();
-      const aliases = tz.group.filter((g) => g !== tz.name).join(" ").toLowerCase();
+      const aliases = tz.group.join(" ").toLowerCase();
       const altAndCities = [tz.alternativeName, ...tz.mainCities].join(" ").toLowerCase();
       const country = tz.countryName.toLowerCase();
       const abbr = tz.abbreviation.toLowerCase();
