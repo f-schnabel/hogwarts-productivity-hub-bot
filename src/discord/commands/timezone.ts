@@ -1,10 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
-import { BOT_COLORS } from "@/common/constants.ts";
+import { BOT_COLORS, Role } from "@/common/constants.ts";
 import dayjs from "dayjs";
 import { db, getUserTimezone } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import { eq } from "drizzle-orm";
-import { errorReply } from "@/discord/utils/interactionUtils.ts";
+import { errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
 import type { CommandOptions } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import { createLogger } from "@/common/logger.ts";
@@ -78,7 +78,8 @@ export default {
         .setName("timezone")
         .setDescription("Your timezone (e.g., America/New_York, Europe/London)")
         .setAutocomplete(true),
-    ),
+    )
+    .addUserOption((option) => option.setName("user").setDescription("User to manage (Prefects only)")),
 
   /**
    * View or set your timezone.
@@ -86,12 +87,23 @@ export default {
    * Does not use deferReply as this command is expected to be quick.
    */
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
+    const targetUser = interaction.options.getUser("user");
     const newTimezone = interaction.options.getString("timezone");
 
+    let discordId = interaction.user.id;
+    let whose = "Your";
+
+    if (targetUser) {
+      if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.PREFECT | Role.PROFESSOR | Role.OWNER))
+        return;
+      discordId = targetUser.id;
+      whose = `${targetUser.displayName}'s`;
+    }
+
     if (newTimezone) {
-      await setTimezone(interaction, interaction.user.id, newTimezone, opId);
+      await setTimezone(interaction, discordId, whose, newTimezone, opId);
     } else {
-      await viewTimezone(interaction, interaction.user.id);
+      await viewTimezone(interaction, discordId, whose);
     }
   },
 
@@ -118,7 +130,7 @@ export default {
   },
 };
 
-async function viewTimezone(interaction: ChatInputCommandInteraction, discordId: string) {
+async function viewTimezone(interaction: ChatInputCommandInteraction, discordId: string, whose: string) {
   const userTimezone = await getUserTimezone(discordId);
   const userLocalTime = dayjs().tz(userTimezone).format("HH:mm");
 
@@ -126,7 +138,7 @@ async function viewTimezone(interaction: ChatInputCommandInteraction, discordId:
     embeds: [
       {
         color: BOT_COLORS.SUCCESS,
-        description: `Your timezone is currently set to \`${userTimezone}\` (Currently ${userLocalTime})`,
+        description: `${whose} timezone is currently set to \`${userTimezone}\` (Currently ${userLocalTime})`,
       },
     ],
   });
@@ -135,6 +147,7 @@ async function viewTimezone(interaction: ChatInputCommandInteraction, discordId:
 async function setTimezone(
   interaction: ChatInputCommandInteraction,
   discordId: string,
+  whose: string,
   newTimezone: string,
   opId: string,
 ) {
@@ -162,7 +175,7 @@ async function setTimezone(
         {
           color: BOT_COLORS.WARNING,
           title: `No Change Needed`,
-          description: `Your timezone is already set to \`${newTimezone}\`.`,
+          description: `${whose} timezone is already set to \`${newTimezone}\`.`,
         },
       ],
     });
@@ -182,7 +195,7 @@ async function setTimezone(
       opId,
       interaction,
       "Timezone Update Failed",
-      "Failed to update your timezone. Please try again later.",
+      `Failed to update ${whose.toLowerCase()} timezone. Please try again later.`,
     );
     return;
   }
@@ -194,7 +207,7 @@ async function setTimezone(
         title: `Timezone Updated Successfully`,
         fields: [
           {
-            name: "Your New Local Time",
+            name: `${whose} New Local Time`,
             value: dayjs().tz(newTimezone).format("dddd, MMMM D, YYYY [at] h:mm A"),
             inline: true,
           },
