@@ -183,10 +183,16 @@ export default {
     const [submission] = await db
       .update(submissionTable)
       .set({ status: event === "approve" ? "APPROVED" : "REJECTED", reviewedAt: new Date(), reviewedBy: member.id })
-      .where(eq(submissionTable.id, Number.parseInt(submissionId)))
+      .where(and(eq(submissionTable.id, Number.parseInt(submissionId)), eq(submissionTable.status, "PENDING")))
       .returning();
 
-    assert(submission, `Failed to update submission with ID ${submissionId}`);
+    if (!submission) {
+      await interaction.followUp({
+        content: "This submission has already been reviewed.",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
     // Fetch the submitter's timezone for display
     const submitter = await db.query.userTable.findFirst({
