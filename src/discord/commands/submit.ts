@@ -19,8 +19,8 @@ import { awardPoints } from "@/services/pointsService.ts";
 import { hasAnyRole } from "@/discord/utils/roleUtils.ts";
 import { errorReply, inGuild } from "@/discord/utils/interactionUtils.ts";
 import assert from "node:assert";
-import { db, getHouseFromMember } from "@/db/db.ts";
-import { submissionTable, userTable } from "@/db/schema.ts";
+import { db, getHouseFromMember, getUserTimezone } from "@/db/db.ts";
+import { submissionTable } from "@/db/schema.ts";
 import { and, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "@/common/constants.ts";
 import type { CommandOptions } from "@/common/types.ts";
@@ -60,12 +60,7 @@ export default {
     assert(house, "User does not have a house role assigned");
 
     // Fetch user's timezone for validation and display
-    const userTimezone = await db.query.userTable
-      .findFirst({
-        columns: { timezone: true },
-        where: eq(userTable.discordId, interaction.member.id),
-      })
-      .then((u) => u?.timezone ?? "UTC");
+    const userTimezone = await getUserTimezone(interaction.member.id);
 
     // Block a second submission within the last hour on the same day (in user's timezone)
     const oneHourAgo = dayjs().subtract(1, "hour").toDate();
@@ -109,7 +104,7 @@ export default {
 
     // Send the reply and capture message ID for future cross-referencing
     const response = await interaction.reply({
-      ...submissionMessage({ submission, userTimezone, linkedSubmission }),
+      ...(await submissionMessage({ submission, userTimezone, linkedSubmission })),
       withResponse: true,
     });
     const reply = response.resource?.message;
@@ -131,7 +126,7 @@ export default {
         if (channel?.isTextBased()) {
           const linkedMessage = await channel.messages.fetch(linkedSubmission.messageId);
           await linkedMessage.edit(
-            submissionMessage({
+            await submissionMessage({
               submission: linkedSubmission,
               userTimezone,
               linkedSubmission: {
@@ -161,7 +156,7 @@ export default {
     assert(submissionId, "No data provided in button interaction");
 
     if (event === "cancel") {
-      await cancelSumbission(Number.parseInt(submissionId), interaction);
+      await cancelSubmission(Number.parseInt(submissionId), interaction);
       return;
     }
 
@@ -223,13 +218,6 @@ export default {
       return;
     }
 
-    // Fetch the submitter's timezone for display
-    const submitter = await db.query.userTable.findFirst({
-      columns: { timezone: true },
-      where: eq(userTable.discordId, submission.discordId),
-    });
-    const userTimezone = submitter?.timezone ?? "UTC";
-
     // Find linked submission (either this links to another, or another links to this)
     const linkedSubmission = await db.query.submissionTable.findFirst({
       columns: { channelId: true, messageId: true },
@@ -241,7 +229,7 @@ export default {
 
     await interaction.message
       .fetch()
-      .then((m) => m.edit(submissionMessage({ submission, userTimezone, reason, linkedSubmission })));
+      .then(async (m) => m.edit(await submissionMessage({ submission, reason, linkedSubmission })));
 
     if (event === "approve") {
       await awardPoints(db, submission.discordId, submission.points, opId);
@@ -249,44 +237,30 @@ export default {
   },
 };
 
-async function cancelSumbission(submissionId: number, interaction: ButtonInteraction) {
-  const submission = await db.query.submissionTable.findFirst({
-    where: and(eq(submissionTable.id, submissionId), eq(submissionTable.status, "PENDING")),
-  });
-
-  if (!submission) {
-    await interaction.reply({ content: "This submission has already been reviewed.", flags: MessageFlags.Ephemeral });
-    return;
-  }
-
-  if (submission.discordId !== interaction.user.id) {
-    await interaction.reply({ content: "You can only cancel your own submissions.", flags: MessageFlags.Ephemeral });
-    return;
-  }
-
+async function cancelSubmission(submissionId: number, interaction: ButtonInteraction) {
   await interaction.deferUpdate();
 
   const [canceled] = await db
     .update(submissionTable)
     .set({ status: "CANCELED", reviewedAt: new Date(), reviewedBy: interaction.user.id })
-    .where(and(eq(submissionTable.id, submissionId), eq(submissionTable.status, "PENDING")))
+    .where(
+      and(
+        eq(submissionTable.id, submissionId),
+        eq(submissionTable.status, "PENDING"),
+        eq(submissionTable.discordId, interaction.user.id),
+      ),
+    )
     .returning();
 
   if (!canceled) {
     await interaction.followUp({
-      content: "This submission has already been reviewed.",
+      content: "This submission has already been reviewed or belongs to another user.",
       flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
-  const submitter = await db.query.userTable.findFirst({
-    columns: { timezone: true },
-    where: eq(userTable.discordId, canceled.discordId),
-  });
-  const userTimezone = submitter?.timezone ?? "UTC";
-
-  await interaction.message.fetch().then((m) => m.edit(submissionMessage({ submission: canceled, userTimezone })));
+  await interaction.message.fetch().then(async (m) => m.edit(await submissionMessage({ submission: canceled })));
   return;
 }
 
@@ -302,17 +276,17 @@ async function getLinkedSubmissionToday(discordId: string, userTimezone: string)
       eq(submissionTable.status, "APPROVED"),
     ),
   });
-  return result.length == 1 ? result[0] : null;
+  return result.length === 1 ? result[0] : null;
 }
 
 interface SubmissionMessageParams {
   submission: typeof submissionTable.$inferSelect;
-  userTimezone: string;
+  userTimezone?: string;
   reason?: string;
   linkedSubmission?: { channelId: string | null; messageId: string | null } | null;
 }
 
-function submissionMessage({ submission, userTimezone, reason, linkedSubmission }: SubmissionMessageParams) {
+async function submissionMessage({ submission, userTimezone, reason, linkedSubmission }: SubmissionMessageParams) {
   let components: InteractionReplyOptions["components"] = [];
   if (submission.status === "PENDING") {
     components = [
@@ -342,6 +316,7 @@ function submissionMessage({ submission, userTimezone, reason, linkedSubmission 
     ];
   }
 
+  userTimezone ??= await getUserTimezone(submission.discordId);
   // Format the submitted time in the user's timezone
   const formattedSubmittedAt = dayjs(submission.submittedAt).tz(userTimezone).format("h:mm A [on] MMM D (z)");
 
