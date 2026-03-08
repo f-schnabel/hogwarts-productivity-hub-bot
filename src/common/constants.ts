@@ -26,6 +26,7 @@ export const SUBMISSION_COLORS = {
   PENDING: 0x979c9f,
   APPROVED: 0x2ecc70,
   REJECTED: 0xe74d3c,
+  CANCELED: 0x979c9f,
 } as const;
 
 export const Role = {

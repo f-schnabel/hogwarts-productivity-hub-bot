@@ -84,7 +84,7 @@ export const submissionTable = pgTable(
     points: integer().notNull(),
     status: varchar({
       length: 50,
-      enum: ["PENDING", "APPROVED", "REJECTED"],
+      enum: ["PENDING", "APPROVED", "REJECTED", "CANCELED"],
     })
       .default("PENDING")
       .notNull(),
