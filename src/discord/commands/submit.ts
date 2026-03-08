@@ -161,48 +161,7 @@ export default {
     assert(submissionId, "No data provided in button interaction");
 
     if (event === "cancel") {
-      const submission = await db.query.submissionTable.findFirst({
-        where: and(eq(submissionTable.id, Number.parseInt(submissionId)), eq(submissionTable.status, "PENDING")),
-      });
-
-      if (!submission) {
-        await interaction.reply({ content: "This submission has already been reviewed.", flags: MessageFlags.Ephemeral });
-        return;
-      }
-
-      if (submission.discordId !== interaction.user.id) {
-        await interaction.reply({ content: "You can only cancel your own submissions.", flags: MessageFlags.Ephemeral });
-        return;
-      }
-
-      await interaction.deferUpdate();
-
-      const [canceled] = await db
-        .update(submissionTable)
-        .set({ status: "CANCELED", reviewedAt: new Date(), reviewedBy: interaction.user.id })
-        .where(and(eq(submissionTable.id, Number.parseInt(submissionId)), eq(submissionTable.status, "PENDING")))
-        .returning();
-
-      if (!canceled) {
-        await interaction.followUp({ content: "This submission has already been reviewed.", flags: MessageFlags.Ephemeral });
-        return;
-      }
-
-      const submitter = await db.query.userTable.findFirst({
-        columns: { timezone: true },
-        where: eq(userTable.discordId, canceled.discordId),
-      });
-      const userTimezone = submitter?.timezone ?? "UTC";
-
-      const linkedSubmission = await db.query.submissionTable.findFirst({
-        columns: { channelId: true, messageId: true },
-        where: or(
-          canceled.linkedSubmissionId ? eq(submissionTable.id, canceled.linkedSubmissionId) : undefined,
-          eq(submissionTable.linkedSubmissionId, canceled.id),
-        ),
-      });
-
-      await interaction.message.fetch().then((m) => m.edit(submissionMessage({ submission: canceled, userTimezone, linkedSubmission })));
+      await cancelSumbission(Number.parseInt(submissionId), interaction);
       return;
     }
 
@@ -290,6 +249,47 @@ export default {
   },
 };
 
+async function cancelSumbission(submissionId: number, interaction: ButtonInteraction) {
+  const submission = await db.query.submissionTable.findFirst({
+    where: and(eq(submissionTable.id, submissionId), eq(submissionTable.status, "PENDING")),
+  });
+
+  if (!submission) {
+    await interaction.reply({ content: "This submission has already been reviewed.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  if (submission.discordId !== interaction.user.id) {
+    await interaction.reply({ content: "You can only cancel your own submissions.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  await interaction.deferUpdate();
+
+  const [canceled] = await db
+    .update(submissionTable)
+    .set({ status: "CANCELED", reviewedAt: new Date(), reviewedBy: interaction.user.id })
+    .where(and(eq(submissionTable.id, submissionId), eq(submissionTable.status, "PENDING")))
+    .returning();
+
+  if (!canceled) {
+    await interaction.followUp({
+      content: "This submission has already been reviewed.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const submitter = await db.query.userTable.findFirst({
+    columns: { timezone: true },
+    where: eq(userTable.discordId, canceled.discordId),
+  });
+  const userTimezone = submitter?.timezone ?? "UTC";
+
+  await interaction.message.fetch().then((m) => m.edit(submissionMessage({ submission: canceled, userTimezone })));
+  return;
+}
+
 async function getLinkedSubmissionToday(discordId: string, userTimezone: string) {
   const dayStart = dayjs().tz(userTimezone).startOf("day").toDate();
   const dayEnd = dayjs().tz(userTimezone).endOf("day").toDate();
@@ -309,7 +309,7 @@ interface SubmissionMessageParams {
   submission: typeof submissionTable.$inferSelect;
   userTimezone: string;
   reason?: string;
-  linkedSubmission: { channelId: string | null; messageId: string | null } | null | undefined;
+  linkedSubmission?: { channelId: string | null; messageId: string | null } | null;
 }
 
 function submissionMessage({ submission, userTimezone, reason, linkedSubmission }: SubmissionMessageParams) {
@@ -335,7 +335,7 @@ function submissionMessage({ submission, userTimezone, reason, linkedSubmission 
             type: ComponentType.Button,
             customId: `submit|cancel|${submission.id}`,
             label: "Cancel",
-            style: ButtonStyle.Danger,
+            style: ButtonStyle.Secondary,
           },
         ],
       },
@@ -403,12 +403,6 @@ function submissionMessage({ submission, userTimezone, reason, linkedSubmission 
     embed.addFields({
       name: "Reason",
       value: reason,
-      inline: false,
-    });
-  } else if (submission.status === "CANCELED") {
-    embed.addFields({
-      name: "Canceled by",
-      value: `${userMention(submission.reviewedBy ?? "")} at ${time(submission.reviewedAt ?? new Date())}`,
       inline: false,
     });
   }
