@@ -79,8 +79,10 @@ export default {
       await errorReply(
         opId,
         interaction,
-        "Duplicate Submission",
-        `You already have a ${recentSubmission.status.toLowerCase()} submission. Please wait until ${time(retryTime.toDate())} before submitting again.`,
+        "Please wait before submitting again",
+        `There has to be at least an hour between submitting the new and the completed To-Do List. You already have submitted in the past hour.\n
+        If the previous submission was wrong you can cancel it by clicking on the button above.\n
+        Otherwise please wait until ${time(retryTime.toDate())} before submitting again.`,
       );
       return;
     }
@@ -378,6 +380,12 @@ async function submissionMessage({ submission, userTimezone, reason, linkedSubmi
     embed.addFields({
       name: "Reason",
       value: reason,
+      inline: false,
+    });
+  } else if (submission.status === "CANCELED") {
+    embed.addFields({
+      name: "Cancelled",
+      value: `This submission was cancelled by the user.`,
       inline: false,
     });
   }
