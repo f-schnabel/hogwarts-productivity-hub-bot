@@ -111,14 +111,15 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
       });
       log.info("Monthly reset complete", { opId, usersReset: result.rowCount });
 
-      // Refresh year roles after resetting (removes all year roles since voice time is 0)
-      const rolesUpdated = await refreshAllYearRoles(interaction.guild);
-      log.info("Year roles refreshed", { opId, usersUpdated: rolesUpdated });
-
       // Store reset timestamp
       await setMonthStartDate(new Date());
       const scoreboards = await db.select().from(houseScoreboardTable);
       await updateScoreboardMessages(await getHousepointMessages(db, scoreboards), opId);
+
+      // Refresh year roles in background (removes all year roles since voice time is 0)
+      void refreshAllYearRoles(interaction.guild).then((count) => {
+        log.info("Year roles refreshed", { opId, usersUpdated: count });
+      });
     },
     "Monthly reset processing",
     opId,
