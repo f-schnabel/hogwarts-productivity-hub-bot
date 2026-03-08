@@ -81,7 +81,7 @@ export default {
         opId,
         interaction,
         "Please wait before submitting again",
-        `${bold("There has to be at least an hour between submitting the new and the completed To-Do List")}. You already have submitted in the past hour.
+        `${bold("There has to be at least an hour between submitting the new and the completed To-Do List")}. You already have submitted in the past hour.\n
         If the previous submission was wrong you can cancel it by clicking on the button above.
         Otherwise please wait until ${time(retryTime.toDate())} before submitting again.`,
       );
