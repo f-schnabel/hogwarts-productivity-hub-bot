@@ -21,7 +21,7 @@ import { errorReply, inGuild } from "@/discord/utils/interactionUtils.ts";
 import assert from "node:assert";
 import { db, getHouseFromMember } from "@/db/db.ts";
 import { submissionTable, userTable } from "@/db/schema.ts";
-import { and, eq, gte, lt, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "@/common/constants.ts";
 import type { CommandOptions } from "@/common/types.ts";
 import { alertOwner } from "../utils/alerting.ts";
@@ -73,7 +73,7 @@ export default {
       where: and(
         eq(submissionTable.discordId, interaction.member.id),
         gte(submissionTable.submittedAt, oneHourAgo),
-        or(eq(submissionTable.status, "PENDING"), eq(submissionTable.status, "APPROVED")),
+        inArray(submissionTable.status, ["PENDING", "APPROVED"]),
       ),
     });
 
