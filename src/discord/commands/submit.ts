@@ -67,12 +67,14 @@ export default {
       })
       .then((u) => u?.timezone ?? "UTC");
 
-    // Block duplicate submissions within the last hour (pending or approved only)
+    // Block a second submission within the last hour on the same day (in user's timezone)
     const oneHourAgo = dayjs().subtract(1, "hour").toDate();
+    const todayStart = dayjs().tz(userTimezone).startOf("day").toDate();
     const recentSubmission = await db.query.submissionTable.findFirst({
       where: and(
         eq(submissionTable.discordId, interaction.member.id),
         gte(submissionTable.submittedAt, oneHourAgo),
+        gte(submissionTable.submittedAt, todayStart),
         inArray(submissionTable.status, ["PENDING", "APPROVED"]),
       ),
     });
