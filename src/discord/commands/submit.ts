@@ -21,7 +21,7 @@ import { errorReply, inGuild } from "@/discord/utils/interactionUtils.ts";
 import assert from "node:assert";
 import { db, getHouseFromMember } from "@/db/db.ts";
 import { submissionTable, userTable } from "@/db/schema.ts";
-import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "@/common/constants.ts";
 import type { CommandOptions } from "@/common/types.ts";
 import { alertOwner } from "../utils/alerting.ts";
@@ -158,6 +158,54 @@ export default {
     opId: string,
   ): Promise<void> {
     const member = interaction.member as GuildMember;
+    assert(submissionId, "No data provided in button interaction");
+
+    if (event === "cancel") {
+      const submission = await db.query.submissionTable.findFirst({
+        where: and(eq(submissionTable.id, Number.parseInt(submissionId)), eq(submissionTable.status, "PENDING")),
+      });
+
+      if (!submission) {
+        await interaction.reply({ content: "This submission has already been reviewed.", flags: MessageFlags.Ephemeral });
+        return;
+      }
+
+      if (submission.discordId !== interaction.user.id) {
+        await interaction.reply({ content: "You can only cancel your own submissions.", flags: MessageFlags.Ephemeral });
+        return;
+      }
+
+      await interaction.deferUpdate();
+
+      const [canceled] = await db
+        .update(submissionTable)
+        .set({ status: "CANCELED", reviewedAt: new Date(), reviewedBy: interaction.user.id })
+        .where(and(eq(submissionTable.id, Number.parseInt(submissionId)), eq(submissionTable.status, "PENDING")))
+        .returning();
+
+      if (!canceled) {
+        await interaction.followUp({ content: "This submission has already been reviewed.", flags: MessageFlags.Ephemeral });
+        return;
+      }
+
+      const submitter = await db.query.userTable.findFirst({
+        columns: { timezone: true },
+        where: eq(userTable.discordId, canceled.discordId),
+      });
+      const userTimezone = submitter?.timezone ?? "UTC";
+
+      const linkedSubmission = await db.query.submissionTable.findFirst({
+        columns: { channelId: true, messageId: true },
+        where: or(
+          canceled.linkedSubmissionId ? eq(submissionTable.id, canceled.linkedSubmissionId) : undefined,
+          eq(submissionTable.linkedSubmissionId, canceled.id),
+        ),
+      });
+
+      await interaction.message.fetch().then((m) => m.edit(submissionMessage({ submission: canceled, userTimezone, linkedSubmission })));
+      return;
+    }
+
     if (!hasAnyRole(member, Role.PREFECT)) {
       await interaction.reply({
         content: "You do not have permission to perform this action.",
@@ -165,7 +213,6 @@ export default {
       });
       return;
     }
-    assert(submissionId, "No data provided in button interaction");
 
     let reason: string | undefined = undefined;
 
@@ -284,6 +331,12 @@ function submissionMessage({ submission, userTimezone, reason, linkedSubmission 
             label: "Reject",
             style: ButtonStyle.Secondary,
           },
+          {
+            type: ComponentType.Button,
+            customId: `submit|cancel|${submission.id}`,
+            label: "Cancel",
+            style: ButtonStyle.Danger,
+          },
         ],
       },
     ];
@@ -350,6 +403,12 @@ function submissionMessage({ submission, userTimezone, reason, linkedSubmission 
     embed.addFields({
       name: "Reason",
       value: reason,
+      inline: false,
+    });
+  } else if (submission.status === "CANCELED") {
+    embed.addFields({
+      name: "Canceled by",
+      value: `${userMention(submission.reviewedBy ?? "")} at ${time(submission.reviewedAt ?? new Date())}`,
       inline: false,
     });
   }
