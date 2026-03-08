@@ -67,6 +67,27 @@ export default {
       })
       .then((u) => u?.timezone ?? "UTC");
 
+    // Block duplicate submissions within the last hour (pending or approved only)
+    const oneHourAgo = dayjs().subtract(1, "hour").toDate();
+    const recentSubmission = await db.query.submissionTable.findFirst({
+      where: and(
+        eq(submissionTable.discordId, interaction.member.id),
+        gte(submissionTable.submittedAt, oneHourAgo),
+        or(eq(submissionTable.status, "PENDING"), eq(submissionTable.status, "APPROVED")),
+      ),
+    });
+
+    if (recentSubmission) {
+      const retryTime = dayjs(recentSubmission.submittedAt).add(1, "hour");
+      await errorReply(
+        opId,
+        interaction,
+        "Duplicate Submission",
+        `You already have a ${recentSubmission.status.toLowerCase()} submission. Please wait until ${time(retryTime.toDate())} before submitting again.`,
+      );
+      return;
+    }
+
     // Link to first approved submission if this is the 2nd submission
     const linkedSubmission = await getLinkedSubmissionToday(interaction.member.id, userTimezone);
 
