@@ -93,7 +93,7 @@ export default {
     let discordId = interaction.user.id;
     let whose = "Your";
 
-    if (targetUser) {
+    if (targetUser && targetUser.id !== interaction.user.id) {
       if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.PREFECT | Role.PROFESSOR | Role.OWNER))
         return;
       discordId = targetUser.id;
