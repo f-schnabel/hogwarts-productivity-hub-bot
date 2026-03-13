@@ -3,6 +3,8 @@ import { db, ensureUserExists } from "../../db/db.ts";
 import { userTable } from "../../db/schema.ts";
 import { eq, sql } from "drizzle-orm";
 import { createLogger, OpId } from "../../common/logger.ts";
+import assert from "node:assert/strict";
+import { updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
 
 const log = createLogger("Message");
 
@@ -33,10 +35,15 @@ export async function execute(message: OmitPartialGroupDMChannel<Message>): Prom
   log.debug("Received", ctx);
   await ensureUserExists(message.member, discordId, message.author.username);
 
-  await db
+  const row = await db
     .update(userTable)
     .set({
       dailyMessages: sql`${userTable.dailyMessages} + 1`,
     })
-    .where(eq(userTable.discordId, discordId));
+    .where(eq(userTable.discordId, discordId))
+    .returning({ messageStreak: userTable.messageStreak })
+    .then((res) => res[0]);
+
+  assert(row, "Failed to update daily messages");
+  await updateMessageStreakInNickname(message.member, row.messageStreak, opId);
 }
