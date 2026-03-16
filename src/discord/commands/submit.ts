@@ -77,13 +77,20 @@ export default {
 
     if (recentSubmission) {
       const retryTime = dayjs(recentSubmission.submittedAt).add(1, "hour");
+      const tomorrowStart = dayjs().tz(userTimezone).add(1, "day").startOf("day");
+      const tooLate = retryTime.isAfter(tomorrowStart) || retryTime.isSame(tomorrowStart);
+
+      const waitMessage = tooLate
+        ? "It is too late to submit again today."
+        : `Otherwise please wait until ${time(retryTime.toDate())} before submitting again.`;
+
       await errorReply(
         opId,
         interaction,
         "Please wait before submitting again",
         `${bold("There has to be at least an hour between submitting the new and the completed To-Do List")}. You already have submitted in the past hour.\n
         If the previous submission was wrong you can cancel it by clicking on the button above.
-        Otherwise please wait until ${time(retryTime.toDate())} before submitting again.`,
+        ${waitMessage}`,
       );
       return;
     }
