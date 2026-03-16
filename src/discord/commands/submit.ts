@@ -392,6 +392,7 @@ async function submissionMessage({ submission, userTimezone, reason, linkedSubmi
   }
 
   return {
+    content: submission.status === "REJECTED" ? userMention(submission.discordId) : "",
     embeds: [embed],
     components: components,
   };
