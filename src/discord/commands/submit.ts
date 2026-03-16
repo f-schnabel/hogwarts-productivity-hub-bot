@@ -243,6 +243,12 @@ export default {
 
     if (event === "approve") {
       await awardPoints(db, submission.discordId, submission.points, opId);
+    } else if (event === "reject") {
+      assert(reason, "Rejection reason must be provided");
+      const submissionLink = messageLink(interaction.channelId, interaction.message.id, process.env.GUILD_ID);
+      await interaction.followUp(
+        `${userMention(submission.discordId)} Your [submission](${submissionLink}) was rejected. Reason: ${reason}`,
+      );
     }
   },
 };
@@ -399,7 +405,6 @@ async function submissionMessage({ submission, userTimezone, reason, linkedSubmi
   }
 
   return {
-    content: submission.status === "REJECTED" ? userMention(submission.discordId) : "",
     embeds: [embed],
     components: components,
   };
