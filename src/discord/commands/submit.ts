@@ -158,7 +158,12 @@ export default {
         submissionType,
         linkedSubmissionId: linkedSubmission?.id ?? null,
         // Calculate next house submission ID by counting existing submissions
-        houseId: sql`(SELECT COUNT(*) + 1 FROM ${submissionTable} WHERE ${submissionTable.house} = ${house}) AND ${submissionTable.submittedAt} >= ${monthStartDate}`,
+        houseId: sql`(
+          SELECT COUNT(*) + 1
+          FROM ${submissionTable}
+          WHERE ${submissionTable.house} = ${house}
+            AND ${submissionTable.submittedAt} >= ${monthStartDate}
+        )`,
       })
       .returning();
     assert(submission, "Failed to create submission");
