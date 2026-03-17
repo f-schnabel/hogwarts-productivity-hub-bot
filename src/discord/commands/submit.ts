@@ -20,19 +20,35 @@ import { awardPoints } from "@/services/pointsService.ts";
 import { hasAnyRole } from "@/discord/utils/roleUtils.ts";
 import { errorReply, inGuild } from "@/discord/utils/interactionUtils.ts";
 import assert from "node:assert";
-import { db, getHouseFromMember, getUserTimezone } from "@/db/db.ts";
+import { db, getHouseFromMember, getMonthStartDate, getUserTimezone } from "@/db/db.ts";
 import { submissionTable } from "@/db/schema.ts";
-import { and, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "@/common/constants.ts";
 import type { CommandOptions } from "@/common/types.ts";
 import { alertOwner } from "../utils/alerting.ts";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
+const SUBMISSION_TYPES = {
+  NEW: "NEW",
+  COMPLETED: "COMPLETED",
+} as const;
+
+type SubmissionType = (typeof SUBMISSION_TYPES)[keyof typeof SUBMISSION_TYPES];
 
 export default {
   data: new SlashCommandBuilder()
     .setName("submit")
     .setDescription("Submit a score")
+    .addStringOption((option) =>
+      option
+        .setName("type")
+        .setDescription("Choose whether this is your new or completed list")
+        .setRequired(true)
+        .addChoices(
+          { name: "New List", value: SUBMISSION_TYPES.NEW },
+          { name: "Completed List", value: SUBMISSION_TYPES.COMPLETED },
+        ),
+    )
     .addAttachmentOption((option) =>
       option.setName("screenshot").setDescription("A screenshot of your work").setRequired(true),
     ),
@@ -56,48 +72,82 @@ export default {
     }
 
     const screenshot = interaction.options.getAttachment("screenshot", true);
+    const submissionType = interaction.options.getString("type", true) as SubmissionType;
 
     const house = getHouseFromMember(interaction.member);
     assert(house, "User does not have a house role assigned");
 
     // Fetch user's timezone for validation and display
     const userTimezone = await getUserTimezone(interaction.member.id);
-
-    // Block a second submission within the last hour on the same day (in user's timezone)
-    const oneHourAgo = dayjs().subtract(1, "hour").toDate();
-    const todayStart = dayjs().tz(userTimezone).startOf("day").toDate();
-    const recentSubmission = await db.query.submissionTable.findFirst({
+    const dayStart = dayjs().tz(userTimezone).startOf("day");
+    const dayEnd = dayStart.add(1, "day");
+    const sameDaySubmissions = await db.query.submissionTable.findMany({
       where: and(
         eq(submissionTable.discordId, interaction.member.id),
-        gte(submissionTable.submittedAt, oneHourAgo),
-        gte(submissionTable.submittedAt, todayStart),
+        gte(submissionTable.submittedAt, dayStart.toDate()),
+        lt(submissionTable.submittedAt, dayEnd.toDate()),
         inArray(submissionTable.status, ["PENDING", "APPROVED"]),
+        isNotNull(submissionTable.submissionType),
       ),
     });
 
-    if (recentSubmission) {
-      const retryTime = dayjs(recentSubmission.submittedAt).add(1, "hour");
-      const tomorrowStart = dayjs().tz(userTimezone).add(1, "day").startOf("day");
-      const tooLate = retryTime.isAfter(tomorrowStart) || retryTime.isSame(tomorrowStart);
+    const newSubmission = sameDaySubmissions.find((s) => s.submissionType === SUBMISSION_TYPES.NEW);
+    const completedSubmission = sameDaySubmissions.find((s) => s.submissionType === SUBMISSION_TYPES.COMPLETED);
 
-      const waitMessage = tooLate
-        ? "It is too late to submit again today."
-        : `Otherwise please wait until ${time(retryTime.toDate())} before submitting again.`;
+    const firstSubmission = sameDaySubmissions[0];
+    if (submissionType === SUBMISSION_TYPES.NEW && firstSubmission?.submissionType) {
+      const blockingSubmissionUrl =
+        firstSubmission.channelId && firstSubmission.messageId
+          ? messageLink(firstSubmission.channelId, firstSubmission.messageId, process.env.GUILD_ID)
+          : null;
 
       await errorReply(
         opId,
         interaction,
-        "Please wait before submitting again",
-        `${bold("There has to be at least an hour between submitting the new and the completed To-Do List")}. You already have submitted in the past hour.\n
-        If the previous submission was wrong you can cancel it by clicking on the button above.
-        ${waitMessage}`,
+        "New List Already Submitted Today",
+        `You already have a ${bold(getSubmissionTypeLabel(firstSubmission.submissionType))} with status ${bold(firstSubmission.status.toLowerCase())} today, so you cannot submit another one.${blockingSubmissionUrl ? ` You can view the blocking submission [here](${blockingSubmissionUrl}).` : ""} If the blocking submission is still pending and incorrect, you can cancel it from the submission message.`,
       );
       return;
     }
 
-    // Link to first approved submission if this is the 2nd submission
-    const linkedSubmission = await getLinkedSubmissionToday(interaction.member.id, userTimezone);
+    if (submissionType === SUBMISSION_TYPES.COMPLETED && completedSubmission) {
+      const blockingSubmissionUrl =
+        completedSubmission.channelId && completedSubmission.messageId
+          ? messageLink(completedSubmission.channelId, completedSubmission.messageId, process.env.GUILD_ID)
+          : null;
 
+      await errorReply(
+        opId,
+        interaction,
+        "Completed List Already Submitted Today",
+        `You already have a ${bold("Completed List")} with status ${bold(completedSubmission.status.toLowerCase())} today, so you cannot submit another one.${blockingSubmissionUrl ? ` You can view the blocking submission [here](${blockingSubmissionUrl}).` : ""} If the blocking submission is still pending and incorrect, you can cancel it from the submission message.`,
+      );
+      return;
+    }
+
+    if (submissionType === SUBMISSION_TYPES.COMPLETED && newSubmission) {
+      const retryTime = dayjs(newSubmission.submittedAt).add(1, "hour");
+      const tooLate = retryTime.isAfter(dayEnd) || retryTime.isSame(dayEnd);
+
+      if (dayjs().isBefore(retryTime)) {
+        const waitMessage = tooLate
+          ? "It is too late to submit again today."
+          : `Otherwise please wait until ${time(retryTime.toDate())} before submitting again.`;
+
+        await errorReply(
+          opId,
+          interaction,
+          "Please wait before submitting again",
+          `${bold("There has to be at least an hour between submitting the new and the completed To-Do List")}. You already have submitted in the past hour.\n
+        If the previous submission was wrong you can cancel it by clicking on the button above.
+        ${waitMessage}`,
+        );
+        return;
+      }
+    }
+
+    const linkedSubmission = submissionType === SUBMISSION_TYPES.COMPLETED ? newSubmission : undefined;
+    const monthStartDate = await getMonthStartDate();
     const [submission] = await db
       .insert(submissionTable)
       .values({
@@ -105,9 +155,10 @@ export default {
         points: DEFAULT_SUBMISSION_POINTS,
         screenshotUrl: screenshot.url,
         house: house,
+        submissionType,
         linkedSubmissionId: linkedSubmission?.id ?? null,
         // Calculate next house submission ID by counting existing submissions
-        houseId: sql`(SELECT COUNT(*) + 1 FROM ${submissionTable} WHERE ${submissionTable.house} = ${house})`,
+        houseId: sql`(SELECT COUNT(*) + 1 FROM ${submissionTable} WHERE ${submissionTable.house} = ${house}) AND ${submissionTable.submittedAt} >= ${monthStartDate}`,
       })
       .returning();
     assert(submission, "Failed to create submission");
@@ -280,26 +331,11 @@ async function cancelSubmission(submissionId: number, interaction: ButtonInterac
   return;
 }
 
-async function getLinkedSubmissionToday(discordId: string, userTimezone: string) {
-  const dayStart = dayjs().tz(userTimezone).startOf("day").toDate();
-  const dayEnd = dayjs().tz(userTimezone).endOf("day").toDate();
-
-  const result = await db.query.submissionTable.findMany({
-    where: and(
-      eq(submissionTable.discordId, discordId),
-      gte(submissionTable.submittedAt, dayStart),
-      lt(submissionTable.submittedAt, dayEnd),
-      eq(submissionTable.status, "APPROVED"),
-    ),
-  });
-  return result.length === 1 ? result[0] : null;
-}
-
 interface SubmissionMessageParams {
   submission: typeof submissionTable.$inferSelect;
   userTimezone?: string;
   reason?: string;
-  linkedSubmission?: { channelId: string | null; messageId: string | null } | null;
+  linkedSubmission?: { channelId: string | null; messageId: string | null };
 }
 
 async function submissionMessage({ submission, userTimezone, reason, linkedSubmission }: SubmissionMessageParams) {
@@ -346,8 +382,8 @@ async function submissionMessage({ submission, userTimezone, reason, linkedSubmi
         inline: false,
       },
       {
-        name: "Player",
-        value: userMention(submission.discordId),
+        name: "List Type",
+        value: getSubmissionTypeLabel(submission.submissionType),
         inline: true,
       },
       {
@@ -408,4 +444,10 @@ async function submissionMessage({ submission, userTimezone, reason, linkedSubmi
     embeds: [embed],
     components: components,
   };
+}
+
+function getSubmissionTypeLabel(submissionType: SubmissionType | null | undefined): string {
+  if (submissionType === SUBMISSION_TYPES.NEW) return "New List";
+  if (submissionType === SUBMISSION_TYPES.COMPLETED) return "Completed List";
+  return "Unknown";
 }

@@ -82,6 +82,10 @@ export const submissionTable = pgTable(
     houseId: integer().notNull(),
     screenshotUrl: varchar({ length: 1000 }).notNull(),
     points: integer().notNull(),
+    submissionType: varchar({
+      length: 50,
+      enum: ["NEW", "COMPLETED"],
+    }),
     status: varchar({
       length: 50,
       enum: ["PENDING", "APPROVED", "REJECTED", "CANCELED"],

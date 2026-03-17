@@ -1,0 +1,1 @@
+ALTER TABLE "submission" ADD COLUMN "submission_type" varchar(50);
