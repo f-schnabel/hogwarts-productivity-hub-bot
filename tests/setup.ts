@@ -44,10 +44,11 @@ vi.mock("discord.js", () => ({
     Flags: {
       Guilds: 1,
       GuildMessages: 2,
-      MessageContent: 4,
-      GuildMembers: 8,
-      GuildVoiceStates: 16,
-      DirectMessages: 32,
+      GuildMessageReactions: 4,
+      MessageContent: 8,
+      GuildMembers: 16,
+      GuildVoiceStates: 32,
+      DirectMessages: 64,
     },
   },
   SlashCommandBuilder: class MockSlashCommandBuilder {

@@ -1,9 +1,10 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import { db as globalDb, type DbOrTx } from "@/db/db.ts";
+import { db as globalDb, getMonthStartDate, type DbOrTx } from "@/db/db.ts";
 import { houseScoreboardTable, userTable } from "@/db/schema.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../discord/utils/scoreboardService.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
 import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "@/common/constants.ts";
+import type { House } from "@/common/types.ts";
 
 export async function awardPoints(db: DbOrTx, discordId: string, points: number, opId: string) {
   // Update user's total points
@@ -18,6 +19,39 @@ export async function awardPoints(db: DbOrTx, discordId: string, points: number,
     .returning({ house: userTable.house })
     .then(([row]) => row?.house);
 
+  await refreshHouseScoreboards(db, house, opId);
+}
+
+export async function reverseSubmissionPoints(
+  db: DbOrTx,
+  discordId: string,
+  points: number,
+  reviewedAt: Date,
+  opId: string,
+) {
+  const monthStartDate = await getMonthStartDate();
+
+  const house = await db
+    .update(userTable)
+    .set({
+      dailyPoints: sql`CASE
+        WHEN ${reviewedAt} >= ${userTable.lastDailyReset} THEN ${userTable.dailyPoints} - ${points}
+        ELSE ${userTable.dailyPoints}
+      END`,
+      monthlyPoints: sql`CASE
+        WHEN ${reviewedAt} >= ${monthStartDate} THEN ${userTable.monthlyPoints} - ${points}
+        ELSE ${userTable.monthlyPoints}
+      END`,
+      totalPoints: sql`${userTable.totalPoints} - ${points}`,
+    })
+    .where(eq(userTable.discordId, discordId))
+    .returning({ house: userTable.house })
+    .then(([row]) => row?.house);
+
+  await refreshHouseScoreboards(db, house, opId);
+}
+
+async function refreshHouseScoreboards(db: DbOrTx, house: House | null | undefined, opId: string) {
   if (house) {
     const scoreboards = await db.select().from(houseScoreboardTable).where(eq(houseScoreboardTable.house, house));
     if (scoreboards.length > 0) {

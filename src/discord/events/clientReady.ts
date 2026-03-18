@@ -34,6 +34,7 @@ export async function execute(c: Client<true>): Promise<void> {
       await guild.members.fetch();
     }
 
+    await warmRecentSubmissionMessages(c, opId);
     await VoiceStateScanner.scanAndStartTracking(opId);
     await resetNicknameStreaks(c, opId);
     await resetVCEmojisAndRoles(c, opId);
@@ -46,6 +47,42 @@ export async function execute(c: Client<true>): Promise<void> {
   }
   log.info("Bot ready", { opId });
   await alertOwner("Bot deployed successfully.", opId);
+}
+
+// Warm recent submission messages into cache so reaction-based reopen works without partials.
+async function warmRecentSubmissionMessages(client: Client<true>, opId: string) {
+  const cutoffMs = dayjs().subtract(2, "day").valueOf();
+
+  for (const channelId of process.env.SUBMISSION_CHANNEL_IDS.split(",").filter(Boolean)) {
+    try {
+      const channel = await client.channels.fetch(channelId);
+      if (!channel?.isTextBased()) {
+        log.warn("Skipping non-text submission channel during cache warmup", { opId, channelId });
+        continue;
+      }
+
+      let before: string | undefined;
+      let cachedMessages = 0;
+      let shouldContinue = true;
+
+      while (shouldContinue) {
+        const messages = await channel.messages.fetch({ limit: 100, before });
+        if (messages.size === 0) break;
+
+        cachedMessages += messages.size;
+
+        const oldestMessage = messages.last();
+        if (!oldestMessage) break;
+
+        shouldContinue = oldestMessage.createdTimestamp >= cutoffMs && messages.size === 100;
+        before = oldestMessage.id;
+      }
+
+      log.info("Submission messages cache warmed", { opId, channelId, cachedMessages });
+    } catch (error) {
+      log.error("Failed to warm submission message cache", { opId, channelId }, error);
+    }
+  }
 }
 
 async function logDbUserRetention(opId: string): Promise<{ staleUserIds: string[]; totalDbUsers: number }> {

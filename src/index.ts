@@ -21,6 +21,7 @@ import * as VoiceStateUpdate from "@/discord/events/voiceStateUpdate.ts";
 import * as ClientReady from "@/discord/events/clientReady.ts";
 import * as InteractionCreate from "@/discord/events/interactionCreate.ts";
 import * as MessageCreate from "@/discord/events/messageCreate.ts";
+import * as MessageReactionAdd from "@/discord/events/messageReactionAdd.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
 import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTimer } from "@/common/monitoring.ts";
 import { commands } from "@/discord/commands.ts";
@@ -51,6 +52,7 @@ function registerEvents(client: Client) {
   client.on(Events.InteractionCreate, (i) => void InteractionCreate.execute(i));
   client.on(Events.VoiceStateUpdate, (a, b) => void VoiceStateUpdate.execute(a, b));
   client.on(Events.MessageCreate, (m) => void MessageCreate.execute(m));
+  client.on(Events.MessageReactionAdd, (reaction, user) => void MessageReactionAdd.execute(reaction, user));
   client.on(Events.Debug, (info) => {
     log.debug(info);
   });

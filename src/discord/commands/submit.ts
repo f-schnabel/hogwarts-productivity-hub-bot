@@ -348,7 +348,12 @@ interface SubmissionMessageParams {
   linkedSubmission?: { channelId: string | null; messageId: string | null };
 }
 
-async function submissionMessage({ submission, userTimezone, reason, linkedSubmission }: SubmissionMessageParams) {
+export async function submissionMessage({
+  submission,
+  userTimezone,
+  reason,
+  linkedSubmission,
+}: SubmissionMessageParams) {
   let components: InteractionReplyOptions["components"] = [];
   if (submission.status === "PENDING") {
     components = [
