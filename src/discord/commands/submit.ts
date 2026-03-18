@@ -299,7 +299,7 @@ export default {
     if (modalResponse) {
       await modalResponse.editReply(messageUpdate);
     } else {
-      await interaction.message.fetch().then((m) => m.edit(messageUpdate));
+      await interaction.editReply(messageUpdate);
     }
 
     if (event === "approve") {
@@ -337,7 +337,7 @@ async function cancelSubmission(submissionId: number, interaction: ButtonInterac
     return;
   }
 
-  await interaction.message.fetch().then(async (m) => m.edit(await submissionMessage({ submission: canceled })));
+  await interaction.editReply(await submissionMessage({ submission: canceled }));
   return;
 }
 
