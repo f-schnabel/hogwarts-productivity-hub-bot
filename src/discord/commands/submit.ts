@@ -9,6 +9,7 @@ import {
   GuildMember,
   MessageFlags,
   messageLink,
+  ModalSubmitInteraction,
   SlashCommandBuilder,
   TextInputStyle,
   time,
@@ -235,6 +236,7 @@ export default {
     }
 
     let reason: string | undefined = undefined;
+    let modalResponse: ModalSubmitInteraction | undefined = undefined;
 
     if (event === "reject") {
       await interaction.showModal({
@@ -257,7 +259,7 @@ export default {
       });
 
       try {
-        const modalResponse = await interaction.awaitModalSubmit({
+        modalResponse = await interaction.awaitModalSubmit({
           filter: (i) => i.customId === `rejectModal-${submissionId}` && i.user.id === interaction.user.id,
           time: 60000,
         });
@@ -293,9 +295,12 @@ export default {
       ),
     });
 
-    await interaction.message
-      .fetch()
-      .then(async (m) => m.edit(await submissionMessage({ submission, reason, linkedSubmission })));
+    const messageUpdate = await submissionMessage({ submission, reason, linkedSubmission });
+    if (modalResponse) {
+      await modalResponse.editReply(messageUpdate);
+    } else {
+      await interaction.message.fetch().then((m) => m.edit(messageUpdate));
+    }
 
     if (event === "approve") {
       await awardPoints(db, submission.discordId, submission.points, opId);
