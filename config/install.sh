@@ -14,7 +14,9 @@ done
 chmod -R o+rX "$REPO_DIR"
 
 # Create symlinks
+sudo mkdir -p /etc/caddy
 sudo ln -sf "$REPO_DIR/grafana/grafana.ini" /etc/grafana/grafana.ini
+sudo ln -sf "$REPO_DIR/caddy/Caddyfile" /etc/caddy/Caddyfile
 sudo ln -sf "$REPO_DIR/loki/config.yml" /etc/loki/config.yml
 sudo ln -sf "$REPO_DIR/prometheus/prometheus.yml" /etc/prometheus/prometheus.yml
 sudo ln -sf "$REPO_DIR/promtail/config.yml" /etc/promtail/config.yml
@@ -31,7 +33,10 @@ echo -e "[Service]\nProtectHome=false" | sudo tee /etc/systemd/system/grafana-se
 echo "Symlinks created and permissions set."
 # Reload and restart services
 sudo systemctl daemon-reload
+sudo caddy fmt --overwrite /etc/caddy/Caddyfile
+sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl restart grafana-server prometheus loki promtail
+sudo systemctl reload caddy
 echo "Services restarted"
 
 
