@@ -75,8 +75,10 @@ async function time(interaction: ChatInputCommandInteraction, opId: string) {
     await errorReply(opId, interaction, "Timezone Not Set", `${user.username} has not set their timezone.`);
     return;
   }
+  const userTime = dayjs().tz(userData.timezone);
+
   await interaction.reply(
-    `${user.displayName}'s current time is ${dayjs().tz(userData.timezone).format("YYYY-MM-DD hh:mm:ss A")}`,
+    `${user.displayName}'s current time is ${userTime.format("YYYY-MM-DD hh:mm:ss A")} (${userData.timezone}, UTC${userTime.format("Z")})`,
   );
 }
 
