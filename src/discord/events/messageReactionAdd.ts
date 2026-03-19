@@ -15,7 +15,7 @@ export async function execute(
   reaction: MessageReaction | PartialMessageReaction,
   user: User | PartialUser,
 ): Promise<void> {
-  if (reaction.partial || user.partial || user.bot || reaction.emoji.name !== "♻️" || !reaction.message.guild) return;
+  if (reaction.partial || user.partial || user.bot || reaction.emoji.name !== "⬅️" || !reaction.message.guild) return;
 
   const member = reaction.message.guild.members.cache.get(user.id);
   if (!member || !hasAnyRole(member, Role.PREFECT)) return;
