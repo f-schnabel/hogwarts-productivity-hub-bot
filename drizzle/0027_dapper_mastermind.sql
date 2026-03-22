@@ -1,0 +1,2 @@
+ALTER TABLE "house_cup_entry" ADD COLUMN "champion" varchar(255);--> statement-breakpoint
+ALTER TABLE "house_cup_entry" ADD CONSTRAINT "house_cup_entry_champion_user_discord_id_fk" FOREIGN KEY ("champion") REFERENCES "public"."user"("discord_id") ON DELETE no action ON UPDATE no action;

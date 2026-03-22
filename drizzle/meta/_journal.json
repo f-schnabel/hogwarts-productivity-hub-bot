@@ -190,6 +190,13 @@
       "when": 1774210914123,
       "tag": "0026_handy_stellaris",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1774215463496,
+      "tag": "0027_dapper_mastermind",
+      "breakpoints": true
     }
   ]
 }

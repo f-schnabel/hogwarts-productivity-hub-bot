@@ -138,6 +138,7 @@ export const houseCupEntryTable = pgTable(
     rawPoints: integer().notNull(),
     memberCount: integer().notNull(),
     qualifyingCount: integer().notNull(),
+    champion: varchar({ length: 255 }).references(() => userTable.discordId),
   },
   (table) => [index("house_cup_entry_month_id_idx").on(table.monthId)],
 );
