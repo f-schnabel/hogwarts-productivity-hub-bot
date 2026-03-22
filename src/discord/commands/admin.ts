@@ -26,7 +26,7 @@ import { createLogger } from "@/common/logger.ts";
 import { updateMember } from "@/discord/events/voiceStateUpdate.ts";
 import type { CommandOptions, Sums } from "@/common/types.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../utils/scoreboardService.ts";
-import { eq } from "drizzle-orm";
+import { desc, eq, isNull, not } from "drizzle-orm";
 import dayjs from "dayjs";
 import assert from "assert";
 
@@ -117,9 +117,22 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
   await wrapWithAlerting(
     async () => {
       // Snapshot house cup results before resetting
-      const [weighted, unweighted] = await Promise.all([getWeightedHousePoints(), getUnweightedHousePoints()]);
+      const [weighted, unweighted, champions] = await Promise.all([
+        getWeightedHousePoints(),
+        getUnweightedHousePoints(),
+        // Top scorer per house
+        db
+          .selectDistinctOn([userTable.house], {
+            house: userTable.house,
+            discordId: userTable.discordId,
+          })
+          .from(userTable)
+          .where(not(isNull(userTable.house)))
+          .orderBy(userTable.house, desc(userTable.monthlyPoints)),
+      ]);
       const weightedMap = new Map(weighted.map((h) => [h.house, h]));
       const unweightedMap = new Map(unweighted.map((h) => [h.house, h]));
+      const championMap = new Map(champions.map((c) => [c.house, c.discordId]));
 
       const winner = weighted[0]?.house; // Already sorted desc by totalPoints
       assert(winner, "No house points found during monthly reset");
@@ -142,6 +155,7 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
             rawPoints: raw?.totalPoints ?? 0,
             memberCount: raw?.memberCount ?? 0,
             qualifyingCount: w?.memberCount ?? 0,
+            champion: championMap.get(house) ?? null,
           };
         }),
       );
