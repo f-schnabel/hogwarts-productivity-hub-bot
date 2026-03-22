@@ -4,6 +4,7 @@ import { defineConfig } from "eslint/config";
 import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended";
 
 export default defineConfig([
+  { ignores: ["coverage/**"] },
   eslint.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
