@@ -314,9 +314,9 @@
         </thead>
         <tbody>
           {% for student in students %}
-          <tr class="{% if student.rank > 5 %}top-students-hidden{% endif %}">
+          <tr class="{% if student.rank > 5 %}top-students-extra top-students-hidden{% endif %}">
             <td class="rank {% if student.rank == 1 %}rank-1{% elseif student.rank == 2 %}rank-2{% elseif student.rank == 3 %}rank-3{% endif %}">#{{ student.rank }}</td>
-            <td><a href="/user/{{ student.discordId }}" class="user-link">{{ student.username }}</a></td>
+            <td><a href="/user/{{ student.discordId }}" class="user-link">{{ student.displayName }}</a></td>
             <td style="color: {{ student.houseColor }}; font-weight: 500;">{{ student.house ?: "—" }}</td>
             <td style="color: var(--accent-gold-bright); font-weight: 600;">{{ student.totalPoints }}</td>
           </tr>
@@ -327,9 +327,9 @@
     {% if students | length > 5 %}
     <div class="top-students-toggle" onclick="
       this.classList.toggle('top-students-expanded');
-      var rows = this.previousElementSibling.querySelectorAll('.top-students-hidden');
+      var rows = this.previousElementSibling.querySelectorAll('.top-students-extra');
       var show = this.classList.contains('top-students-expanded');
-      for (var i = 0; i < rows.length; i++) rows[i].style.display = show ? '' : 'none';
+      for (var i = 0; i < rows.length; i++) rows[i].classList.toggle('top-students-hidden', !show);
       this.querySelector('span:first-child').textContent = show ? 'Show less' : 'Show all 25';
     ">
       <span>Show all 25</span>

@@ -1,9 +1,9 @@
 import { HOUSE_COLORS } from "@/common/constants.ts";
-import { db } from "@/db/db.ts";
+import { db, getVCEmoji } from "@/db/db.ts";
 import { houseCupEntryTable, houseCupMonthTable, userTable } from "@/db/schema.ts";
 import { desc, gt, inArray, sql } from "drizzle-orm";
 import type { Router } from "express";
-import { getHouseColor } from "../utils.ts";
+import { cleanDisplayName, fetchMemberInfo, getHouseColor } from "../utils.ts";
 import type { House } from "@/common/types.ts";
 
 const ALL_HOUSES = Object.keys(HOUSE_COLORS) as House[];
@@ -77,15 +77,22 @@ export default function registerHallOfFameRoute(app: Router) {
       };
     });
 
-    // Top 25 students
-    const students = topStudents.map((u, i) => ({
-      rank: i + 1,
-      discordId: u.discordId,
-      username: u.username,
-      house: u.house ?? "",
-      houseColor: getHouseColor(u.house),
-      totalPoints: u.totalPoints,
-    }));
+    // Top 25 students — resolve display names via Discord
+    const [memberInfo, vcEmoji] = await Promise.all([
+      fetchMemberInfo(topStudents.map((u) => u.discordId)),
+      getVCEmoji(),
+    ]);
+    const students = topStudents.map((u, i) => {
+      const info = memberInfo.get(u.discordId);
+      return {
+        rank: i + 1,
+        discordId: u.discordId,
+        displayName: cleanDisplayName(info?.displayName ?? u.username, vcEmoji),
+        house: u.house ?? "",
+        houseColor: getHouseColor(u.house),
+        totalPoints: u.totalPoints,
+      };
+    });
 
     // All-time house points
     const allTimeHouses = ALL_HOUSES.map((house) => {
