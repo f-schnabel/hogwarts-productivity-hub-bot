@@ -2,6 +2,7 @@ import { Router } from "express";
 import registerIndexRoute from "./routes/index.ts";
 import registerLeaderboardRoute from "./routes/leaderboard.ts";
 import registerUserIdRoute from "./routes/user_id.ts";
+import registerHallOfFameRoute from "./routes/hallOfFame.ts";
 import express from "express";
 import Twig from "twig";
 import path from "path";
@@ -14,6 +15,7 @@ export const analyticsRouter: Router = Router();
 registerIndexRoute(analyticsRouter);
 registerLeaderboardRoute(analyticsRouter);
 registerUserIdRoute(analyticsRouter);
+registerHallOfFameRoute(analyticsRouter);
 // Rate limiter for public analytics server
 const analyticsLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute

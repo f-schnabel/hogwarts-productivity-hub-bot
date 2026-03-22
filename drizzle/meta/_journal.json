@@ -183,6 +183,13 @@
       "when": 1773783295871,
       "tag": "0025_tearful_prodigy",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1774210914123,
+      "tag": "0026_handy_stellaris",
+      "breakpoints": true
     }
   ]
 }

@@ -1,22 +1,34 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { db, getMonthStartDate, getVCEmoji, setMonthStartDate, setVCEmoji } from "@/db/db.ts";
+import {
+  db,
+  getMonthStartDate,
+  getVCEmoji,
+  getWeightedHousePoints,
+  getUnweightedHousePoints,
+  setMonthStartDate,
+  setVCEmoji,
+} from "@/db/db.ts";
 import { awardPoints } from "@/services/pointsService.ts";
 import { errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import {
+  houseCupEntryTable,
+  houseCupMonthTable,
   houseScoreboardTable,
   pointAdjustmentTable,
   submissionTable,
   userTable,
   voiceSessionTable,
 } from "@/db/schema.ts";
-import { Role } from "@/common/constants.ts";
+import { HOUSES, Role } from "@/common/constants.ts";
 import { refreshAllYearRoles } from "@/discord/utils/yearRoleUtils.ts";
 import { createLogger } from "@/common/logger.ts";
 import { updateMember } from "@/discord/events/voiceStateUpdate.ts";
 import type { CommandOptions, Sums } from "@/common/types.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../utils/scoreboardService.ts";
 import { eq } from "drizzle-orm";
+import dayjs from "dayjs";
+import assert from "assert";
 
 const log = createLogger("Admin");
 
@@ -104,6 +116,37 @@ async function adjustPoints(interaction: ChatInputCommandInteraction<"cached">, 
 async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
   await wrapWithAlerting(
     async () => {
+      // Snapshot house cup results before resetting
+      const [weighted, unweighted] = await Promise.all([getWeightedHousePoints(), getUnweightedHousePoints()]);
+      const weightedMap = new Map(weighted.map((h) => [h.house, h]));
+      const unweightedMap = new Map(unweighted.map((h) => [h.house, h]));
+
+      const winner = weighted[0]?.house; // Already sorted desc by totalPoints
+      assert(winner, "No house points found during monthly reset");
+      const month = dayjs().format("YYYY-MM");
+
+      const [cupMonth] = await db
+        .insert(houseCupMonthTable)
+        .values({ month, winner })
+        .returning({ id: houseCupMonthTable.id });
+      assert(cupMonth, "Failed to create house cup month record");
+
+      await db.insert(houseCupEntryTable).values(
+        HOUSES.map((house) => {
+          const w = weightedMap.get(house);
+          const raw = unweightedMap.get(house);
+          return {
+            monthId: cupMonth.id,
+            house,
+            weightedPoints: w?.totalPoints ?? 0,
+            rawPoints: raw?.totalPoints ?? 0,
+            memberCount: raw?.memberCount ?? 0,
+            qualifyingCount: w?.memberCount ?? 0,
+          };
+        }),
+      );
+      log.info("House cup snapshot saved", { opId, month, winner });
+
       const result = await db.update(userTable).set({
         monthlyPoints: 0,
         monthlyVoiceTime: 0,

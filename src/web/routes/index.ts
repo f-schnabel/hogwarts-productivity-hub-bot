@@ -1,13 +1,9 @@
-import type { House } from "@/common/types.ts";
 import { HOUSE_COLORS } from "@/common/constants.ts";
-import { db, getMonthStartDate } from "@/db/db.ts";
-import { userTable } from "@/db/schema.ts";
-import { desc } from "drizzle-orm";
-import { and, gt } from "drizzle-orm/sql/expressions/conditions";
-import { sql } from "drizzle-orm/sql/sql";
+import { getMonthStartDate, getWeightedHousePoints, getUnweightedHousePoints } from "@/db/db.ts";
 import { getHouseColor } from "../utils.ts";
 import dayjs from "dayjs";
 import type { Router } from "express";
+import type { House } from "@/common/types.ts";
 
 /**
  * Mystery mode: last 3 days of calendar month, but not within 2 days of reset
@@ -31,39 +27,17 @@ async function isMysteryMode(query: Record<string, unknown>): Promise<boolean> {
 // Home - House scoreboard
 export default function registerIndexRoute(app: Router) {
   app.get("/", async (req, res) => {
-    const unweightedHouseData = await db
-      .select({
-        house: userTable.house,
-        totalPoints: sql<number>`sum(${userTable.monthlyPoints})`.as("total_points"),
-        memberCount: sql<number>`count(*)`.as("member_count"),
-      })
-      .from(userTable)
-      .where(and(sql`${userTable.house} IS NOT NULL`, gt(userTable.monthlyPoints, 0)))
-      .groupBy(userTable.house)
-      .orderBy(desc(sql`total_points`));
+    const [unweightedHouseData, weightedHouseData] = await Promise.all([
+      getUnweightedHousePoints(),
+      getWeightedHousePoints(),
+    ]);
 
-    const weightedHouseData = await db
-      .select({
-        house: userTable.house,
-        totalPoints: sql<number>`sum(${userTable.monthlyPoints}) / count(*)`.as("total_points"),
-        memberCount: sql<number>`count(*)`.as("member_count"),
-      })
-      .from(userTable)
-      .where(and(sql`${userTable.house} IS NOT NULL`, gt(userTable.monthlyPoints, 15)))
-      .groupBy(userTable.house)
-      .orderBy(desc(sql`total_points`));
-
-    // Create a map from unweighted data
     const unweightedMap = new Map(
-      unweightedHouseData
-        .filter((h): h is typeof h & { house: House } => h.house !== null)
-        .map((h) => [h.house, { unweightedPoints: h.totalPoints, totalMemberCount: h.memberCount }]),
+      unweightedHouseData.map((h) => [h.house, { unweightedPoints: h.totalPoints, totalMemberCount: h.memberCount }]),
     );
 
     const weightedMap = new Map(
-      weightedHouseData
-        .filter((h): h is typeof h & { house: House } => h.house !== null)
-        .map((h) => [h.house, { totalPoints: h.totalPoints, memberCount: h.memberCount }]),
+      weightedHouseData.map((h) => [h.house, { totalPoints: h.totalPoints, memberCount: h.memberCount }]),
     );
 
     const allHouses = Object.keys(HOUSE_COLORS) as House[];

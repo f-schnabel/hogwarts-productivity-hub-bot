@@ -4,7 +4,7 @@ import type {
   ChatInputCommandInteraction,
   SharedSlashCommand,
 } from "discord.js";
-import type { HOUSE_COLORS } from "./constants.ts";
+import type { HOUSES } from "./constants.ts";
 
 export interface CommandOptions {
   opId: string;
@@ -22,7 +22,7 @@ export interface Command {
   ) => Promise<void>;
 }
 
-export type House = keyof typeof HOUSE_COLORS;
+export type House = (typeof HOUSES)[number];
 
 export interface VoiceSession {
   username: string;
@@ -54,4 +54,10 @@ export interface Sums {
   total: number;
   monthly: number;
   daily: number;
+}
+
+export interface HousePoints {
+  house: House;
+  totalPoints: number;
+  memberCount: number;
 }

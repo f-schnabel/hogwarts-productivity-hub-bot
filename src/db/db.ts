@@ -1,12 +1,25 @@
 import { drizzle, type NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import * as schema from "./schema.ts";
 import type { GuildMember } from "discord.js";
-import { eq, and, type ExtractTablesWithRelations, isNull, inArray, DefaultLogger } from "drizzle-orm";
+import {
+  eq,
+  and,
+  gt,
+  desc,
+  count,
+  sum,
+  type ExtractTablesWithRelations,
+  isNull,
+  inArray,
+  DefaultLogger,
+  not,
+} from "drizzle-orm";
+import { sql } from "drizzle-orm/sql/sql";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import dayjs from "dayjs";
-import { SETTINGS_KEYS } from "../common/constants.ts";
+import { MIN_MONTHLY_POINTS_FOR_WEIGHTED, SETTINGS_KEYS } from "../common/constants.ts";
 import assert from "node:assert/strict";
-import type { House } from "@/common/types.ts";
+import type { House, HousePoints } from "@/common/types.ts";
 
 type Schema = typeof schema;
 
@@ -108,6 +121,40 @@ const HOUSE_ROLES = [
   [process.env.HUFFLEPUFF_ROLE_ID, "Hufflepuff"],
   [process.env.RAVENCLAW_ROLE_ID, "Ravenclaw"],
 ] as const;
+
+/** Weighted house points: SUM(monthlyPoints) / COUNT(*) for users above threshold */
+export async function getWeightedHousePoints(): Promise<HousePoints[]> {
+  const totalPoints = sql<number>`${sum(schema.userTable.monthlyPoints)} / ${count()}`.as("total_points");
+  return await db
+    .select({
+      house: schema.userTable.house,
+      totalPoints,
+      memberCount: count().as("member_count"),
+    })
+    .from(schema.userTable)
+    .where(
+      and(not(isNull(schema.userTable.house)), gt(schema.userTable.monthlyPoints, MIN_MONTHLY_POINTS_FOR_WEIGHTED)),
+    )
+    .groupBy(schema.userTable.house)
+    .orderBy(desc(totalPoints))
+    .then((rows) => rows.filter((r): r is HousePoints => r.house !== null));
+}
+
+/** Unweighted house points: SUM(monthlyPoints) for users with any points */
+export async function getUnweightedHousePoints(): Promise<HousePoints[]> {
+  const totalPoints = sql<number>`${sum(schema.userTable.monthlyPoints)}`.as("total_points");
+  return await db
+    .select({
+      house: schema.userTable.house,
+      totalPoints,
+      memberCount: count().as("member_count"),
+    })
+    .from(schema.userTable)
+    .where(and(not(isNull(schema.userTable.house)), gt(schema.userTable.monthlyPoints, 0)))
+    .groupBy(schema.userTable.house)
+    .orderBy(desc(totalPoints))
+    .then((rows) => rows.filter((r): r is HousePoints => r.house !== null));
+}
 
 export function getHouseFromMember(member: GuildMember | null): House | undefined {
   if (!member) return undefined;

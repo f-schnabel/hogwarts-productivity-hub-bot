@@ -7,12 +7,14 @@ export const BOT_COLORS = {
   INFO: 0x2196f3,
 } as const;
 
+export const HOUSES = ["Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin"] as const;
+
 export const HOUSE_COLORS = {
   Gryffindor: 0xff2000,
   Hufflepuff: 0xf8d301,
   Ravenclaw: 0x110091,
   Slytherin: 0x07ad34,
-} as const;
+} as const satisfies Record<House, number>;
 
 // Discord custom emoji IDs for house crests (from env vars)
 export const HOUSE_CREST_EMOJI_IDS = {
@@ -20,7 +22,7 @@ export const HOUSE_CREST_EMOJI_IDS = {
   Hufflepuff: process.env.HUFFLEPUFF_CREST_EMOJI_ID,
   Ravenclaw: process.env.RAVENCLAW_CREST_EMOJI_ID,
   Slytherin: process.env.SLYTHERIN_CREST_EMOJI_ID,
-} as const;
+} as const satisfies Record<House, string | undefined>;
 
 export const SUBMISSION_COLORS = {
   PENDING: 0x979c9f,
@@ -36,6 +38,7 @@ export const Role = {
 } as const;
 
 export const DEFAULT_SUBMISSION_POINTS = 5;
+export const MIN_MONTHLY_POINTS_FOR_WEIGHTED = 15;
 export const MIN_DAILY_MESSAGES_FOR_STREAK = 3;
 export const FIRST_HOUR_POINTS = 5;
 export const REST_HOURS_POINTS = 2;
@@ -55,12 +58,12 @@ export const MIN_USERS_FOR_SAFE_DELETION = 100;
 export type YEAR = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export const YEAR_THRESHOLDS_HOURS = [1, 10, 20, 40, 80, 100, 120] as const;
 
-export const YEAR_MESSAGES: Record<House, string> = {
+export const YEAR_MESSAGES = {
   Gryffindor: "🦁 True courage lies in perseverance. You rise to {ROLE} with **{HOURS}** of steadfast effort.",
   Slytherin: "🐍 Ambition well applied brings results. {ROLE} claimed after **{HOURS}** of focused study.",
   Hufflepuff: "🌟 Your consistency shines brightest. {ROLE} earned through **{HOURS}** in the study halls.",
   Ravenclaw: "✒️ Each hour sharpened your mind — {ROLE} is now yours after **{HOURS}**. Wisdom suits you.",
-} as const;
+} as const satisfies Record<House, string>;
 
 // Year badge/line colors
 export const YEAR_COLORS: Record<number, string> = {

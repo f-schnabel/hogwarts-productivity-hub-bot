@@ -1,0 +1,357 @@
+{% extends "layout.twig" %}
+
+{% block styles %}
+<style>
+  .section {
+    margin-bottom: 3.5rem;
+  }
+
+  .section-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--accent-gold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: fadeSlideDown 0.5s ease-out 0.15s both;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--border-glow), transparent);
+  }
+
+  /* ── Cup History ── */
+  .cup-tally {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    animation: fadeSlideUp 0.6s ease-out 0.2s both;
+  }
+
+  .tally-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .tally-count {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+
+  .cup-table th:not(:first-child),
+  .cup-table td:not(:first-child) {
+    text-align: center;
+  }
+
+  .cup-winner-cell {
+    font-weight: 600;
+  }
+
+  .cup-pts {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .cup-pts.is-winner {
+    color: var(--accent-gold-bright);
+    font-weight: 600;
+  }
+
+  .winner-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  /* ── All-Time House Points ── */
+  .house-points-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    animation: fadeSlideUp 0.6s ease-out 0.3s both;
+  }
+
+  .house-pts-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .house-pts-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .house-pts-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-glow);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-ambient), var(--shadow-glow);
+  }
+
+  .house-pts-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 0 0 16px 16px;
+  }
+
+  .house-pts-name {
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+  }
+
+  .house-pts-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family: 'Cinzel', serif;
+    color: var(--accent-gold-bright);
+  }
+
+  .house-pts-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.15rem;
+  }
+
+  /* ── Top Students Toggle ── */
+  .top-students-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .top-students-toggle:hover {
+    color: var(--accent-gold);
+    border-color: var(--border-glow);
+  }
+
+  .top-students-toggle .chevron {
+    display: inline-block;
+    transition: transform 0.3s ease;
+  }
+
+  .top-students-expanded .chevron {
+    transform: rotate(180deg);
+  }
+
+  .top-students-hidden {
+    display: none;
+  }
+
+  /* ── Empty State ── */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    animation: fadeSlideUp 0.6s ease-out 0.2s both;
+  }
+
+  .empty-state-icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 0.75rem;
+    opacity: 0.5;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .house-points-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .house-pts-card {
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .cup-tally {
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .house-points-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .house-pts-card {
+      padding: 1rem 0.75rem;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: rgba(20, 20, 35, 0.95);
+    }
+
+    .house-pts-value { font-size: 1.2rem; }
+
+    .cup-tally {
+      gap: 0.5rem 1rem;
+      font-size: 0.8rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Hall of Fame</h1>
+
+{# ── Section 1: House Cup History ── #}
+<div class="section">
+  <div class="section-title">House Cup History</div>
+
+  {% if timeline is empty %}
+    <div class="empty-state">
+      <span class="empty-state-icon">🏆</span>
+      No house cups recorded yet. The first cup will be awarded at the next monthly reset.
+    </div>
+  {% else %}
+    <div class="cup-tally">
+      {% for card in cupWinCards %}
+      <div class="tally-item">
+        <span style="color: {{ card.color }};">{{ card.name }}</span>
+        <span class="tally-count" style="color: {{ card.color }};">{{ card.wins }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="table-wrapper">
+      <table class="cup-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Winner</th>
+            {% for house in ['Gryffindor', 'Hufflepuff', 'Ravenclaw', 'Slytherin'] %}
+            <th style="color: {{ attribute(houseColors, house) }};">{{ house }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for cup in timeline %}
+          <tr>
+            <td>{{ cup.month }}</td>
+            <td class="cup-winner-cell">
+              <span class="winner-dot" style="background: {{ cup.winnerColor }};"></span>
+              <span style="color: {{ cup.winnerColor }};">{{ cup.winner }}</span>
+            </td>
+            {% for entry in cup.houses %}
+            <td class="cup-pts {% if entry.isWinner %}is-winner{% endif %}">{{ entry.weightedPoints }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+
+{# ── Section 2: All-Time Top 25 Students ── #}
+<div class="section">
+  <div class="section-title">All-Time Top 25</div>
+
+  {% if students is empty %}
+    <div class="empty-state">
+      <span class="empty-state-icon">⭐</span>
+      No students have earned points yet.
+    </div>
+  {% else %}
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Student</th>
+            <th>House</th>
+            <th>Total Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+          <tr class="{% if student.rank > 5 %}top-students-hidden{% endif %}">
+            <td class="rank {% if student.rank == 1 %}rank-1{% elseif student.rank == 2 %}rank-2{% elseif student.rank == 3 %}rank-3{% endif %}">#{{ student.rank }}</td>
+            <td><a href="/user/{{ student.discordId }}" class="user-link">{{ student.username }}</a></td>
+            <td style="color: {{ student.houseColor }}; font-weight: 500;">{{ student.house ?: "—" }}</td>
+            <td style="color: var(--accent-gold-bright); font-weight: 600;">{{ student.totalPoints }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if students | length > 5 %}
+    <div class="top-students-toggle" onclick="
+      this.classList.toggle('top-students-expanded');
+      var rows = this.previousElementSibling.querySelectorAll('.top-students-hidden');
+      var show = this.classList.contains('top-students-expanded');
+      for (var i = 0; i < rows.length; i++) rows[i].style.display = show ? '' : 'none';
+      this.querySelector('span:first-child').textContent = show ? 'Show less' : 'Show all 25';
+    ">
+      <span>Show all 25</span>
+      <span class="chevron">▼</span>
+    </div>
+    {% endif %}
+  {% endif %}
+</div>
+
+{# ── Section 3: All-Time House Points ── #}
+<div class="section">
+  <div class="section-title">All-Time House Points</div>
+
+  <div class="house-points-grid">
+    {% for house in allTimeHouses %}
+    <div class="house-pts-card">
+      <div class="house-pts-name" style="color: {{ house.color }};">{{ house.name }}</div>
+      <div class="house-pts-value">{{ house.totalPoints | number_format }}</div>
+      <div class="house-pts-label">Total Points</div>
+      <div class="house-pts-bar" style="background: {{ house.color }};"></div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

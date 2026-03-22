@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, pgTable, serial, timestamp, text, varchar, foreignKey } from "drizzle-orm/pg-core";
+import { HOUSES } from "@/common/constants.ts";
 
 export const userTable = pgTable("user", {
   // Technical fields
@@ -14,7 +15,7 @@ export const userTable = pgTable("user", {
   // User customization fields
   house: varchar({
     length: 50,
-    enum: ["Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin"],
+    enum: HOUSES,
   }),
   timezone: varchar({ length: 50 }).default("UTC").notNull(),
   lastDailyReset: timestamp().defaultNow().notNull(),
@@ -77,7 +78,7 @@ export const submissionTable = pgTable(
     // Submission fields
     house: varchar({
       length: 50,
-      enum: ["Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin"],
+      enum: HOUSES,
     }).notNull(),
     houseId: integer().notNull(),
     screenshotUrl: varchar({ length: 1000 }).notNull(),
@@ -103,7 +104,7 @@ export const houseScoreboardTable = pgTable("house_scoreboard", {
   id: serial().primaryKey(),
   house: varchar({
     length: 50,
-    enum: ["Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin"],
+    enum: HOUSES,
   }).notNull(),
   channelId: text().notNull(),
   messageId: text().notNull(),
@@ -115,6 +116,31 @@ export const settingsTable = pgTable("settings", {
   key: varchar({ length: 255 }).primaryKey().notNull(),
   value: text().notNull(),
 });
+
+// Tracks house cup results per month (snapshot before monthly reset)
+export const houseCupMonthTable = pgTable("house_cup_month", {
+  id: serial().primaryKey(),
+  month: varchar({ length: 7 }).notNull(), // "2026-03" format
+  winner: varchar({ length: 50, enum: HOUSES }).notNull(),
+  createdAt: timestamp().notNull().defaultNow(),
+});
+
+// Per-house stats for each house cup month
+export const houseCupEntryTable = pgTable(
+  "house_cup_entry",
+  {
+    id: serial().primaryKey(),
+    monthId: integer()
+      .notNull()
+      .references(() => houseCupMonthTable.id, { onDelete: "cascade" }),
+    house: varchar({ length: 50, enum: HOUSES }).notNull(),
+    weightedPoints: integer().notNull(),
+    rawPoints: integer().notNull(),
+    memberCount: integer().notNull(),
+    qualifyingCount: integer().notNull(),
+  },
+  (table) => [index("house_cup_entry_month_id_idx").on(table.monthId)],
+);
 
 // Tracks manual point adjustments by admins
 export const pointAdjustmentTable = pgTable("point_adjustment", {
