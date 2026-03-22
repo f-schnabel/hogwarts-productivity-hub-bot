@@ -69,15 +69,6 @@
     font-weight: 600;
   }
 
-  .winner-dot {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    margin-right: 4px;
-    vertical-align: middle;
-  }
-
   /* ── All-Time House Points ── */
   .house-points-grid {
     display: grid;
@@ -278,7 +269,7 @@
           <tr style="cursor: pointer;" onclick="window.location='/cup/{{ cup.month }}'">
             <td>{{ cup.month }}</td>
             <td class="cup-winner-cell">
-              <span class="winner-dot" style="background: {{ cup.winnerColor }};"></span>
+              <span style="background: {{ cup.winnerColor }};"></span>
               <span style="color: {{ cup.winnerColor }};">{{ cup.winner }}</span>
             </td>
             {% for entry in cup.houses %}
