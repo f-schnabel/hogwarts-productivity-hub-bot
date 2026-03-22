@@ -219,6 +219,18 @@
     50% { box-shadow: 0 0 50px rgba(100, 50, 150, 0.5); }
   }
 
+  /* Month Subtitle (historical cup pages) */
+  .month-subtitle {
+    font-family: 'Cinzel', serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--accent-gold);
+    text-align: center;
+    letter-spacing: 0.08em;
+    margin-top: -0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
   /* Section Headers */
   .section-title {
     font-family: 'Cinzel', serif;
@@ -781,6 +793,9 @@
 <div class="{{ mysteryMode ? 'mystery-mode' : '' }}">
 
 <h1>House Cup Standings</h1>
+{% if subtitle is defined and subtitle %}
+<p class="month-subtitle">{{ subtitle }}</p>
+{% endif %}
 
 {% if mysteryMode %}
 <div class="mystery-banner">

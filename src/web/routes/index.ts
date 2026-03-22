@@ -50,9 +50,9 @@ export default function registerIndexRoute(app: Router) {
           name: house,
           color: getHouseColor(house),
           rawPoints: weighted?.totalPoints ?? 0,
-          points: weighted?.totalPoints.toLocaleString() ?? "0",
+          points: weighted?.totalPoints ?? 0,
           memberCount: weighted?.memberCount ?? 0,
-          unweightedPoints: unweighted?.unweightedPoints.toLocaleString() ?? "0",
+          unweightedPoints: unweighted?.unweightedPoints ?? 0,
           totalMemberCount: unweighted?.totalMemberCount ?? 0,
           rank: 1,
         };

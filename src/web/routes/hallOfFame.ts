@@ -1,7 +1,7 @@
 import { HOUSE_COLORS } from "@/common/constants.ts";
 import { db, getVCEmoji } from "@/db/db.ts";
 import { houseCupEntryTable, houseCupMonthTable, userTable } from "@/db/schema.ts";
-import { desc, gt, inArray, sql } from "drizzle-orm";
+import { desc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { Router } from "express";
 import { cleanDisplayName, fetchMemberInfo, getHouseColor } from "../utils.ts";
 import type { House } from "@/common/types.ts";
@@ -12,6 +12,53 @@ type CupMonth = typeof houseCupMonthTable.$inferSelect;
 type CupEntry = typeof houseCupEntryTable.$inferSelect;
 
 export default function registerHallOfFameRoute(app: Router) {
+  // Cup detail page — historical month rendered like the index hourglass page
+  app.get("/cup/:month", async (req, res) => {
+    const month = req.params.month;
+    const [cupMonth] = await db.select().from(houseCupMonthTable).where(eq(houseCupMonthTable.month, month));
+
+    if (!cupMonth) {
+      res.status(404).render("hallOfFame", {
+        title: "Not Found",
+        cupWinCards: [],
+        timeline: [],
+        students: [],
+        allTimeHouses: [],
+        houseColors: {},
+      });
+      return;
+    }
+
+    const entries = await db.select().from(houseCupEntryTable).where(eq(houseCupEntryTable.monthId, cupMonth.id));
+    const byHouse = new Map(entries.map((e) => [e.house, e]));
+
+    const houses = ALL_HOUSES.map((house) => {
+      const entry = byHouse.get(house);
+      return {
+        name: house,
+        color: getHouseColor(house),
+        rawPoints: entry?.weightedPoints ?? 0,
+        points: entry?.weightedPoints ?? 0,
+        memberCount: entry?.qualifyingCount ?? 0,
+        unweightedPoints: entry?.rawPoints ?? 0,
+        totalMemberCount: entry?.memberCount ?? 0,
+        rank: 1,
+      };
+    }).sort((a, b) => b.rawPoints - a.rawPoints);
+
+    houses.forEach((current, i) => {
+      const prev = houses[i - 1];
+      current.rank = prev?.rawPoints === current.rawPoints ? prev.rank : i + 1;
+    });
+
+    res.render("houses", {
+      title: "House Cup Standings",
+      subtitle: month,
+      houses,
+      mysteryMode: false,
+    });
+  });
+
   app.get("/hall-of-fame", async (_req, res) => {
     const [cupMonths, topStudents, allTimeHouseData] = await Promise.all([
       db
