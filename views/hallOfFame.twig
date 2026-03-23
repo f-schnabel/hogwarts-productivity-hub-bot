@@ -67,17 +67,6 @@
   }
 
   /* ── Charts ── */
-  .charts-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .charts-row.single {
-    grid-template-columns: 1fr;
-  }
-
   .chart-card {
     background: var(--bg-card);
     backdrop-filter: blur(20px);
@@ -85,7 +74,15 @@
     border: 1px solid var(--border-subtle);
     border-radius: 20px;
     padding: 1.25rem 1.5rem 1.5rem;
+    margin-bottom: 1.5rem;
     animation: fadeSlideUp 0.25s ease-out both;
+  }
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
   }
 
   .chart-title {
@@ -95,7 +92,30 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
-    margin-bottom: 0.75rem;
+  }
+
+  .cup-month-select {
+    background: var(--bg-deep);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .cup-month-select:hover,
+  .cup-month-select:focus {
+    border-color: var(--border-glow);
+    color: var(--accent-gold);
+  }
+
+  .cup-month-select option {
+    background: #12121c;
+    color: var(--text-primary);
   }
 
   .chart-wrap {
@@ -252,10 +272,6 @@
       gap: 0.75rem 1.25rem;
     }
 
-    .charts-row {
-      grid-template-columns: 1fr;
-    }
-
     .tab-nav {
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
@@ -328,18 +344,17 @@
         {% endfor %}
       </div>
 
-      <div class="charts-row">
-        <div class="chart-card">
-          <div class="chart-title">Cup Wins</div>
-          <div class="chart-wrap">
-            <canvas id="cupWinsChart"></canvas>
-          </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">House Points</div>
+          <select id="cupMonthSelect" class="cup-month-select">
+            {% for cup in timeline %}
+            <option value="{{ cup.month }}">{{ cup.month }} — {{ cup.winner }}</option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="chart-card">
-          <div class="chart-title">Points Over Time</div>
-          <div class="chart-wrap">
-            <canvas id="timelineChart"></canvas>
-          </div>
+        <div class="chart-wrap">
+          <canvas id="cupBarChart"></canvas>
         </div>
       </div>
 
@@ -403,7 +418,7 @@
         No students have earned points yet.
       </div>
     {% else %}
-      <div class="chart-card" style="margin-bottom: 1.5rem;">
+      <div class="chart-card">
         <div class="chart-title">Top 10 by Total Points</div>
         <div class="chart-wrap tall">
           <canvas id="top10Chart"></canvas>
@@ -443,89 +458,79 @@
   Chart.defaults.font.family = "'Outfit', system-ui, sans-serif";
   Chart.defaults.color = 'rgba(240, 230, 211, 0.65)';
 
-  const chartCupWins = {{ chartCupWins | json_encode | raw }};
-  const chartTimeline = {{ chartTimeline | json_encode | raw }};
+  const houseColors = {{ houseColors | json_encode | raw }};
+  const chartCupMonths = {{ chartCupMonths | json_encode | raw }};
   const chartTop10 = {{ chartTop10 | json_encode | raw }};
 
   const gridColor = 'rgba(255, 255, 255, 0.05)';
+  const houseOrder = ['Gryffindor', 'Hufflepuff', 'Ravenclaw', 'Slytherin'];
 
-  // ── House Cup tab charts (initialized immediately) ──
-  function initHouseCupCharts() {
-    // Cup Wins doughnut
-    new Chart(document.getElementById('cupWinsChart'), {
-      type: 'doughnut',
+  // ── Cup bar chart ──
+  var cupChart = null;
+
+  function getCupChartDatasets(month) {
+    var monthData = chartCupMonths.find(function(m) { return m.month === month; });
+    if (!monthData) return { data: [], bgColors: [], borderColors: [] };
+
+    var data = [], bgColors = [], borderColors = [];
+    houseOrder.forEach(function(house) {
+      var entry = monthData.houses.find(function(h) { return h.house === house; });
+      var pts = entry ? entry.points : 0;
+      var isWinner = entry ? entry.isWinner : false;
+      var color = houseColors[house] || '#888888';
+      data.push(pts);
+      bgColors.push(color + (isWinner ? 'cc' : '55'));
+      borderColors.push(color);
+    });
+    return { data: data, bgColors: bgColors, borderColors: borderColors };
+  }
+
+  function initCupChart() {
+    var select = document.getElementById('cupMonthSelect');
+    if (!select || !chartCupMonths) return;
+
+    var initial = getCupChartDatasets(select.value);
+    cupChart = new Chart(document.getElementById('cupBarChart'), {
+      type: 'bar',
       data: {
-        labels: chartCupWins.labels,
+        labels: houseOrder,
         datasets: [{
-          data: chartCupWins.data,
-          backgroundColor: chartCupWins.colors.map(c => c + '99'),
-          borderColor: chartCupWins.colors,
+          data: initial.data,
+          backgroundColor: initial.bgColors,
+          borderColor: initial.borderColors,
           borderWidth: 2,
-          hoverOffset: 8,
+          borderRadius: 8,
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            grid: { color: gridColor },
+            beginAtZero: true,
+            ticks: { font: { size: 11 } }
+          }
+        },
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { padding: 14, boxWidth: 12, font: { size: 12 } }
-          },
+          legend: { display: false },
           tooltip: {
             callbacks: {
-              label: function(ctx) {
-                return ' ' + ctx.label + ': ' + ctx.parsed + (ctx.parsed === 1 ? ' win' : ' wins');
-              }
+              label: function(ctx) { return ' ' + ctx.parsed.y + ' pts'; }
             }
           }
         }
       }
     });
 
-    // Points Over Time line chart
-    if (chartTimeline) {
-      new Chart(document.getElementById('timelineChart'), {
-        type: 'line',
-        data: {
-          labels: chartTimeline.months,
-          datasets: chartTimeline.datasets.map(function(ds) {
-            return {
-              label: ds.label,
-              data: ds.data,
-              borderColor: ds.color,
-              backgroundColor: ds.color + '22',
-              tension: 0.3,
-              pointRadius: 3,
-              pointHoverRadius: 5,
-              borderWidth: 2,
-            };
-          })
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          scales: {
-            x: {
-              grid: { color: gridColor },
-              ticks: { maxTicksLimit: 8, font: { size: 11 } }
-            },
-            y: {
-              grid: { color: gridColor },
-              beginAtZero: true,
-              ticks: { font: { size: 11 } }
-            }
-          },
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { padding: 14, boxWidth: 12, font: { size: 12 } }
-            }
-          }
-        }
-      });
-    }
+    select.addEventListener('change', function() {
+      var ds = getCupChartDatasets(this.value);
+      cupChart.data.datasets[0].data = ds.data;
+      cupChart.data.datasets[0].backgroundColor = ds.bgColors;
+      cupChart.data.datasets[0].borderColor = ds.borderColors;
+      cupChart.update();
+    });
   }
 
   // ── Top 25 tab chart (initialized lazily on first tab open) ──
@@ -589,6 +594,6 @@
     });
   });
 
-  initHouseCupCharts();
+  initCupChart();
 </script>
 {% endblock %}

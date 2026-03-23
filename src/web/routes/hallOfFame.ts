@@ -159,22 +159,16 @@ export default function registerHallOfFameRoute(app: Router) {
     };
 
     // Chart data
-    const chronologicalTimeline = [...timeline].reverse();
-    const chartCupWins = {
-      labels: cupWinCards.map((c) => c.name),
-      data: cupWinCards.map((c) => c.wins),
-      colors: cupWinCards.map((c) => c.color),
-    };
-    const chartTimeline =
-      chronologicalTimeline.length > 0
-        ? {
-            months: chronologicalTimeline.map((t) => t.month),
-            datasets: ALL_HOUSES.map((house) => ({
-              label: house,
-              color: getHouseColor(house),
-              data: chronologicalTimeline.map((t) => t.houses.find((h) => h.house === house)?.weightedPoints ?? 0),
+    const chartCupMonths =
+      timeline.length > 0
+        ? timeline.map((t) => ({
+            month: t.month,
+            houses: t.houses.map((h) => ({
+              house: h.house,
+              points: h.weightedPoints,
+              isWinner: h.isWinner,
             })),
-          }
+          }))
         : null;
     const chartTop10 = students.slice(0, 10).map((s) => ({
       label: s.displayName,
@@ -190,8 +184,7 @@ export default function registerHallOfFameRoute(app: Router) {
       allTimeHouses,
       houseColors,
       includeChartJs: true,
-      chartCupWins,
-      chartTimeline,
+      chartCupMonths,
       chartTop10,
     });
   });
