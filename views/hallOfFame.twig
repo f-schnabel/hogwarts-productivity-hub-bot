@@ -27,6 +27,86 @@
     background: linear-gradient(to right, var(--border-glow), transparent);
   }
 
+  /* ── Tab Navigation ── */
+  .tab-nav {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 2rem;
+    padding: 0.4rem;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    animation: fadeSlideDown 0.25s ease-out both;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 0.6rem 1rem;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+
+  .tab-btn:hover {
+    color: var(--accent-gold);
+    background: rgba(212, 168, 83, 0.08);
+  }
+
+  .tab-btn.active {
+    background: rgba(212, 168, 83, 0.15);
+    color: var(--accent-gold-bright);
+  }
+
+  /* ── Charts ── */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .charts-row.single {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 1.25rem 1.5rem 1.5rem;
+    animation: fadeSlideUp 0.25s ease-out both;
+  }
+
+  .chart-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .chart-wrap {
+    position: relative;
+    height: 220px;
+  }
+
+  .chart-wrap.tall {
+    height: 280px;
+  }
+
   /* ── Cup History ── */
   .cup-tally {
     display: flex;
@@ -137,41 +217,6 @@
     margin-top: 0.15rem;
   }
 
-  /* ── Top Students Toggle ── */
-  .top-students-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-    padding: 0.5rem 1rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 12px;
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-
-  .top-students-toggle:hover {
-    color: var(--accent-gold);
-    border-color: var(--border-glow);
-  }
-
-  .top-students-toggle .chevron {
-    display: inline-block;
-    transition: transform 0.3s ease;
-  }
-
-  .top-students-expanded .chevron {
-    transform: rotate(180deg);
-  }
-
-  .top-students-hidden {
-    display: none;
-  }
-
   /* ── Empty State ── */
   .empty-state {
     text-align: center;
@@ -206,6 +251,15 @@
       flex-wrap: wrap;
       gap: 0.75rem 1.25rem;
     }
+
+    .charts-row {
+      grid-template-columns: 1fr;
+    }
+
+    .tab-nav {
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
   }
 
   @media (max-width: 640px) {
@@ -227,6 +281,18 @@
       gap: 0.5rem 1rem;
       font-size: 0.8rem;
     }
+
+    .chart-card {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: rgba(20, 20, 35, 0.95);
+    }
+
+    .tab-nav {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: rgba(20, 20, 35, 0.95);
+    }
   }
 </style>
 {% endblock %}
@@ -234,115 +300,295 @@
 {% block content %}
 <h1>Hall of Fame</h1>
 
-{# ── Section 1: House Cup History ── #}
-<div class="section">
-  <div class="section-title">House Cup History</div>
+{# ── Tab Navigation ── #}
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="house-cup">House Cup</button>
+  <button class="tab-btn" data-tab="top-25">Top 25</button>
+</div>
 
-  {% if timeline is empty %}
-    <div class="empty-state">
-      <span class="empty-state-icon">🏆</span>
-      No house cups recorded yet. The first cup will be awarded at the next monthly reset.
-    </div>
-  {% else %}
-    <div class="cup-tally">
-      {% for card in cupWinCards %}
-      <div class="tally-item">
-        <span style="color: {{ card.color }};">{{ card.name }}</span>
-        <span class="tally-count" style="color: {{ card.color }};">{{ card.wins }}</span>
+{# ── Tab 1: House Cup ── #}
+<div class="tab-panel" id="tab-house-cup">
+
+  {# Section 1: House Cup History #}
+  <div class="section">
+    <div class="section-title">House Cup History</div>
+
+    {% if timeline is empty %}
+      <div class="empty-state">
+        <span class="empty-state-icon">🏆</span>
+        No house cups recorded yet. The first cup will be awarded at the next monthly reset.
+      </div>
+    {% else %}
+      <div class="cup-tally">
+        {% for card in cupWinCards %}
+        <div class="tally-item">
+          <span style="color: {{ card.color }};">{{ card.name }}</span>
+          <span class="tally-count" style="color: {{ card.color }};">{{ card.wins }}</span>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">Cup Wins</div>
+          <div class="chart-wrap">
+            <canvas id="cupWinsChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Points Over Time</div>
+          <div class="chart-wrap">
+            <canvas id="timelineChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="cup-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Winner</th>
+              {% for house in ['Gryffindor', 'Hufflepuff', 'Ravenclaw', 'Slytherin'] %}
+              <th style="color: {{ attribute(houseColors, house) }};">{{ house }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for cup in timeline %}
+            <tr style="cursor: pointer;" onclick="window.location='/cup/{{ cup.month }}'">
+              <td>{{ cup.month }}</td>
+              <td class="cup-winner-cell">
+                <span style="background: {{ cup.winnerColor }};"></span>
+                <span style="color: {{ cup.winnerColor }};">{{ cup.winner }}</span>
+              </td>
+              {% for entry in cup.houses %}
+              <td class="cup-pts {% if entry.isWinner %}is-winner{% endif %}">{{ entry.weightedPoints }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+
+  {# Section 2: All-Time House Points #}
+  <div class="section">
+    <div class="section-title">All-Time House Points</div>
+
+    <div class="house-points-grid">
+      {% for house in allTimeHouses %}
+      <div class="house-pts-card">
+        <div class="house-pts-name" style="color: {{ house.color }};">{{ house.name }}</div>
+        <div class="house-pts-value">{{ house.totalPoints | number_format }}</div>
+        <div class="house-pts-label">Total Points</div>
+        <div class="house-pts-bar" style="background: {{ house.color }};"></div>
       </div>
       {% endfor %}
     </div>
-
-    <div class="table-wrapper">
-      <table class="cup-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Winner</th>
-            {% for house in ['Gryffindor', 'Hufflepuff', 'Ravenclaw', 'Slytherin'] %}
-            <th style="color: {{ attribute(houseColors, house) }};">{{ house }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for cup in timeline %}
-          <tr style="cursor: pointer;" onclick="window.location='/cup/{{ cup.month }}'">
-            <td>{{ cup.month }}</td>
-            <td class="cup-winner-cell">
-              <span style="background: {{ cup.winnerColor }};"></span>
-              <span style="color: {{ cup.winnerColor }};">{{ cup.winner }}</span>
-            </td>
-            {% for entry in cup.houses %}
-            <td class="cup-pts {% if entry.isWinner %}is-winner{% endif %}">{{ entry.weightedPoints }}</td>
-            {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% endif %}
-</div>
-
-{# ── Section 2: All-Time Top 25 Students ── #}
-<div class="section">
-  <div class="section-title">All-Time Top 25</div>
-
-  {% if students is empty %}
-    <div class="empty-state">
-      <span class="empty-state-icon">⭐</span>
-      No students have earned points yet.
-    </div>
-  {% else %}
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Student</th>
-            <th>House</th>
-            <th>Total Points</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for student in students %}
-          <tr class="{% if student.rank > 5 %}top-students-extra top-students-hidden{% endif %}">
-            <td class="rank {% if student.rank == 1 %}rank-1{% elseif student.rank == 2 %}rank-2{% elseif student.rank == 3 %}rank-3{% endif %}">#{{ student.rank }}</td>
-            <td><a href="/user/{{ student.discordId }}" class="user-link">{{ student.displayName }}</a></td>
-            <td style="color: {{ student.houseColor }}; font-weight: 500;">{{ student.house ?: "—" }}</td>
-            <td style="color: var(--accent-gold-bright); font-weight: 600;">{{ student.totalPoints }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% if students | length > 5 %}
-    <div class="top-students-toggle" onclick="
-      this.classList.toggle('top-students-expanded');
-      var rows = this.previousElementSibling.querySelectorAll('.top-students-extra');
-      var show = this.classList.contains('top-students-expanded');
-      for (var i = 0; i < rows.length; i++) rows[i].classList.toggle('top-students-hidden', !show);
-      this.querySelector('span:first-child').textContent = show ? 'Show less' : 'Show all 25';
-    ">
-      <span>Show all 25</span>
-      <span class="chevron">▼</span>
-    </div>
-    {% endif %}
-  {% endif %}
-</div>
-
-{# ── Section 3: All-Time House Points ── #}
-<div class="section">
-  <div class="section-title">All-Time House Points</div>
-
-  <div class="house-points-grid">
-    {% for house in allTimeHouses %}
-    <div class="house-pts-card">
-      <div class="house-pts-name" style="color: {{ house.color }};">{{ house.name }}</div>
-      <div class="house-pts-value">{{ house.totalPoints | number_format }}</div>
-      <div class="house-pts-label">Total Points</div>
-      <div class="house-pts-bar" style="background: {{ house.color }};"></div>
-    </div>
-    {% endfor %}
   </div>
+
 </div>
+
+{# ── Tab 2: Top 25 ── #}
+<div class="tab-panel" id="tab-top-25" style="display: none;">
+
+  <div class="section">
+    <div class="section-title">All-Time Top 25 Students</div>
+
+    {% if students is empty %}
+      <div class="empty-state">
+        <span class="empty-state-icon">⭐</span>
+        No students have earned points yet.
+      </div>
+    {% else %}
+      <div class="chart-card" style="margin-bottom: 1.5rem;">
+        <div class="chart-title">Top 10 by Total Points</div>
+        <div class="chart-wrap tall">
+          <canvas id="top10Chart"></canvas>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Student</th>
+              <th>House</th>
+              <th>Total Points</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for student in students %}
+            <tr>
+              <td class="rank {% if student.rank == 1 %}rank-1{% elseif student.rank == 2 %}rank-2{% elseif student.rank == 3 %}rank-3{% endif %}">#{{ student.rank }}</td>
+              <td><a href="/user/{{ student.discordId }}" class="user-link">{{ student.displayName }}</a></td>
+              <td style="color: {{ student.houseColor }}; font-weight: 500;">{{ student.house ?: "—" }}</td>
+              <td style="color: var(--accent-gold-bright); font-weight: 600;">{{ student.totalPoints }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  Chart.defaults.font.family = "'Outfit', system-ui, sans-serif";
+  Chart.defaults.color = 'rgba(240, 230, 211, 0.65)';
+
+  const chartCupWins = {{ chartCupWins | json_encode | raw }};
+  const chartTimeline = {{ chartTimeline | json_encode | raw }};
+  const chartTop10 = {{ chartTop10 | json_encode | raw }};
+
+  const gridColor = 'rgba(255, 255, 255, 0.05)';
+
+  // ── House Cup tab charts (initialized immediately) ──
+  function initHouseCupCharts() {
+    // Cup Wins doughnut
+    new Chart(document.getElementById('cupWinsChart'), {
+      type: 'doughnut',
+      data: {
+        labels: chartCupWins.labels,
+        datasets: [{
+          data: chartCupWins.data,
+          backgroundColor: chartCupWins.colors.map(c => c + '99'),
+          borderColor: chartCupWins.colors,
+          borderWidth: 2,
+          hoverOffset: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { padding: 14, boxWidth: 12, font: { size: 12 } }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                return ' ' + ctx.label + ': ' + ctx.parsed + (ctx.parsed === 1 ? ' win' : ' wins');
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Points Over Time line chart
+    if (chartTimeline) {
+      new Chart(document.getElementById('timelineChart'), {
+        type: 'line',
+        data: {
+          labels: chartTimeline.months,
+          datasets: chartTimeline.datasets.map(function(ds) {
+            return {
+              label: ds.label,
+              data: ds.data,
+              borderColor: ds.color,
+              backgroundColor: ds.color + '22',
+              tension: 0.3,
+              pointRadius: 3,
+              pointHoverRadius: 5,
+              borderWidth: 2,
+            };
+          })
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: {
+              grid: { color: gridColor },
+              ticks: { maxTicksLimit: 8, font: { size: 11 } }
+            },
+            y: {
+              grid: { color: gridColor },
+              beginAtZero: true,
+              ticks: { font: { size: 11 } }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { padding: 14, boxWidth: 12, font: { size: 12 } }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  // ── Top 25 tab chart (initialized lazily on first tab open) ──
+  var top25Initialized = false;
+
+  function initTop25Charts() {
+    if (!chartTop10 || !chartTop10.length) return;
+    new Chart(document.getElementById('top10Chart'), {
+      type: 'bar',
+      data: {
+        labels: chartTop10.map(function(s) { return s.label; }),
+        datasets: [{
+          label: 'Total Points',
+          data: chartTop10.map(function(s) { return s.value; }),
+          backgroundColor: chartTop10.map(function(s) { return s.color + '99'; }),
+          borderColor: chartTop10.map(function(s) { return s.color; }),
+          borderWidth: 1.5,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            grid: { color: gridColor },
+            beginAtZero: true,
+            ticks: { font: { size: 11 } }
+          },
+          y: {
+            grid: { display: false },
+            ticks: { font: { size: 12 } }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) { return ' ' + ctx.parsed.x + ' pts'; }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Tab switching ──
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tabId = btn.dataset.tab;
+      document.querySelectorAll('.tab-panel').forEach(function(p) { p.style.display = 'none'; });
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.getElementById('tab-' + tabId).style.display = 'block';
+      btn.classList.add('active');
+
+      if (tabId === 'top-25' && !top25Initialized) {
+        initTop25Charts();
+        top25Initialized = true;
+      }
+    });
+  });
+
+  initHouseCupCharts();
+</script>
 {% endblock %}
