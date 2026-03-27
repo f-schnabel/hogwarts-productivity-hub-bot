@@ -1,4 +1,4 @@
-import { GuildMember, type GuildMemberEditOptions, type VoiceState } from "discord.js";
+import { ChannelType, GuildMember, type GuildMemberEditOptions, type VoiceState } from "discord.js";
 import { db, ensureUserExists } from "../../db/db.ts";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
@@ -26,9 +26,11 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
   const oldChannel = oldState.channel;
   const newChannel = newState.channel;
 
-  // Check if channels should be excluded
-  const oldChannelExcluded = oldChannel === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(oldChannel.id);
-  const newChannelExcluded = newChannel === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(newChannel.id);
+  // Check if channels should be excluded (excluded IDs + stage channels)
+  const isExcluded = (ch: typeof oldChannel) =>
+    ch === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(ch.id) || ch.type === ChannelType.GuildStageVoice;
+  const oldChannelExcluded = isExcluded(oldChannel);
+  const newChannelExcluded = isExcluded(newChannel);
 
   // Ignore updates that don't involve tracked channels
   if (oldChannelExcluded && newChannelExcluded) {
