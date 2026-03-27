@@ -66,6 +66,9 @@ export default {
     )
     .addSubcommand((subcommand) =>
       subcommand.setName("check-integrity").setDescription("Checks point integrity against transaction tables"),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand.setName("fix-integrity").setDescription("Overwrites stored points/voice time with expected values"),
     ),
 
   async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
@@ -87,6 +90,9 @@ export default {
         break;
       case "check-integrity":
         await checkIntegrity(interaction, opId);
+        break;
+      case "fix-integrity":
+        await fixIntegrity(interaction, opId);
         break;
       default:
         await errorReply(opId, interaction, "Invalid Subcommand", "Unknown subcommand.", { deferred: true });
@@ -223,7 +229,16 @@ async function vcEmojiCommand(interaction: ChatInputCommandInteraction<"cached">
   }
 }
 
-async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
+interface ExpectedValues {
+  totalPoints: number;
+  monthlyPoints: number;
+  dailyPoints: number;
+  totalVoiceTime: number;
+  monthlyVoiceTime: number;
+  dailyVoiceTime: number;
+}
+
+async function computeExpectedValues() {
   const monthStartDate = await getMonthStartDate();
 
   // Get all users with their stored points and voice time
@@ -321,9 +336,8 @@ async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">
     if (resetTime && adj.createdAt >= resetTime) sums.daily += adj.amount;
   }
 
-  // Check for discrepancies
-  const discrepancies: string[] = [];
   const zero = { total: 0, monthly: 0, daily: 0 };
+  const expectedMap = new Map<string, ExpectedValues>();
 
   for (const user of users) {
     const vcPts = voicePointsMap.get(user.discordId) ?? zero;
@@ -331,38 +345,62 @@ async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">
     const sub = submissionMap.get(user.discordId) ?? zero;
     const adj = adjustmentMap.get(user.discordId) ?? zero;
 
-    // Points checks
-    const expectedTotalPts = vcPts.total + sub.total + adj.total;
-    const expectedMonthlyPts = vcPts.monthly + sub.monthly + adj.monthly;
-    const expectedDailyPts = vcPts.daily + sub.daily + adj.daily;
+    expectedMap.set(user.discordId, {
+      totalPoints: vcPts.total + sub.total + adj.total,
+      monthlyPoints: vcPts.monthly + sub.monthly + adj.monthly,
+      dailyPoints: vcPts.daily + sub.daily + adj.daily,
+      totalVoiceTime: vcTime.total,
+      monthlyVoiceTime: vcTime.monthly,
+      dailyVoiceTime: vcTime.daily,
+    });
+  }
 
-    if (user.totalPoints !== expectedTotalPts) {
+  return { users, expectedMap, voicePointsMap, submissionMap, adjustmentMap, voiceTimeMap };
+}
+
+async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
+  const { users, expectedMap, voicePointsMap, submissionMap, adjustmentMap } = await computeExpectedValues();
+
+  const discrepancies: string[] = [];
+  const zero = { total: 0, monthly: 0, daily: 0 };
+
+  for (const user of users) {
+    const expected = expectedMap.get(user.discordId);
+    if (!expected) continue;
+    const vcPts = voicePointsMap.get(user.discordId) ?? zero;
+    const sub = submissionMap.get(user.discordId) ?? zero;
+    const adj = adjustmentMap.get(user.discordId) ?? zero;
+
+    if (user.totalPoints !== expected.totalPoints) {
       discrepancies.push(
-        `**${user.username}** totalPts: stored=${user.totalPoints}, expected=${expectedTotalPts} (vc=${vcPts.total}, sub=${sub.total}, adj=${adj.total})`,
+        `**${user.username}** totalPts: stored=${user.totalPoints}, expected=${expected.totalPoints} (vc=${vcPts.total}, sub=${sub.total}, adj=${adj.total})`,
       );
     }
-    if (user.monthlyPoints !== expectedMonthlyPts) {
+    if (user.monthlyPoints !== expected.monthlyPoints) {
       discrepancies.push(
-        `**${user.username}** monthlyPts: stored=${user.monthlyPoints}, expected=${expectedMonthlyPts} (vc=${vcPts.monthly}, sub=${sub.monthly}, adj=${adj.monthly})`,
+        `**${user.username}** monthlyPts: stored=${user.monthlyPoints}, expected=${expected.monthlyPoints} (vc=${vcPts.monthly}, sub=${sub.monthly}, adj=${adj.monthly})`,
       );
     }
-    if (user.dailyPoints !== expectedDailyPts) {
+    if (user.dailyPoints !== expected.dailyPoints) {
       discrepancies.push(
-        `**${user.username}** dailyPts: stored=${user.dailyPoints}, expected=${expectedDailyPts} (vc=${vcPts.daily}, sub=${sub.daily}, adj=${adj.daily})`,
+        `**${user.username}** dailyPts: stored=${user.dailyPoints}, expected=${expected.dailyPoints} (vc=${vcPts.daily}, sub=${sub.daily}, adj=${adj.daily})`,
       );
     }
 
-    // Voice time checks
-    if (user.totalVoiceTime !== vcTime.total) {
-      discrepancies.push(`**${user.username}** totalVcTime: stored=${user.totalVoiceTime}, expected=${vcTime.total}`);
-    }
-    if (user.monthlyVoiceTime !== vcTime.monthly) {
+    if (user.totalVoiceTime !== expected.totalVoiceTime) {
       discrepancies.push(
-        `**${user.username}** monthlyVcTime: stored=${user.monthlyVoiceTime}, expected=${vcTime.monthly}`,
+        `**${user.username}** totalVcTime: stored=${user.totalVoiceTime}, expected=${expected.totalVoiceTime}`,
       );
     }
-    if (user.dailyVoiceTime !== vcTime.daily) {
-      discrepancies.push(`**${user.username}** dailyVcTime: stored=${user.dailyVoiceTime}, expected=${vcTime.daily}`);
+    if (user.monthlyVoiceTime !== expected.monthlyVoiceTime) {
+      discrepancies.push(
+        `**${user.username}** monthlyVcTime: stored=${user.monthlyVoiceTime}, expected=${expected.monthlyVoiceTime}`,
+      );
+    }
+    if (user.dailyVoiceTime !== expected.dailyVoiceTime) {
+      discrepancies.push(
+        `**${user.username}** dailyVcTime: stored=${user.dailyVoiceTime}, expected=${expected.dailyVoiceTime}`,
+      );
     }
   }
 
@@ -374,4 +412,40 @@ async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">
     const message = `⚠️ Found ${discrepancies.length} discrepancies:\n${discrepancies.slice(0, 20).join("\n")}${discrepancies.length > 20 ? `\n...and ${discrepancies.length - 20} more` : ""}`;
     await interaction.editReply(message);
   }
+}
+
+async function fixIntegrity(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
+  const { users, expectedMap } = await computeExpectedValues();
+
+  let fixed = 0;
+  for (const user of users) {
+    const expected = expectedMap.get(user.discordId);
+    if (!expected) continue;
+
+    const needsFix =
+      user.totalPoints !== expected.totalPoints ||
+      user.monthlyPoints !== expected.monthlyPoints ||
+      user.dailyPoints !== expected.dailyPoints ||
+      user.totalVoiceTime !== expected.totalVoiceTime ||
+      user.monthlyVoiceTime !== expected.monthlyVoiceTime ||
+      user.dailyVoiceTime !== expected.dailyVoiceTime;
+
+    if (needsFix) {
+      await db
+        .update(userTable)
+        .set({
+          totalPoints: expected.totalPoints,
+          monthlyPoints: expected.monthlyPoints,
+          dailyPoints: expected.dailyPoints,
+          totalVoiceTime: expected.totalVoiceTime,
+          monthlyVoiceTime: expected.monthlyVoiceTime,
+          dailyVoiceTime: expected.dailyVoiceTime,
+        })
+        .where(eq(userTable.discordId, user.discordId));
+      fixed++;
+    }
+  }
+
+  log.info("Integrity fix complete", { opId, usersFixed: fixed });
+  await interaction.editReply(fixed === 0 ? "No discrepancies found." : `Fixed ${fixed} user(s).`);
 }
