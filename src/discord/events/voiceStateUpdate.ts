@@ -6,7 +6,7 @@ import { voiceSessionExecutionTimer } from "../../common/monitoring.ts";
 import { createLogger, OpId } from "../../common/logger.ts";
 import { VCEmojiNeedsAdding, VCEmojiNeedsRemoval } from "../utils/nicknameUtils.ts";
 import { VCRoleNeedsAdding, VCRoleNeedsRemoval } from "../utils/roleUtils.ts";
-import type { VoiceSession } from "../../common/types.ts";
+import type { UpdateMemberParams, VoiceSession } from "../../common/types.ts";
 import { announceYearPromotion, calculateYearRoles } from "../utils/yearRoleUtils.ts";
 
 const log = createLogger("Voice");
@@ -156,16 +156,6 @@ async function vcSwitch(
     }),
     startVoiceSession(newVoiceSession, db, opId),
   ]);
-}
-
-export interface UpdateMemberParams {
-  member: GuildMember;
-  reason?: string;
-  nickname?: string | null;
-  roleUpdates?: {
-    rolesToAdd?: string[];
-    rolesToRemove?: string[];
-  } | null;
 }
 
 export async function updateMember({ member, reason, nickname, roleUpdates }: UpdateMemberParams) {

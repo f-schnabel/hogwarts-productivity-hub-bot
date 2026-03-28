@@ -2,9 +2,10 @@ import type {
   AutocompleteInteraction,
   ButtonInteraction,
   ChatInputCommandInteraction,
+  GuildMember,
   SharedSlashCommand,
 } from "discord.js";
-import type { HOUSES } from "./constants.ts";
+import type { HOUSES, SUBMISSION_TYPES } from "./constants.ts";
 
 export interface CommandOptions {
   opId: string;
@@ -61,3 +62,15 @@ export interface HousePoints {
   totalPoints: number;
   memberCount: number;
 }
+
+export interface UpdateMemberParams {
+  member: GuildMember;
+  reason?: string;
+  nickname?: string | null;
+  roleUpdates?: {
+    rolesToAdd?: string[];
+    rolesToRemove?: string[];
+  } | null;
+}
+
+export type SubmissionType = (typeof SUBMISSION_TYPES)[keyof typeof SUBMISSION_TYPES];

@@ -24,17 +24,11 @@ import assert from "node:assert";
 import { db, getHouseFromMember, getMonthStartDate, getUserTimezone } from "@/db/db.ts";
 import { submissionTable } from "@/db/schema.ts";
 import { and, eq, gte, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
-import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS } from "@/common/constants.ts";
-import type { CommandOptions } from "@/common/types.ts";
+import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS, SUBMISSION_TYPES } from "@/common/constants.ts";
+import type { CommandOptions, SubmissionType } from "@/common/types.ts";
 import { alertOwner } from "../utils/alerting.ts";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
-const SUBMISSION_TYPES = {
-  NEW: "NEW",
-  COMPLETED: "COMPLETED",
-} as const;
-
-type SubmissionType = (typeof SUBMISSION_TYPES)[keyof typeof SUBMISSION_TYPES];
 
 export default {
   data: new SlashCommandBuilder()

@@ -76,3 +76,8 @@ export const YEAR_COLORS: Record<number, string> = {
   6: "#39ff14",
   7: "#ff4654",
 };
+
+export const SUBMISSION_TYPES = {
+  NEW: "NEW",
+  COMPLETED: "COMPLETED",
+} as const;
