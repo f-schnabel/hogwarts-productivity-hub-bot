@@ -25,7 +25,7 @@ export async function VCRoleNeedsAdding(ctx: Ctx, member: GuildMember): Promise<
 
 function VCRoleNeedsAddingSync(ctx: Ctx, member: GuildMember, role: RoleType): string[] {
   if (member.roles.cache.has(role.id)) {
-    log.debug("User already has VC role", ctx);
+    //log.debug("User already has VC role", ctx);
     return [];
   }
   log.debug("Adding VC role", ctx);
@@ -43,7 +43,7 @@ export async function VCRoleNeedsRemoval(ctx: Ctx, member: GuildMember): Promise
 
 export function VCRoleNeedsRemovalSync(ctx: Ctx, member: GuildMember, role: RoleType) {
   if (!member.roles.cache.has(role.id)) {
-    log.debug("User does not have VC role", ctx);
+    //log.debug("User does not have VC role", ctx);
     return [];
   }
   return [role.id];
