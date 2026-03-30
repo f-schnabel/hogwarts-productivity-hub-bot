@@ -1,13 +1,1 @@
-hogwarts.schnabel.dev {
-	reverse_proxy localhost:3001
-	log {
-		output file /var/log/caddy/access.log
-	}
-}
-
-grafana.schnabel.dev {
-	reverse_proxy 127.0.0.1:3000
-	log {
-		output file /var/log/caddy/access.log
-	}
-}
+import *.caddyfile
