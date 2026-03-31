@@ -10,7 +10,7 @@ import { closeVoiceSessionUntracked, endVoiceSession } from "@/discord/utils/voi
 import { db, ensureUserExists } from "@/db/db.ts";
 import { voiceSessionTable } from "@/db/schema.ts";
 import { isNull } from "drizzle-orm";
-import { createLogger, OpId } from "@/common/logger.ts";
+import { createLogger } from "@/common/logger.ts";
 import { getGuild } from "@/discord/events/clientReady.ts";
 import { MAX_SESSION_AGE_MS } from "@/common/constants.ts";
 import { join } from "@/discord/events/voiceStateUpdate.ts";
@@ -27,7 +27,6 @@ interface OpenSession {
 }
 
 interface ScanContext {
-  opId: string;
   results: {
     totalUsersFound: number;
     trackingStarted: number;
@@ -38,9 +37,8 @@ interface ScanContext {
   };
 }
 
-function createScanContext(opId: string): ScanContext {
+function createScanContext(): ScanContext {
   return {
-    opId,
     results: {
       totalUsersFound: 0,
       trackingStarted: 0,
@@ -59,16 +57,14 @@ function createScanContext(opId: string): ScanContext {
  * - Handles multiple open sessions per user (keeps newest valid, closes others)
  * - Starts new sessions for users without one
  */
-export async function scanAndStartTracking(parentOpId?: string) {
-  const opId = parentOpId ?? OpId.vcscan();
-
+export async function scanAndStartTracking() {
   if (isScanning) {
-    log.warn("Scan already in progress, skipping", { opId });
+    log.warn("Scan already in progress, skipping");
     return;
   }
 
   isScanning = true;
-  const ctx = createScanContext(opId);
+  const ctx = createScanContext();
 
   // Fetch all open sessions with their details
   const openSessions = await db
@@ -100,7 +96,6 @@ export async function scanAndStartTracking(parentOpId?: string) {
     await closeStaleSessionsForMissingUsers(ctx, openSessionsByUser, usersInVoice);
 
     log.info("Scan complete", {
-      opId,
       usersFound: ctx.results.totalUsersFound,
       trackingStarted: ctx.results.trackingStarted,
       sessionsResumed: ctx.results.sessionsResumed,
@@ -109,7 +104,7 @@ export async function scanAndStartTracking(parentOpId?: string) {
       channels: ctx.results.channels.map((c) => `${c.name}:${c.userCount}`).join(", ") || "none",
     });
   } catch (error) {
-    log.error("Scan failed", { opId }, error);
+    log.error("Scan failed", {}, error);
     ctx.results.errors++;
   } finally {
     isScanning = false;
@@ -142,20 +137,19 @@ async function closeStaleSessionsForMissingUsers(
 
       try {
         if (sessionAge > MAX_SESSION_AGE_MS) {
-          await closeVoiceSessionUntracked(sessionToClose, db, ctx.opId);
+          await closeVoiceSessionUntracked(sessionToClose, db);
         } else {
-          await endVoiceSession(sessionToClose, db, ctx.opId);
+          await endVoiceSession(sessionToClose, db);
         }
         ctx.results.staleClosed++;
         log.debug("Closed stale session", {
-          opId: ctx.opId,
           userId: discordId,
           channel: session.channelName,
           ageHours: Math.round(sessionAge / 1000 / 60 / 60),
           tracked: sessionAge <= MAX_SESSION_AGE_MS,
         });
       } catch (error) {
-        log.error("Failed to close stale session", { opId: ctx.opId, userId: discordId }, error);
+        log.error("Failed to close stale session", { userId: discordId }, error);
         ctx.results.errors++;
       }
     }
@@ -183,7 +177,7 @@ async function scanGuildVoiceStates(
       await scanVoiceChannel(ctx, channel, openSessionsByUser, usersInVoice);
     }
   } catch (error) {
-    log.error("Guild scan failed", { opId: ctx.opId, guild: guild.name }, error);
+    log.error("Guild scan failed", { guild: guild.name }, error);
     ctx.results.errors++;
   }
 }
@@ -198,7 +192,7 @@ async function scanVoiceChannel(
   openSessionsByUser: Map<string, OpenSession[]>,
   usersInVoice: Set<string>,
 ) {
-  const logCtx = { opId: ctx.opId, channel: channel.name };
+  const logCtx = { channel: channel.name };
   const now = Date.now();
 
   try {
@@ -253,9 +247,9 @@ async function scanVoiceChannel(
               channelName: session.channelName,
             };
             if (sessionAge > MAX_SESSION_AGE_MS) {
-              await closeVoiceSessionUntracked(sessionToClose, db, ctx.opId);
+              await closeVoiceSessionUntracked(sessionToClose, db);
             } else {
-              await endVoiceSession(sessionToClose, db, ctx.opId);
+              await endVoiceSession(sessionToClose, db);
             }
 
             ctx.results.staleClosed++;
@@ -281,7 +275,6 @@ async function scanVoiceChannel(
             channelName: channel.name,
           },
           member,
-          ctx.opId,
         );
 
         ctx.results.trackingStarted++;

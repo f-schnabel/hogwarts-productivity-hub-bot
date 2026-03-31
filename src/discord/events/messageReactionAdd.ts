@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { db } from "@/db/db.ts";
 import { submissionTable } from "@/db/schema.ts";
 import { Role } from "@/common/constants.ts";
-import { createLogger, OpId } from "@/common/logger.ts";
+import { createLogger } from "@/common/logger.ts";
 import { hasAnyRole } from "@/discord/utils/roleUtils.ts";
 import { reverseSubmissionPoints } from "@/services/pointsService.ts";
 import { submissionMessage } from "@/discord/commands/submit.ts";
@@ -20,9 +20,7 @@ export async function execute(
   const member = reaction.message.guild.members.cache.get(user.id);
   if (!member || !hasAnyRole(member, Role.PREFECT)) return;
 
-  const opId = OpId.msg();
   const ctx = {
-    opId,
     userId: user.id,
     emoji: reaction.emoji.name,
     messageId: reaction.message.id,
@@ -46,7 +44,7 @@ export async function execute(
 
     if (submission.status === "APPROVED") {
       assert(submission.reviewedAt, "Approved submissions must have a review timestamp");
-      await reverseSubmissionPoints(tx, submission.discordId, submission.points, submission.reviewedAt, opId);
+      await reverseSubmissionPoints(tx, submission.discordId, submission.points, submission.reviewedAt);
     }
 
     return updatedSubmission;

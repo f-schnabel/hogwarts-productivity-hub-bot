@@ -36,7 +36,7 @@ export function startAnalyticsServer() {
   analyticsApp.use(express.static(path.join(import.meta.dirname, "..", "..", "public")));
   analyticsApp.use(analyticsRouter);
   const analyticsServer = analyticsApp.listen(3001, "0.0.0.0", () => {
-    log.info("Analytics server started", { opId: "monitor", url: "http://localhost:3001" });
+    log.info("Analytics server started", { url: "http://localhost:3001" });
   });
   return { analyticsServer };
 }

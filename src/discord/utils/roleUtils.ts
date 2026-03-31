@@ -17,7 +17,7 @@ export function hasAnyRole(member: GuildMember, roles: number): boolean {
 export async function VCRoleNeedsAdding(ctx: Ctx, member: GuildMember): Promise<string[]> {
   const role = await member.guild.roles.fetch(VC_ROLE_ID);
   if (!role) {
-    await alertOwner("VC role not found: " + VC_ROLE_ID, ctx.opId);
+    await alertOwner("VC role not found: " + VC_ROLE_ID);
     return [];
   }
   return VCRoleNeedsAddingSync(ctx, member, role);
@@ -35,7 +35,7 @@ function VCRoleNeedsAddingSync(ctx: Ctx, member: GuildMember, role: RoleType): s
 export async function VCRoleNeedsRemoval(ctx: Ctx, member: GuildMember): Promise<string[]> {
   const role = await member.guild.roles.fetch(VC_ROLE_ID);
   if (!role) {
-    await alertOwner("VC role not found: " + VC_ROLE_ID, ctx.opId);
+    await alertOwner("VC role not found: " + VC_ROLE_ID);
     return [];
   }
   return VCRoleNeedsRemovalSync(ctx, member, role);

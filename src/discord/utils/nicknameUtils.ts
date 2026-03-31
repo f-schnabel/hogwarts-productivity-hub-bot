@@ -6,11 +6,7 @@ import { getVCEmoji } from "../../db/db.ts";
 
 const log = createLogger("Streak");
 
-export async function updateMessageStreakInNickname(
-  member: GuildMember | null,
-  newStreak: number,
-  opId: string,
-): Promise<void> {
+export async function updateMessageStreakInNickname(member: GuildMember | null, newStreak: number): Promise<void> {
   // Can't update nickname of guild owner
   if (!member || member.guild.ownerId === member.user.id || hasAnyRole(member, Role.PROFESSOR)) return;
 
@@ -27,7 +23,7 @@ export async function updateMessageStreakInNickname(
     newNickname += ` ⚡${newStreak}`;
   }
 
-  const ctx = { opId, user: member.user.tag, from: member.nickname ?? "NO_NICKNAME", to: newNickname };
+  const ctx = { user: member.user.tag, from: member.nickname ?? "NO_NICKNAME", to: newNickname };
 
   if (newNickname.length > 32) {
     log.debug("Nickname too long", ctx);

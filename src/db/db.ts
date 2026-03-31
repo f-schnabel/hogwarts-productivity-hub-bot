@@ -39,19 +39,19 @@ class MyLogger implements Logger {
       return;
     }
     if (query.includes("commit")) {
-      this.dbLogger.debug(`Committing transaction`, { opId: "db-commit" });
+      this.dbLogger.debug(`Committing transaction`);
       return;
     }
     if (query.includes("rollback")) {
-      this.dbLogger.debug(`Rolling back transaction`, { opId: "db-rollback" });
+      this.dbLogger.debug(`Rolling back transaction`);
       return;
     }
     if (query.includes("begin")) {
-      this.dbLogger.debug(`Beginning transaction`, { opId: "db-begin" });
+      this.dbLogger.debug(`Beginning transaction`);
       return;
     }
 
-    this.dbLogger.debug(`Performing query`, { opId: "db-query", query, params });
+    this.dbLogger.debug(`Performing query`, { query, params });
   }
 }
 

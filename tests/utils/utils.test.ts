@@ -41,34 +41,33 @@ describe("updateMessageStreakInNickname", () => {
       setNickname: vi.fn().mockImplementation((nickname) => (mockMember.nickname = nickname)),
     } as unknown as GuildMember;
   });
-  const opId = "test-op-id";
 
   it("should not update if member is null", async () => {
-    await utils.updateMessageStreakInNickname(null, 5, opId);
+    await utils.updateMessageStreakInNickname(null, 5);
     expect(mockMember.setNickname).not.toHaveBeenCalled();
   });
 
   it("should not update if member is guild owner", async () => {
     mockMember.guild.ownerId = "user-id";
-    await utils.updateMessageStreakInNickname(mockMember, 5, opId);
+    await utils.updateMessageStreakInNickname(mockMember, 5);
     expect(mockMember.setNickname).not.toHaveBeenCalled();
   });
 
   it("should not update if member is professor", async () => {
     mockMember.roles.cache.set(process.env.PROFESSOR_ROLE_ID, {} as any);
-    await utils.updateMessageStreakInNickname(mockMember, 5, opId);
+    await utils.updateMessageStreakInNickname(mockMember, 5);
     expect(mockMember.setNickname).not.toHaveBeenCalled();
   });
 
   it("should not update if newStreak is 0 and member has no nickname", async () => {
     mockMember.nickname = null;
-    await utils.updateMessageStreakInNickname(mockMember, 0, opId);
+    await utils.updateMessageStreakInNickname(mockMember, 0);
     expect(mockMember.setNickname).not.toHaveBeenCalled();
   });
 
   it("should warn and not update if nickname exceeds 32 chars", async () => {
     mockMember.nickname = "VeryLongNicknameThatExceeds32Characters ⚡5";
-    await utils.updateMessageStreakInNickname(mockMember, 999, opId);
+    await utils.updateMessageStreakInNickname(mockMember, 999);
     expect(mockMember.setNickname).not.toHaveBeenCalled();
     expect(consoleDebugSpy).toHaveBeenCalledWith(expect.stringContaining("Nickname too long"));
   });
@@ -134,7 +133,7 @@ describe("updateMessageStreakInNickname", () => {
     mockMember.user.globalName = input.globalName;
     (mockMember.user as any).displayName = input.displayName;
 
-    await utils.updateMessageStreakInNickname(mockMember, streak, opId);
+    await utils.updateMessageStreakInNickname(mockMember, streak);
 
     expect(mockMember.setNickname).toHaveBeenCalledExactlyOnceWith(expected, `Updating message streak to ${streak}`);
     expect(mockMember.nickname).toBe(expected);

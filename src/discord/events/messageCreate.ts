@@ -2,7 +2,7 @@ import type { Message, OmitPartialGroupDMChannel } from "discord.js";
 import { db, ensureUserExists } from "../../db/db.ts";
 import { userTable } from "../../db/schema.ts";
 import { eq, sql } from "drizzle-orm";
-import { createLogger, OpId } from "../../common/logger.ts";
+import { createLogger } from "../../common/logger.ts";
 import assert from "node:assert/strict";
 import { updateMessageStreakInNickname } from "../utils/nicknameUtils.ts";
 
@@ -23,9 +23,7 @@ export async function execute(message: OmitPartialGroupDMChannel<Message>): Prom
     return;
 
   const discordId = message.author.id;
-  const opId = OpId.msg();
   const ctx = {
-    opId,
     discordId,
     user: message.author.tag,
     message: message.content.slice(0, 100),
@@ -45,5 +43,5 @@ export async function execute(message: OmitPartialGroupDMChannel<Message>): Prom
     .then((res) => res[0]);
 
   assert(row, "Failed to update daily messages");
-  await updateMessageStreakInNickname(message.member, row.messageStreak, opId);
+  await updateMessageStreakInNickname(message.member, row.messageStreak);
 }

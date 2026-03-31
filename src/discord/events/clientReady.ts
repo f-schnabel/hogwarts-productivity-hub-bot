@@ -8,7 +8,7 @@ import { houseScoreboardTable, userTable } from "@/db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
 import { VCEmojiNeedsRemovalSync, updateMessageStreakInNickname } from "@/discord/utils/nicknameUtils.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "@/discord/utils/scoreboardService.ts";
-import { createLogger, OpId } from "@/common/logger.ts";
+import { createLogger } from "@/common/logger.ts";
 import assert from "node:assert";
 import { client } from "@/discord/client.ts";
 import { MIN_USERS_FOR_SAFE_DELETION } from "@/common/constants.ts";
@@ -24,9 +24,7 @@ export function getGuild(): Guild {
 }
 
 export async function execute(c: Client<true>): Promise<void> {
-  const opId = OpId.start();
-
-  log.info("Bot starting", { opId, user: c.user.tag, clientId: c.user.id, commands: commands.size });
+  log.info("Bot starting", { user: c.user.tag, clientId: c.user.id, commands: commands.size });
 
   try {
     // fetch all members to ensure cache is populated
@@ -34,30 +32,30 @@ export async function execute(c: Client<true>): Promise<void> {
       await guild.members.fetch();
     }
 
-    await warmRecentSubmissionMessages(c, opId);
-    await VoiceStateScanner.scanAndStartTracking(opId);
-    await resetNicknameStreaks(c, opId);
-    await resetVCEmojisAndRoles(c, opId);
-    const { staleUserIds, totalDbUsers } = await logDbUserRetention(opId);
-    await deleteStaleUsers(staleUserIds, totalDbUsers, opId);
-    await refreshScoreboardMessages(opId);
+    await warmRecentSubmissionMessages(c);
+    await VoiceStateScanner.scanAndStartTracking();
+    await resetNicknameStreaks(c);
+    await resetVCEmojisAndRoles(c);
+    const { staleUserIds, totalDbUsers } = await logDbUserRetention();
+    await deleteStaleUsers(staleUserIds, totalDbUsers);
+    await refreshScoreboardMessages();
   } catch (error) {
-    log.error("Initialization failed", { opId }, error);
+    log.error("Initialization failed", {}, error);
     process.exit(1);
   }
-  log.info("Bot ready", { opId });
-  await alertOwner("Bot deployed successfully.", opId);
+  log.info("Bot ready");
+  await alertOwner("Bot deployed successfully.");
 }
 
 // Warm recent submission messages into cache so reaction-based reopen works without partials.
-async function warmRecentSubmissionMessages(client: Client<true>, opId: string) {
+async function warmRecentSubmissionMessages(client: Client<true>) {
   const cutoffMs = dayjs().subtract(2, "day").valueOf();
 
   for (const channelId of process.env.SUBMISSION_CHANNEL_IDS.split(",").filter(Boolean)) {
     try {
       const channel = await client.channels.fetch(channelId);
       if (!channel?.isTextBased()) {
-        log.warn("Skipping non-text submission channel during cache warmup", { opId, channelId });
+        log.warn("Skipping non-text submission channel during cache warmup", { channelId });
         continue;
       }
 
@@ -78,14 +76,14 @@ async function warmRecentSubmissionMessages(client: Client<true>, opId: string) 
         before = oldestMessage.id;
       }
 
-      log.info("Submission messages cache warmed", { opId, channelId, cachedMessages });
+      log.info("Submission messages cache warmed", { channelId, cachedMessages });
     } catch (error) {
-      log.error("Failed to warm submission message cache", { opId, channelId }, error);
+      log.error("Failed to warm submission message cache", { channelId }, error);
     }
   }
 }
 
-async function logDbUserRetention(opId: string): Promise<{ staleUserIds: string[]; totalDbUsers: number }> {
+async function logDbUserRetention(): Promise<{ staleUserIds: string[]; totalDbUsers: number }> {
   const oneMonthAgo = dayjs().subtract(1, "month").toDate();
 
   const dbUsers = await db.select({ discordId: userTable.discordId, updatedAt: userTable.updatedAt }).from(userTable);
@@ -95,13 +93,12 @@ async function logDbUserRetention(opId: string): Promise<{ staleUserIds: string[
 
   const foundCount = dbUsers.filter((u) => guildMemberIds.has(u.discordId)).length;
   const percentage = dbUsers.length > 0 ? ((foundCount / dbUsers.length) * 100).toFixed(1) : "0";
-  log.info("DB user retention", { opId, found: foundCount, total: dbUsers.length, pct: `${percentage}%` });
+  log.info("DB user retention", { found: foundCount, total: dbUsers.length, pct: `${percentage}%` });
 
   // If less than 100 users found, alert and skip deletion (likely guild cache is broken)
   if (foundCount < MIN_USERS_FOR_SAFE_DELETION) {
     await alertOwner(
       `Aborting stale user deletion: only ${foundCount}/${dbUsers.length} (${percentage}%) users found in guild cache.`,
-      opId,
     );
     return { staleUserIds: [], totalDbUsers: dbUsers.length };
   }
@@ -113,45 +110,43 @@ async function logDbUserRetention(opId: string): Promise<{ staleUserIds: string[
   return { staleUserIds, totalDbUsers: dbUsers.length };
 }
 
-async function deleteStaleUsers(staleUserIds: string[], totalDbUsers: number, opId: string) {
+async function deleteStaleUsers(staleUserIds: string[], totalDbUsers: number) {
   if (staleUserIds.length === 0) return;
 
   // Safety: don't delete if stale users are >50% of db (likely means guild cache is broken)
   const staleRatio = staleUserIds.length / totalDbUsers;
   if (staleRatio > 0.5) {
     log.warn("Skipping stale user deletion - too many stale", {
-      opId,
       stale: staleUserIds.length,
       total: totalDbUsers,
     });
-    await alertOwner(`Skipped stale user deletion: ${staleUserIds.length}/${totalDbUsers} users stale (>50%)`, opId);
+    await alertOwner(`Skipped stale user deletion: ${staleUserIds.length}/${totalDbUsers} users stale (>50%)`);
     return;
   }
 
   // Cascades to voice_session, submission
   await db.delete(userTable).where(inArray(userTable.discordId, staleUserIds));
-  log.info("Deleted stale users", { opId, count: staleUserIds.length });
+  log.info("Deleted stale users", { count: staleUserIds.length });
 }
 
-async function refreshScoreboardMessages(opId: string) {
+async function refreshScoreboardMessages() {
   const scoreboards = await db.select().from(houseScoreboardTable);
   if (scoreboards.length === 0) return;
 
-  const brokenIds = await updateScoreboardMessages(await getHousepointMessages(db, scoreboards), opId);
+  const brokenIds = await updateScoreboardMessages(await getHousepointMessages(db, scoreboards));
 
   if (brokenIds.length > 0) {
     await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
-    await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`, opId);
+    await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`);
   }
   log.info("Scoreboards refreshed", {
-    opId,
     refreshed: scoreboards.length - brokenIds.length,
     broken: brokenIds.length,
   });
 }
 
-async function resetNicknameStreaks(client: Client, opId: string) {
-  log.debug("Resetting nickname streaks", { opId, guildsCache: client.guilds.cache.size });
+async function resetNicknameStreaks(client: Client) {
+  log.debug("Resetting nickname streaks", { guildsCache: client.guilds.cache.size });
 
   const discordIdsToStreak = await db
     .select({
@@ -179,7 +174,6 @@ async function resetNicknameStreaks(client: Client, opId: string) {
   );
 
   log.debug("Processing guild nicknames", {
-    opId,
     guild: guild.name,
     membersCache: guild.members.cache.size,
     toReset: membersToReset.size,
@@ -188,25 +182,25 @@ async function resetNicknameStreaks(client: Client, opId: string) {
 
   await Promise.all([
     ...membersToReset.values().map(async (m) => {
-      await updateMessageStreakInNickname(m, 0, opId);
+      await updateMessageStreakInNickname(m, 0);
     }),
     ...membersToUpdate.values().map(async (m) => {
       const streak = discordIdsToStreak[m.id];
       if (streak === undefined) {
         throw new TypeError(`unreachable: Streak for member ${m.id} does not exist`);
       }
-      await updateMessageStreakInNickname(m, streak, opId);
+      await updateMessageStreakInNickname(m, streak);
     }),
   ]);
 }
 
-async function resetVCEmojisAndRoles(c: Client<true>, opId: string) {
-  log.debug("Resetting VC emojis", { opId, guildsCache: c.guilds.cache.size });
+async function resetVCEmojisAndRoles(c: Client<true>) {
+  log.debug("Resetting VC emojis", { guildsCache: c.guilds.cache.size });
   const emoji = await getVCEmoji();
   const guild = getGuild();
   const role = guild.roles.cache.get(process.env.VC_ROLE_ID);
   if (!role) {
-    await alertOwner("VC role not found: " + process.env.VC_ROLE_ID, opId);
+    await alertOwner("VC role not found: " + process.env.VC_ROLE_ID);
     return;
   }
 
@@ -214,7 +208,7 @@ async function resetVCEmojisAndRoles(c: Client<true>, opId: string) {
 
   await Promise.all(
     membersToReset.map(async (member) => {
-      const ctx = { opId, userId: member.id, username: member.user.username };
+      const ctx = { userId: member.id, username: member.user.username };
 
       await updateMember({
         member,

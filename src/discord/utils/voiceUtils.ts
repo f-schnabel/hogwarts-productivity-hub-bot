@@ -14,9 +14,9 @@ const log = createLogger("Voice");
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
 // Start a voice session when user joins VC (timezone-aware)
-export async function startVoiceSession(session: VoiceSession, db: DbOrTx, opId: string) {
+export async function startVoiceSession(session: VoiceSession, db: DbOrTx) {
   const { channelName, discordId, username, channelId } = session;
-  const ctx = { opId, discordId, username, channelName };
+  const ctx = { discordId, username, channelName };
 
   if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
     log.debug("Skipped excluded channel", ctx);
@@ -38,9 +38,8 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx, opId:
         when starting new voice session for user ${username} (${discordId})
         in channel ${channelName} (${channelId}).
         Closing existing session(s).`,
-        opId,
       );
-      await closeVoiceSessionUntracked(session, db, opId); // End existing session without tracking
+      await closeVoiceSessionUntracked(session, db); // End existing session without tracking
     }
 
     await db.insert(voiceSessionTable).values({ discordId, channelId, channelName });
@@ -49,9 +48,9 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx, opId:
   });
 }
 
-export async function closeVoiceSessionUntracked(session: VoiceSession, db: DbOrTx, opId: string) {
+export async function closeVoiceSessionUntracked(session: VoiceSession, db: DbOrTx) {
   const channelId = session.channelId;
-  const ctx = { opId, userId: session.discordId, user: session.username, channel: session.channelName };
+  const ctx = { userId: session.discordId, user: session.username, channel: session.channelName };
 
   if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
     log.debug("Skipped excluded channel", ctx);
@@ -92,11 +91,10 @@ export async function closeVoiceSessionUntracked(session: VoiceSession, db: DbOr
 }
 
 /** End a voice session when user leaves VC
- *  @param opId - Operation ID for tracing
  */
-export async function endVoiceSession(session: VoiceSession, db: DbOrTx, opId: string) {
+export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
   const channelId = session.channelId;
-  const ctx = { opId, userId: session.discordId, user: session.username, channel: session.channelName };
+  const ctx = { userId: session.discordId, user: session.username, channel: session.channelName };
 
   if (channelId === null || EXCLUDE_VOICE_CHANNEL_IDS.includes(channelId)) {
     log.debug("Skipped excluded channel", ctx);
@@ -122,7 +120,6 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, opId: s
         for user ${session.username} (${session.discordId})
         in channel ${session.channelName ?? "Unknown"} (${channelId}).
         Found ${existingVoiceSession.length}, expected 1.`,
-        opId,
       );
       return null;
     }
@@ -181,7 +178,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, opId: s
 
     if (pointsEarned > 0) {
       // Award points to user
-      await awardPoints(db, session.discordId, pointsEarned, opId);
+      await awardPoints(db, session.discordId, pointsEarned);
     }
     await db
       .update(voiceSessionTable)

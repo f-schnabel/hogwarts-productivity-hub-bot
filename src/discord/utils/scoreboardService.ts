@@ -91,7 +91,7 @@ export async function getHousepointMessages<T extends { house: House }>(
 }
 
 /** Returns broken scoreboard IDs. Use `void` to fire-and-forget or `await` to wait. */
-export async function updateScoreboardMessages(scoreboards: ScoreboardEntry[], opId: string): Promise<number[]> {
+export async function updateScoreboardMessages(scoreboards: ScoreboardEntry[]): Promise<number[]> {
   const start = Date.now();
   const brokenIds: number[] = [];
 
@@ -105,17 +105,17 @@ export async function updateScoreboardMessages(scoreboards: ScoreboardEntry[], o
       }
       const message = await channel.messages.fetch(scoreboard.messageId);
       await message.edit(scoreboard.message);
-      log.debug("Message edit", { opId, msgId: scoreboard.messageId, ms: Date.now() - fetchStart });
+      log.debug("Message edit", { msgId: scoreboard.messageId, ms: Date.now() - fetchStart });
     } catch (e) {
       log.error(
         "Failed to update scoreboard message",
-        { opId, messageId: scoreboard.messageId, channelId: scoreboard.channelId },
+        { messageId: scoreboard.messageId, channelId: scoreboard.channelId },
         e,
       );
       brokenIds.push(scoreboard.id);
     }
   }
 
-  log.debug("updateScoreboardMessages", { opId, count: scoreboards.length, ms: Date.now() - start });
+  log.debug("updateScoreboardMessages", { count: scoreboards.length, ms: Date.now() - start });
   return brokenIds;
 }

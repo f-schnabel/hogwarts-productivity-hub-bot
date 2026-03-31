@@ -6,7 +6,7 @@ import { alertOwner } from "@/discord/utils/alerting.ts";
 import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "@/common/constants.ts";
 import type { House } from "@/common/types.ts";
 
-export async function awardPoints(db: DbOrTx, discordId: string, points: number, opId: string) {
+export async function awardPoints(db: DbOrTx, discordId: string, points: number) {
   // Update user's total points
   const house = await db
     .update(userTable)
@@ -19,16 +19,10 @@ export async function awardPoints(db: DbOrTx, discordId: string, points: number,
     .returning({ house: userTable.house })
     .then(([row]) => row?.house);
 
-  await refreshHouseScoreboards(db, house, opId);
+  await refreshHouseScoreboards(db, house);
 }
 
-export async function reverseSubmissionPoints(
-  db: DbOrTx,
-  discordId: string,
-  points: number,
-  reviewedAt: Date,
-  opId: string,
-) {
+export async function reverseSubmissionPoints(db: DbOrTx, discordId: string, points: number, reviewedAt: Date) {
   const monthStartDate = await getMonthStartDate();
 
   const house = await db
@@ -48,17 +42,17 @@ export async function reverseSubmissionPoints(
     .returning({ house: userTable.house })
     .then(([row]) => row?.house);
 
-  await refreshHouseScoreboards(db, house, opId);
+  await refreshHouseScoreboards(db, house);
 }
 
-async function refreshHouseScoreboards(db: DbOrTx, house: House | null | undefined, opId: string) {
+async function refreshHouseScoreboards(db: DbOrTx, house: House | null | undefined) {
   if (house) {
     const scoreboards = await db.select().from(houseScoreboardTable).where(eq(houseScoreboardTable.house, house));
     if (scoreboards.length > 0) {
       // fire-and-forget: don't block transaction on Discord API calls
-      void updateScoreboardMessages(await getHousepointMessages(db, scoreboards), opId).then(async (brokenIds) => {
+      void updateScoreboardMessages(await getHousepointMessages(db, scoreboards)).then(async (brokenIds) => {
         if (brokenIds.length > 0) {
-          await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries for ${house}.`, opId);
+          await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries for ${house}.`);
           await globalDb.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
         }
       });

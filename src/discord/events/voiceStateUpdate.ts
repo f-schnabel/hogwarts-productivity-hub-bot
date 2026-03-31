@@ -3,7 +3,7 @@ import { db, ensureUserExists } from "../../db/db.ts";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
 import { voiceSessionExecutionTimer } from "../../common/monitoring.ts";
-import { createLogger, OpId } from "../../common/logger.ts";
+import { createLogger } from "../../common/logger.ts";
 import { VCEmojiNeedsAdding, VCEmojiNeedsRemoval } from "../utils/nicknameUtils.ts";
 import { VCRoleNeedsAdding, VCRoleNeedsRemoval } from "../utils/roleUtils.ts";
 import type { UpdateMemberParams, VoiceSession } from "../../common/types.ts";
@@ -19,8 +19,6 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
 
   const end = voiceSessionExecutionTimer.startTimer();
   const start = Date.now();
-  const opId = OpId.vc();
-
   const discordId = member.id;
   const username = member.user.username;
   const oldChannel = oldState.channel;
@@ -35,7 +33,6 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
   // Ignore updates that don't involve tracked channels
   if (oldChannelExcluded && newChannelExcluded) {
     log.debug("Ignored excluded channel update", {
-      opId,
       userId: discordId,
       user: username,
       from: oldChannel?.name ?? "none",
@@ -45,7 +42,6 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
   }
 
   const ctx = {
-    opId,
     userId: discordId,
     user: username,
     ...(oldChannel && { from: oldChannel.name }),
@@ -70,39 +66,31 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
   let event = "unknown";
 
   // Serialize voice events per user to prevent race conditions on fast channel switches
-  await wrapWithAlerting(
-    async () => {
-      // User joined a tracked voice channel (from excluded/none)
-      if (oldChannelExcluded && !newChannelExcluded) {
-        event = "join";
-        await join(newVoiceSession, member, opId);
-      } else if (!oldChannelExcluded && newChannelExcluded) {
-        // User left a tracked voice channel (to excluded/none)
-        event = "leave";
-        await leave(oldVoiceSession, member, opId);
-      } else if (
-        !oldChannelExcluded &&
-        !newChannelExcluded &&
-        oldVoiceSession.channelId !== newVoiceSession.channelId
-      ) {
-        // User switched between tracked voice channels
-        event = "switch";
-        await vcSwitch(oldVoiceSession, newVoiceSession, member, opId);
-      }
-    },
-    `Voice state update for ${username} (${discordId})`,
-    opId,
-  );
+  await wrapWithAlerting(async () => {
+    // User joined a tracked voice channel (from excluded/none)
+    if (oldChannelExcluded && !newChannelExcluded) {
+      event = "join";
+      await join(newVoiceSession, member);
+    } else if (!oldChannelExcluded && newChannelExcluded) {
+      // User left a tracked voice channel (to excluded/none)
+      event = "leave";
+      await leave(oldVoiceSession, member);
+    } else if (!oldChannelExcluded && !newChannelExcluded && oldVoiceSession.channelId !== newVoiceSession.channelId) {
+      // User switched between tracked voice channels
+      event = "switch";
+      await vcSwitch(oldVoiceSession, newVoiceSession, member);
+    }
+  }, `Voice state update for ${username} (${discordId})`);
 
   log.info("Completed", { ...ctx, event, ms: Date.now() - start });
   end({ event });
 }
 
-export async function join(newVoiceSession: VoiceSession, member: GuildMember, opId: string) {
-  const ctx = { opId, userId: member.id, username: member.user.username };
+export async function join(newVoiceSession: VoiceSession, member: GuildMember) {
+  const ctx = { userId: member.id, username: member.user.username };
 
   const [, nickname, vcRole] = await Promise.all([
-    startVoiceSession(newVoiceSession, db, opId),
+    startVoiceSession(newVoiceSession, db),
     VCEmojiNeedsAdding(ctx, member),
     VCRoleNeedsAdding(ctx, member),
   ]);
@@ -116,11 +104,11 @@ export async function join(newVoiceSession: VoiceSession, member: GuildMember, o
   });
 }
 
-async function leave(oldVoiceSession: VoiceSession, member: GuildMember, opId: string) {
-  const ctx = { opId, userId: member.id, username: member.user.username };
+async function leave(oldVoiceSession: VoiceSession, member: GuildMember) {
+  const ctx = { userId: member.id, username: member.user.username };
 
   const [user, nickname, vcRole] = await Promise.all([
-    endVoiceSession(oldVoiceSession, db, opId),
+    endVoiceSession(oldVoiceSession, db),
     VCEmojiNeedsRemoval(ctx, member),
     VCRoleNeedsRemoval(ctx, member),
   ]);
@@ -141,20 +129,15 @@ async function leave(oldVoiceSession: VoiceSession, member: GuildMember, opId: s
   }
 }
 
-async function vcSwitch(
-  oldVoiceSession: VoiceSession,
-  newVoiceSession: VoiceSession,
-  member: GuildMember,
-  opId: string,
-) {
-  const user = await endVoiceSession(oldVoiceSession, db, opId);
+async function vcSwitch(oldVoiceSession: VoiceSession, newVoiceSession: VoiceSession, member: GuildMember) {
+  const user = await endVoiceSession(oldVoiceSession, db);
   await Promise.all([
     updateMember({
       member,
       reason: "User switched voice channel",
       roleUpdates: calculateYearRoles(member, user),
     }),
-    startVoiceSession(newVoiceSession, db, opId),
+    startVoiceSession(newVoiceSession, db),
   ]);
 }
 

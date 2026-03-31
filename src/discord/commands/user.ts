@@ -7,7 +7,7 @@ import { calculatePoints } from "@/services/pointsService.ts";
 import { formatDuration, errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
 import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "@/common/constants.ts";
 import { getYearFromMonthlyVoiceTime } from "@/discord/utils/yearRoleUtils.ts";
-import type { CommandOptions } from "@/common/types.ts";
+import type { Command } from "@/common/types.ts";
 
 import { stripIndent } from "common-tags";
 import assert from "node:assert";
@@ -41,20 +41,19 @@ export default {
         ),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
+  async execute(interaction: ChatInputCommandInteraction) {
     switch (interaction.options.getSubcommand()) {
       case "time":
-        await time(interaction, opId);
+        await time(interaction);
         break;
       case "points":
-        await points(interaction, opId);
+        await points(interaction);
         break;
       case "points-detailed":
-        await pointsDetailed(interaction, opId);
+        await pointsDetailed(interaction);
         break;
       default:
         await errorReply(
-          opId,
           interaction,
           "Invalid Subcommand",
           "Please use `/user time`, `/user points`, or `/user points-detailed`.",
@@ -62,9 +61,9 @@ export default {
         return;
     }
   },
-};
+} as Command;
 
-async function time(interaction: ChatInputCommandInteraction, opId: string) {
+async function time(interaction: ChatInputCommandInteraction) {
   const user = interaction.options.getUser("user", true);
   const [userData] = await db
     .select({ timezone: userTable.timezone })
@@ -72,7 +71,7 @@ async function time(interaction: ChatInputCommandInteraction, opId: string) {
     .where(eq(userTable.discordId, user.id));
 
   if (!userData?.timezone) {
-    await errorReply(opId, interaction, "Timezone Not Set", `${user.username} has not set their timezone.`);
+    await errorReply(interaction, "Timezone Not Set", `${user.username} has not set their timezone.`);
     return;
   }
   const userTime = dayjs().tz(userData.timezone);
@@ -82,15 +81,15 @@ async function time(interaction: ChatInputCommandInteraction, opId: string) {
   );
 }
 
-async function points(interaction: ChatInputCommandInteraction, opId: string) {
-  if (!inGuild(interaction, opId)) return;
+async function points(interaction: ChatInputCommandInteraction) {
+  if (!inGuild(interaction)) return;
   await interaction.deferReply();
 
   const user = interaction.options.getUser("user", true);
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
 
   if (!userData) {
-    await errorReply(opId, interaction, "User Not Found", `${user.username} is not registered.`, { deferred: true });
+    await errorReply(interaction, "User Not Found", `${user.username} is not registered.`, { deferred: true });
     return;
   }
 
@@ -325,15 +324,15 @@ interface MergedSession {
   duration: number;
 }
 
-async function pointsDetailed(interaction: ChatInputCommandInteraction, opId: string) {
-  if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.OWNER | Role.PREFECT)) return;
+async function pointsDetailed(interaction: ChatInputCommandInteraction) {
+  if (!inGuild(interaction) || !requireRole(interaction, Role.OWNER | Role.PREFECT)) return;
   await interaction.deferReply();
 
   const user = interaction.options.getUser("user", true);
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
 
   if (!userData) {
-    await errorReply(opId, interaction, "User Not Found", `${user.username} is not registered.`, { deferred: true });
+    await errorReply(interaction, "User Not Found", `${user.username} is not registered.`, { deferred: true });
     return;
   }
 

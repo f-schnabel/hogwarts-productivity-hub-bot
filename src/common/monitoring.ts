@@ -41,7 +41,7 @@ export function startMonitoringServer() {
     res.send(await register.metrics());
   });
   const server = metricsApp.listen(8080, "127.0.0.1", () => {
-    log.info("Metrics server started", { opId: "monitor", url: "http://localhost:8080/metrics" });
+    log.info("Metrics server started", { url: "http://localhost:8080/metrics" });
   });
 
   return { server };

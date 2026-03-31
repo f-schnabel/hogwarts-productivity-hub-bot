@@ -183,7 +183,7 @@ Commands follow this structure:
 ```typescript
 export default {
   data: new SlashCommandBuilder().setName("command").setDescription("Description"),
-  async execute(interaction, { opId }) {
+  async execute(interaction) {
     // Command logic
   },
   async autocomplete(interaction) {

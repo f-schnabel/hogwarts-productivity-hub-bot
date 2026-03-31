@@ -1,3 +1,5 @@
+import { getOpId } from "@/common/opContext.ts";
+
 // Operation ID generator for tracing related logs
 let opCounter = 0;
 const genOpId = (prefix: string) =>
@@ -14,21 +16,23 @@ export const OpId = {
 };
 
 // Context formatter: [opId] key=val key2="val with spaces"
-export type Ctx = { opId: string } & Record<string, unknown>;
+export type Ctx = { opId?: string } & Record<string, unknown>;
 const fmtVal = (v: unknown): string => {
   const s = String(v);
   return s.includes(" ") ? `"${s}"` : s;
 };
 const fmt = (ctx?: Ctx) => {
-  if (!ctx) return "";
-  const { opId, ...rest } = ctx;
+  const opId = ctx?.opId ?? getOpId();
+  const rest = ctx ? { ...ctx } : {};
+  delete rest.opId;
+
   const parts = opId ? [`[${opId}]`] : [];
   parts.push(
     ...Object.entries(rest)
       .filter(([, v]) => v !== undefined)
       .map(([k, v]) => `${k}=${fmtVal(v)}`),
   );
-  return parts.join(" ") + " ";
+  return parts.length > 0 ? parts.join(" ") + " " : "";
 };
 
 // Scoped logger factory

@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { db } from "@/db/db.ts";
 import { houseScoreboardTable } from "@/db/schema.ts";
-import type { Command, CommandOptions, House } from "@/common/types.ts";
+import type { Command, House } from "@/common/types.ts";
 import { inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
 import { getHousepointMessages } from "@/discord/utils/scoreboardService.ts";
 import assert from "node:assert";
@@ -23,8 +23,8 @@ export default {
           { name: "Ravenclaw", value: "Ravenclaw" },
         ),
     ),
-  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
-    if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.OWNER | Role.PROFESSOR)) return;
+  async execute(interaction: ChatInputCommandInteraction) {
+    if (!inGuild(interaction) || !requireRole(interaction, Role.OWNER | Role.PROFESSOR)) return;
     await interaction.deferReply();
 
     const house = interaction.options.getString("house", true) as House;

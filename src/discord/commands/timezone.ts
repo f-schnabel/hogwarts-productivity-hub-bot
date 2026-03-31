@@ -5,7 +5,7 @@ import { db, getUserTimezone } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import { eq } from "drizzle-orm";
 import { errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
-import type { CommandOptions } from "@/common/types.ts";
+import type { Command } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import { createLogger } from "@/common/logger.ts";
 import { rawTimeZones } from "@vvo/tzdb";
@@ -86,7 +86,7 @@ export default {
    *
    * Does not use deferReply as this command is expected to be quick.
    */
-  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions) {
+  async execute(interaction: ChatInputCommandInteraction) {
     const targetUser = interaction.options.getUser("user");
     const newTimezone = interaction.options.getString("timezone");
 
@@ -94,14 +94,13 @@ export default {
     let whose = "Your";
 
     if (targetUser && targetUser.id !== interaction.user.id) {
-      if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.PREFECT | Role.PROFESSOR | Role.OWNER))
-        return;
+      if (!inGuild(interaction) || !requireRole(interaction, Role.PREFECT | Role.PROFESSOR | Role.OWNER)) return;
       discordId = targetUser.id;
       whose = `${targetUser.displayName}'s`;
     }
 
     if (newTimezone) {
-      await setTimezone(interaction, discordId, whose, newTimezone, opId);
+      await setTimezone(interaction, discordId, whose, newTimezone);
     } else {
       await viewTimezone(interaction, discordId, whose);
     }
@@ -128,7 +127,7 @@ export default {
       })),
     );
   },
-};
+} as Command;
 
 async function viewTimezone(interaction: ChatInputCommandInteraction, discordId: string, whose: string) {
   const userTimezone = await getUserTimezone(discordId);
@@ -149,15 +148,13 @@ async function setTimezone(
   discordId: string,
   whose: string,
   newTimezone: string,
-  opId: string,
 ) {
   // Validate timezone
   try {
     dayjs().tz(newTimezone);
   } catch {
-    log.warn("Invalid timezone", { opId, user: discordId, username: interaction.user.username, tz: newTimezone });
+    log.warn("Invalid timezone", { user: discordId, username: interaction.user.username, tz: newTimezone });
     await errorReply(
-      opId,
       interaction,
       "Invalid Timezone",
       stripIndent`
@@ -192,7 +189,6 @@ async function setTimezone(
 
   if (result.rowCount === 0) {
     await errorReply(
-      opId,
       interaction,
       "Timezone Update Failed",
       `Failed to update ${whose.toLowerCase()} timezone. Please try again later.`,

@@ -11,17 +11,15 @@ import assert from "node:assert/strict";
 import { ensureUserExists } from "@/db/db.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
 import { interactionExecutionTimer } from "@/common/monitoring.ts";
-import { createLogger, OpId, type Ctx } from "@/common/logger.ts";
+import { createLogger, type Ctx } from "@/common/logger.ts";
 
 const log = createLogger("Command");
 
 export async function execute(interaction: Interaction): Promise<void> {
   const start = Date.now();
   const end = interactionExecutionTimer.startTimer();
-  const opId = OpId.cmd();
-
   if (interaction.isButton()) {
-    await handleButton(interaction, start, end, opId);
+    await handleButton(interaction, start, end);
     return;
   }
 
@@ -30,7 +28,6 @@ export async function execute(interaction: Interaction): Promise<void> {
   const channelName = getChannelName(interaction);
   const subcommand = interaction.options.getSubcommand(false) ?? undefined;
   const ctx = {
-    opId,
     userId: interaction.user.id,
     user: interaction.user.tag,
     cmd: interaction.commandName,
@@ -57,13 +54,12 @@ export async function execute(interaction: Interaction): Promise<void> {
       assert(command.autocomplete, `Command /${interaction.commandName} does not support autocomplete`);
       await command.autocomplete(interaction);
     } else {
-      await command.execute(interaction, { opId });
+      await command.execute(interaction);
     }
   } catch (error) {
     log.error("Execution failed", ctx, error);
     await alertOwner(
       `💥 Command execution failed: /${interaction.commandName} isAutocomplete=${interaction.isAutocomplete()}\n${error instanceof Error ? error : "Unknown error"}`,
-      opId,
     );
     if (interaction.isAutocomplete()) return;
 
@@ -90,13 +86,12 @@ async function handleButton(
   interaction: ButtonInteraction,
   start: number,
   end: ReturnType<typeof interactionExecutionTimer.startTimer>,
-  opId: string,
 ) {
   const [commandName, event, data] = interaction.customId.split("|", 3);
   assert(commandName, "Button command name missing");
   assert(typeof event === "string", "Button event missing");
 
-  const ctx = { opId, userId: interaction.user.id, user: interaction.user.tag, cmd: commandName, event };
+  const ctx = { userId: interaction.user.id, user: interaction.user.tag, cmd: commandName, event };
   log.debug("Button received", ctx);
 
   const command = commands.get(commandName);
@@ -107,7 +102,7 @@ async function handleButton(
 
   assert(command.buttonHandler, `Command /${commandName} does not have a button handler`);
 
-  await command.buttonHandler(interaction, event, data, opId);
+  await command.buttonHandler(interaction, event, data);
   log.info("Button completed", { ...ctx, ms: Date.now() - start });
   end({
     command: commandName + "_button",

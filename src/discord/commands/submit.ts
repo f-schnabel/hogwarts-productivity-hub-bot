@@ -25,7 +25,7 @@ import { db, getHouseFromMember, getMonthStartDate, getUserTimezone } from "@/db
 import { submissionTable } from "@/db/schema.ts";
 import { and, eq, gte, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS, SUBMISSION_TYPES } from "@/common/constants.ts";
-import type { CommandOptions, SubmissionType } from "@/common/types.ts";
+import type { Command, SubmissionType } from "@/common/types.ts";
 import { alertOwner } from "../utils/alerting.ts";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
@@ -52,12 +52,11 @@ export default {
    * Submit a score for approval.
    * Does not use deferReply as the initial processing is quick.
    */
-  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
-    if (!inGuild(interaction, opId)) return;
+  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    if (!inGuild(interaction)) return;
 
     if (!hasAnyRole(interaction.member, Role.OWNER) && !SUBMISSION_CHANNEL_IDS.includes(interaction.channelId)) {
       await errorReply(
-        opId,
         interaction,
         "Invalid Channel",
         `You can use this command in the following channel${SUBMISSION_CHANNEL_IDS.length > 1 ? "s" : ""}: ${SUBMISSION_CHANNEL_IDS.map((id) => channelMention(id)).join(", ")}.`,
@@ -97,7 +96,6 @@ export default {
           : null;
 
       await errorReply(
-        opId,
         interaction,
         "New List Already Submitted Today",
         `You already have a ${bold(getSubmissionTypeLabel(firstSubmission.submissionType))} with status ${bold(firstSubmission.status.toLowerCase())} today, so you cannot submit another one.${blockingSubmissionUrl ? ` You can view the blocking submission [here](${blockingSubmissionUrl}).` : ""} If the blocking submission is still pending and incorrect, you can cancel it from the submission message.`,
@@ -112,7 +110,6 @@ export default {
           : null;
 
       await errorReply(
-        opId,
         interaction,
         "Completed List Already Submitted Today",
         `You already have a ${bold("Completed List")} with status ${bold(completedSubmission.status.toLowerCase())} today, so you cannot submit another one.${blockingSubmissionUrl ? ` You can view the blocking submission [here](${blockingSubmissionUrl}).` : ""} If the blocking submission is still pending and incorrect, you can cancel it from the submission message.`,
@@ -130,7 +127,6 @@ export default {
           : `Otherwise please wait until ${time(retryTime.toDate())} before submitting again.`;
 
         await errorReply(
-          opId,
           interaction,
           "Please wait before submitting again",
           `${bold("There has to be at least an hour between submitting the new and the completed To-Do List")}. You already have submitted in the past hour.\n
@@ -201,18 +197,12 @@ export default {
         // If we can't update the linked message, continue silently
         await alertOwner(
           `Failed to update linked submission message for submission ID ${linkedSubmission.id} error: ${error instanceof Error ? error.message : "Unknown Error"}`,
-          opId,
         );
       }
     }
   },
 
-  async buttonHandler(
-    interaction: ButtonInteraction,
-    event: string,
-    submissionId: string | undefined,
-    opId: string,
-  ): Promise<void> {
+  async buttonHandler(interaction: ButtonInteraction, event: string, submissionId: string | undefined): Promise<void> {
     const member = interaction.member as GuildMember;
     assert(submissionId, "No data provided in button interaction");
 
@@ -297,7 +287,7 @@ export default {
     }
 
     if (event === "approve") {
-      await awardPoints(db, submission.discordId, submission.points, opId);
+      await awardPoints(db, submission.discordId, submission.points);
     } else if (event === "reject") {
       assert(reason, "Rejection reason must be provided");
       const submissionLink = messageLink(interaction.channelId, interaction.message.id, process.env.GUILD_ID);
@@ -306,7 +296,7 @@ export default {
       );
     }
   },
-};
+} as Command;
 
 async function cancelSubmission(submissionId: number, interaction: ButtonInteraction) {
   await interaction.deferUpdate();

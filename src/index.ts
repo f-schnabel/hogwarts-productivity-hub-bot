@@ -27,6 +27,7 @@ import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTi
 import { commands } from "@/discord/commands.ts";
 import { promisify } from "node:util";
 import { createLogger, OpId } from "@/common/logger.ts";
+import { runWithOpContext as runOpId } from "@/common/opContext.ts";
 import { startAnalyticsServer } from "./web/analytics.ts";
 
 const log = createLogger("Main");
@@ -43,16 +44,46 @@ try {
   CentralResetService.start();
   await client.login(process.env.DISCORD_TOKEN);
 } catch (error) {
-  log.error("Error initializing bot", { opId: "init" }, error);
+  log.error("Error initializing bot", {}, error);
   process.exit(1);
 }
 
 function registerEvents(client: Client) {
-  client.on(Events.ClientReady, (i) => void ClientReady.execute(i));
-  client.on(Events.InteractionCreate, (i) => void InteractionCreate.execute(i));
-  client.on(Events.VoiceStateUpdate, (a, b) => void VoiceStateUpdate.execute(a, b));
-  client.on(Events.MessageCreate, (m) => void MessageCreate.execute(m));
-  client.on(Events.MessageReactionAdd, (reaction, user) => void MessageReactionAdd.execute(reaction, user));
+  client.on(
+    Events.ClientReady,
+    (i) =>
+      void runOpId(OpId.start(), async () => {
+        await ClientReady.execute(i);
+      }),
+  );
+  client.on(
+    Events.InteractionCreate,
+    (i) =>
+      void runOpId(OpId.cmd(), async () => {
+        await InteractionCreate.execute(i);
+      }),
+  );
+  client.on(
+    Events.VoiceStateUpdate,
+    (a, b) =>
+      void runOpId(OpId.vc(), async () => {
+        await VoiceStateUpdate.execute(a, b);
+      }),
+  );
+  client.on(
+    Events.MessageCreate,
+    (m) =>
+      void runOpId(OpId.msg(), async () => {
+        await MessageCreate.execute(m);
+      }),
+  );
+  client.on(
+    Events.MessageReactionAdd,
+    (reaction, user) =>
+      void runOpId(OpId.msg(), async () => {
+        await MessageReactionAdd.execute(reaction, user);
+      }),
+  );
   client.on(Events.Debug, (info) => {
     log.debug(info);
   });
@@ -61,38 +92,39 @@ function registerEvents(client: Client) {
   });
   client.on(Events.Error, (error) => {
     log.error("Client error event", undefined, error);
-    void alertOwner(`Client error event: ${error}`, "discord-error-event");
+    void alertOwner(`Client error event: ${error}`);
   });
 }
 
 function registerShutdownHandlers() {
   async function shutdown(signal: string) {
-    const opId = OpId.shtdwn();
-    const ctx = { opId, signal };
-    log.info("Shutdown initiated", ctx);
+    await runOpId(OpId.shtdwn(), async () => {
+      const ctx = { signal };
+      log.info("Shutdown initiated", ctx);
 
-    // Voice sessions are intentionally left open on shutdown.
-    // They will be resumed on next startup if still valid (< 24h old).
+      // Voice sessions are intentionally left open on shutdown.
+      // They will be resumed on next startup if still valid (< 24h old).
 
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    await promisify(server.close).bind(server)();
-    server.closeAllConnections();
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    await promisify(analyticsServer.close).bind(analyticsServer)();
-    analyticsServer.closeAllConnections();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      await promisify(server.close).bind(server)();
+      server.closeAllConnections();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      await promisify(analyticsServer.close).bind(analyticsServer)();
+      analyticsServer.closeAllConnections();
 
-    log.info("Shutdown complete", ctx);
-    process.exit(0);
+      log.info("Shutdown complete", ctx);
+      process.exit(0);
+    });
   }
 
   process.on("SIGINT", () => void shutdown("SIGINT"));
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
   process.on("uncaughtException", (error) => {
-    void alertOwner(`Uncaught Exception: ${error}`, "exception");
+    void alertOwner(`Uncaught Exception: ${error}`);
   });
   process.on("unhandledRejection", (reason) => {
-    void alertOwner(`Unhandled Rejection, reason: ${reason instanceof Error ? reason : "Unknown Error"}`, "rejection");
+    void alertOwner(`Unhandled Rejection, reason: ${reason instanceof Error ? reason : "Unknown Error"}`);
   });
 }
 

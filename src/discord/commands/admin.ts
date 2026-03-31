@@ -24,7 +24,7 @@ import { HOUSES, Role } from "@/common/constants.ts";
 import { refreshAllYearRoles } from "@/discord/utils/yearRoleUtils.ts";
 import { createLogger } from "@/common/logger.ts";
 import { updateMember } from "@/discord/events/voiceStateUpdate.ts";
-import type { CommandOptions, Sums } from "@/common/types.ts";
+import type { Command, Sums } from "@/common/types.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../utils/scoreboardService.ts";
 import { desc, eq, isNull, not } from "drizzle-orm";
 import dayjs from "dayjs";
@@ -71,42 +71,42 @@ export default {
       subcommand.setName("fix-integrity").setDescription("Overwrites stored points/voice time with expected values"),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction, { opId }: CommandOptions): Promise<void> {
-    if (!inGuild(interaction, opId) || !requireRole(interaction, opId, Role.PROFESSOR | Role.OWNER)) return;
+  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    if (!inGuild(interaction) || !requireRole(interaction, Role.PROFESSOR | Role.OWNER)) return;
     await interaction.deferReply();
 
     switch (interaction.options.getSubcommand()) {
       case "adjust-points":
-        await adjustPoints(interaction, opId);
+        await adjustPoints(interaction);
         break;
       case "reset-monthly-points":
-        await resetMonthlyPoints(interaction, opId);
+        await resetMonthlyPoints(interaction);
         break;
       case "refresh-ranks":
-        await refreshYearRoles(interaction, opId);
+        await refreshYearRoles(interaction);
         break;
       case "vc-emoji":
-        await vcEmojiCommand(interaction, opId);
+        await vcEmojiCommand(interaction);
         break;
       case "check-integrity":
-        await checkIntegrity(interaction, opId);
+        await checkIntegrity(interaction);
         break;
       case "fix-integrity":
-        await fixIntegrity(interaction, opId);
+        await fixIntegrity(interaction);
         break;
       default:
-        await errorReply(opId, interaction, "Invalid Subcommand", "Unknown subcommand.", { deferred: true });
+        await errorReply(interaction, "Invalid Subcommand", "Unknown subcommand.", { deferred: true });
         return;
     }
   },
-};
+} as Command;
 
-async function adjustPoints(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
+async function adjustPoints(interaction: ChatInputCommandInteraction<"cached">) {
   const amount = interaction.options.getInteger("amount", true);
   const user = interaction.options.getUser("user", true);
   const reason = interaction.options.getString("reason");
 
-  await awardPoints(db, user.id, amount, opId);
+  await awardPoints(db, user.id, amount);
 
   await db.insert(pointAdjustmentTable).values({
     discordId: user.id,
@@ -115,98 +115,90 @@ async function adjustPoints(interaction: ChatInputCommandInteraction<"cached">, 
     reason,
   });
 
-  log.info("Points adjusted", { opId, user: user.id, amount, reason, adjustedBy: interaction.user.id });
+  log.info("Points adjusted", { user: user.id, amount, reason, adjustedBy: interaction.user.id });
   await interaction.editReply(`Adjusted ${amount} points for ${user.tag}.` + (reason ? ` Reason: ${reason}` : ""));
 }
 
-async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
-  await wrapWithAlerting(
-    async () => {
-      // Snapshot house cup results before resetting
-      const [weighted, unweighted, champions] = await Promise.all([
-        getWeightedHousePoints(),
-        getUnweightedHousePoints(),
-        // Top scorer per house
-        db
-          .selectDistinctOn([userTable.house], {
-            house: userTable.house,
-            discordId: userTable.discordId,
-          })
-          .from(userTable)
-          .where(not(isNull(userTable.house)))
-          .orderBy(userTable.house, desc(userTable.monthlyPoints)),
-      ]);
-      const weightedMap = new Map(weighted.map((h) => [h.house, h]));
-      const unweightedMap = new Map(unweighted.map((h) => [h.house, h]));
-      const championMap = new Map(champions.map((c) => [c.house, c.discordId]));
+async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cached">) {
+  await wrapWithAlerting(async () => {
+    // Snapshot house cup results before resetting
+    const [weighted, unweighted, champions] = await Promise.all([
+      getWeightedHousePoints(),
+      getUnweightedHousePoints(),
+      // Top scorer per house
+      db
+        .selectDistinctOn([userTable.house], {
+          house: userTable.house,
+          discordId: userTable.discordId,
+        })
+        .from(userTable)
+        .where(not(isNull(userTable.house)))
+        .orderBy(userTable.house, desc(userTable.monthlyPoints)),
+    ]);
+    const weightedMap = new Map(weighted.map((h) => [h.house, h]));
+    const unweightedMap = new Map(unweighted.map((h) => [h.house, h]));
+    const championMap = new Map(champions.map((c) => [c.house, c.discordId]));
 
-      const winner = weighted[0]?.house; // Already sorted desc by totalPoints
-      assert(winner, "No house points found during monthly reset");
-      const month = dayjs().format("YYYY-MM");
+    const winner = weighted[0]?.house; // Already sorted desc by totalPoints
+    assert(winner, "No house points found during monthly reset");
+    const month = dayjs().format("YYYY-MM");
 
-      const [cupMonth] = await db
-        .insert(houseCupMonthTable)
-        .values({ month, winner })
-        .returning({ id: houseCupMonthTable.id });
-      assert(cupMonth, "Failed to create house cup month record");
+    const [cupMonth] = await db
+      .insert(houseCupMonthTable)
+      .values({ month, winner })
+      .returning({ id: houseCupMonthTable.id });
+    assert(cupMonth, "Failed to create house cup month record");
 
-      await db.insert(houseCupEntryTable).values(
-        HOUSES.map((house) => {
-          const w = weightedMap.get(house);
-          const raw = unweightedMap.get(house);
-          return {
-            monthId: cupMonth.id,
-            house,
-            weightedPoints: w?.totalPoints ?? 0,
-            rawPoints: raw?.totalPoints ?? 0,
-            memberCount: raw?.memberCount ?? 0,
-            qualifyingCount: w?.memberCount ?? 0,
-            champion: championMap.get(house) ?? null,
-          };
-        }),
-      );
-      log.info("House cup snapshot saved", { opId, month, winner });
+    await db.insert(houseCupEntryTable).values(
+      HOUSES.map((house) => {
+        const w = weightedMap.get(house);
+        const raw = unweightedMap.get(house);
+        return {
+          monthId: cupMonth.id,
+          house,
+          weightedPoints: w?.totalPoints ?? 0,
+          rawPoints: raw?.totalPoints ?? 0,
+          memberCount: raw?.memberCount ?? 0,
+          qualifyingCount: w?.memberCount ?? 0,
+          champion: championMap.get(house) ?? null,
+        };
+      }),
+    );
+    log.info("House cup snapshot saved", { month, winner });
 
-      const result = await db.update(userTable).set({
-        monthlyPoints: 0,
-        monthlyVoiceTime: 0,
-        announcedYear: 0,
-      });
-      log.info("Monthly reset complete", { opId, usersReset: result.rowCount });
+    const result = await db.update(userTable).set({
+      monthlyPoints: 0,
+      monthlyVoiceTime: 0,
+      announcedYear: 0,
+    });
+    log.info("Monthly reset complete", { usersReset: result.rowCount });
 
-      // Store reset timestamp
-      await setMonthStartDate(new Date());
-      const scoreboards = await db.select().from(houseScoreboardTable);
-      await updateScoreboardMessages(await getHousepointMessages(db, scoreboards), opId);
+    // Store reset timestamp
+    await setMonthStartDate(new Date());
+    const scoreboards = await db.select().from(houseScoreboardTable);
+    await updateScoreboardMessages(await getHousepointMessages(db, scoreboards));
 
-      // Refresh year roles in background (removes all year roles since voice time is 0)
-      void refreshAllYearRoles(interaction.guild).then((count) => {
-        log.info("Year roles refreshed", { opId, usersUpdated: count });
-      });
-    },
-    "Monthly reset processing",
-    opId,
-  );
+    // Refresh year roles in background (removes all year roles since voice time is 0)
+    void refreshAllYearRoles(interaction.guild).then((count) => {
+      log.info("Year roles refreshed", { usersUpdated: count });
+    });
+  }, "Monthly reset processing");
   await interaction.editReply("Monthly points have been reset for all users.");
 }
 
-async function refreshYearRoles(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
-  await wrapWithAlerting(
-    async () => {
-      const count = await refreshAllYearRoles(interaction.guild);
-      await interaction.editReply(`Year Ranks refreshed for ${count} users.`);
-    },
-    "Refresh Year Ranks processing",
-    opId,
-  );
+async function refreshYearRoles(interaction: ChatInputCommandInteraction<"cached">) {
+  await wrapWithAlerting(async () => {
+    const count = await refreshAllYearRoles(interaction.guild);
+    await interaction.editReply(`Year Ranks refreshed for ${count} users.`);
+  }, "Refresh Year Ranks processing");
 }
 
-async function vcEmojiCommand(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
+async function vcEmojiCommand(interaction: ChatInputCommandInteraction<"cached">) {
   const emoji = interaction.options.getString("emoji");
   if (emoji) {
     const oldEmoji = await getVCEmoji();
     await setVCEmoji(emoji);
-    log.info("VC emoji set", { opId, emoji });
+    log.info("VC emoji set", { emoji });
 
     if (oldEmoji !== emoji) {
       const voiceMembers = interaction.guild.members.cache.filter((m) => m.voice.channel !== null);
@@ -218,13 +210,13 @@ async function vcEmojiCommand(interaction: ChatInputCommandInteraction<"cached">
           await updateMember({ member, reason: "Swapping VC emoji", nickname: newNickname });
         }),
       );
-      log.info("Swapped VC emoji for voice members", { opId, count: voiceMembers.size });
+      log.info("Swapped VC emoji for voice members", { count: voiceMembers.size });
     }
 
     await interaction.editReply(`Voice channel emoji set to: ${emoji}`);
   } else {
     const currentEmoji = await getVCEmoji();
-    log.debug("VC emoji fetched", { opId, emoji: currentEmoji });
+    log.debug("VC emoji fetched", { emoji: currentEmoji });
     await interaction.editReply(`Current voice channel emoji: ${currentEmoji}`);
   }
 }
@@ -358,7 +350,7 @@ async function computeExpectedValues() {
   return { users, expectedMap, voicePointsMap, submissionMap, adjustmentMap, voiceTimeMap };
 }
 
-async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
+async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">) {
   const { users, expectedMap, voicePointsMap, submissionMap, adjustmentMap } = await computeExpectedValues();
 
   const discrepancies: string[] = [];
@@ -404,7 +396,7 @@ async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">
     }
   }
 
-  log.info("Integrity check complete", { opId, discrepancies: discrepancies.length });
+  log.info("Integrity check complete", { discrepancies: discrepancies.length });
 
   if (discrepancies.length === 0) {
     await interaction.editReply("✅ No discrepancies found.");
@@ -414,7 +406,7 @@ async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">
   }
 }
 
-async function fixIntegrity(interaction: ChatInputCommandInteraction<"cached">, opId: string) {
+async function fixIntegrity(interaction: ChatInputCommandInteraction<"cached">) {
   const { users, expectedMap } = await computeExpectedValues();
 
   let fixed = 0;
@@ -446,6 +438,6 @@ async function fixIntegrity(interaction: ChatInputCommandInteraction<"cached">, 
     }
   }
 
-  log.info("Integrity fix complete", { opId, usersFixed: fixed });
+  log.info("Integrity fix complete", { usersFixed: fixed });
   await interaction.editReply(fixed === 0 ? "No discrepancies found." : `Fixed ${fixed} user(s).`);
 }

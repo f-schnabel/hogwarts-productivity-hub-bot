@@ -7,20 +7,11 @@ import type {
 } from "discord.js";
 import type { HOUSES, SUBMISSION_TYPES } from "./constants.ts";
 
-export interface CommandOptions {
-  opId: string;
-}
-
 export interface Command {
   data: SharedSlashCommand;
-  execute: (interaction: ChatInputCommandInteraction, options: CommandOptions) => Promise<void>;
+  execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
   autocomplete?: (interaction: AutocompleteInteraction) => Promise<void>;
-  buttonHandler?: (
-    interaction: ButtonInteraction,
-    event: string,
-    data: string | undefined,
-    opId: string,
-  ) => Promise<void>;
+  buttonHandler?: (interaction: ButtonInteraction, event: string, data: string | undefined) => Promise<void>;
 }
 
 export type House = (typeof HOUSES)[number];
