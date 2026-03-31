@@ -41,7 +41,7 @@ export async function VCRoleNeedsRemoval(ctx: Ctx, member: GuildMember): Promise
   return VCRoleNeedsRemovalSync(ctx, member, role);
 }
 
-export function VCRoleNeedsRemovalSync(ctx: Ctx, member: GuildMember, role: RoleType) {
+export function VCRoleNeedsRemovalSync(_ctx: Ctx, member: GuildMember, role: RoleType) {
   if (!member.roles.cache.has(role.id)) {
     //log.debug("User does not have VC role", ctx);
     return [];

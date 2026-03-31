@@ -11,7 +11,7 @@ import {
   type ExtractTablesWithRelations,
   isNull,
   inArray,
-  DefaultLogger,
+  type Logger,
   not,
 } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql/sql";
@@ -20,11 +20,40 @@ import dayjs from "dayjs";
 import { MIN_MONTHLY_POINTS_FOR_WEIGHTED, SETTINGS_KEYS } from "../common/constants.ts";
 import assert from "node:assert/strict";
 import type { House, HousePoints } from "@/common/types.ts";
+import { createLogger } from "@/common/logger.ts";
 
 type Schema = typeof schema;
 
 export type Tx = PgTransaction<NodePgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>;
 export type DbOrTx = Tx | typeof db;
+
+class MyLogger implements Logger {
+  dbLogger = createLogger("DB");
+
+  logQuery(query: string, params: unknown[]): void {
+    query = query.replaceAll('"', "");
+    if (query.includes("insert into user")) {
+      return;
+    }
+    if (query.includes("update user set updated_at = $1, daily_messages = user.daily_messages + 1")) {
+      return;
+    }
+    if (query.includes("commit")) {
+      this.dbLogger.debug(`Committing transaction`, { opId: "db-commit" });
+      return;
+    }
+    if (query.includes("rollback")) {
+      this.dbLogger.debug(`Rolling back transaction`, { opId: "db-rollback" });
+      return;
+    }
+    if (query.includes("begin")) {
+      this.dbLogger.debug(`Beginning transaction`, { opId: "db-begin" });
+      return;
+    }
+
+    this.dbLogger.debug(`Performing query`, { opId: "db-query", query, params });
+  }
+}
 
 export const db = drizzle({
   connection: {
@@ -36,13 +65,7 @@ export const db = drizzle({
   },
   schema,
   casing: "snake_case",
-  logger: new DefaultLogger({
-    writer: {
-      write: (msg) => {
-        console.debug(msg);
-      },
-    },
-  }),
+  logger: new MyLogger(),
 });
 
 export async function ensureUserExists(member: GuildMember | null, discordId: string, username: string) {
