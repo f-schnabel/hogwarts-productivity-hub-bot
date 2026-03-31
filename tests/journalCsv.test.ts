@@ -19,7 +19,7 @@ describe("serializeJournalCsv", () => {
       { date: "2026-04-02", prompt: 'Prompt with, comma and "quotes"' },
     ]);
 
-    expect(csv).toBe('date,prompt\n2026-04-01,Simple prompt\n2026-04-02,"Prompt with, comma and ""quotes"""');
+    expect(csv).toBe('date,prompt\n2026-04-01,Simple prompt\n2026-04-02,"Prompt with, comma and ""quotes"""\n');
   });
 });
 
