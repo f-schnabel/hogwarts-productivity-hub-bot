@@ -3,12 +3,26 @@
  * Global test configuration and mocks
  */
 import { afterEach, vi } from "vitest";
+import dayjs from "dayjs";
+import advancedFormat from "dayjs/plugin/advancedFormat.js";
+import customParseFormat from "dayjs/plugin/customParseFormat.js";
+import relativeTime from "dayjs/plugin/relativeTime.js";
+import timezone from "dayjs/plugin/timezone.js";
+import utc from "dayjs/plugin/utc.js";
+
+dayjs.extend(advancedFormat);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(relativeTime);
+dayjs.extend(customParseFormat);
+dayjs.tz.setDefault("UTC");
 
 // Mock environment variables for testing
 process.env.NODE_ENV = "test";
 process.env.DB_NAME = "discord_bot_test";
 process.env.DISCORD_TOKEN = "test-token";
 process.env.SUBMISSION_CHANNEL_IDS = "";
+process.env["JOURNAL_CHANNEL_ID"] = "journal-channel-id";
 process.env.YEAR_ROLE_IDS = "";
 
 // Mock console methods in tests to reduce noise
@@ -105,6 +119,12 @@ vi.mock("discord.js", () => ({
     setTimestamp() {
       return this;
     }
+  },
+  AttachmentBuilder: class MockAttachmentBuilder {
+    constructor(
+      public readonly buffer?: Buffer,
+      public readonly options?: { name?: string },
+    ) {}
   },
   Collection: Map,
 }));

@@ -7,14 +7,17 @@ import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 import relativeTime from "dayjs/plugin/relativeTime.js";
 import advancedFormat from "dayjs/plugin/advancedFormat.js";
+import customParseFormat from "dayjs/plugin/customParseFormat.js";
 dayjs.extend(advancedFormat);
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(relativeTime);
+dayjs.extend(customParseFormat);
 dayjs.tz.setDefault("UTC");
 
 import { startMonitoringServer } from "@/common/monitoring.ts";
 import * as CentralResetService from "@/services/centralResetService.ts";
+import * as JournalService from "@/services/journalService.ts";
 import { client } from "@/discord/client.ts";
 import { Events, SlashCommandSubcommandBuilder, type Client } from "discord.js";
 import * as VoiceStateUpdate from "@/discord/events/voiceStateUpdate.ts";
@@ -42,6 +45,7 @@ try {
   registerMonitoringEvents();
 
   CentralResetService.start();
+  JournalService.start();
   await client.login(process.env.DISCORD_TOKEN);
 } catch (error) {
   log.error("Error initializing bot", {}, error);

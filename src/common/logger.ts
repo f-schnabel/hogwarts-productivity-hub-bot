@@ -7,6 +7,7 @@ const genOpId = (prefix: string) =>
 
 export const OpId = {
   cmd: () => genOpId("cmd"),
+  jrnl: () => genOpId("jrnl"),
   vc: () => genOpId("vc"),
   rst: () => genOpId("rst"),
   msg: () => genOpId("msg"),

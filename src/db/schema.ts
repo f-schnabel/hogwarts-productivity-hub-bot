@@ -1,5 +1,17 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, pgTable, serial, timestamp, text, varchar, foreignKey } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  foreignKey,
+  index,
+  integer,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/pg-core";
 import { HOUSES } from "@/common/constants.ts";
 
 export const userTable = pgTable("user", {
@@ -154,3 +166,19 @@ export const pointAdjustmentTable = pgTable("point_adjustment", {
   reason: text(),
   createdAt: timestamp().notNull().defaultNow(),
 });
+
+export const journalEntryTable = pgTable(
+  "journal_entry",
+  {
+    id: serial().primaryKey(),
+    date: date("date", { mode: "string" }).notNull(),
+    prompt: text().notNull(),
+    messageId: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp()
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [uniqueIndex("journal_entry_date_idx").on(table.date)],
+);

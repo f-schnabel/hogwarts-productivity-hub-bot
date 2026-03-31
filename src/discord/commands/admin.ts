@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { AttachmentBuilder, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import {
   db,
   getMonthStartDate,
@@ -15,6 +15,7 @@ import {
   houseCupEntryTable,
   houseCupMonthTable,
   houseScoreboardTable,
+  journalEntryTable,
   pointAdjustmentTable,
   submissionTable,
   userTable,
@@ -26,7 +27,9 @@ import { createLogger } from "@/common/logger.ts";
 import { updateMember } from "@/discord/events/voiceStateUpdate.ts";
 import type { Command, Sums } from "@/common/types.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../utils/scoreboardService.ts";
-import { desc, eq, isNull, not } from "drizzle-orm";
+import { parseJournalCsv, serializeJournalCsv, validateJournalDate } from "@/services/journalCsv.ts";
+import { getJournalDate } from "@/services/journalService.ts";
+import { asc, desc, eq, gte, isNull, not } from "drizzle-orm";
 import dayjs from "dayjs";
 import assert from "assert";
 
@@ -69,6 +72,39 @@ export default {
     )
     .addSubcommand((subcommand) =>
       subcommand.setName("fix-integrity").setDescription("Overwrites stored points/voice time with expected values"),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("journal-set")
+        .setDescription("Creates or updates a journal entry for an exact date")
+        .addStringOption((option) =>
+          option.setName("date").setDescription("Journal date in YYYY-MM-DD format").setRequired(true),
+        )
+        .addStringOption((option) =>
+          option.setName("prompt").setDescription("Prompt text for that day").setRequired(true),
+        ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("journal-delete")
+        .setDescription("Deletes the journal entry for an exact date")
+        .addStringOption((option) =>
+          option.setName("date").setDescription("Journal date in YYYY-MM-DD format").setRequired(true),
+        ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand.setName("journal-list").setDescription("Lists upcoming configured journal entries"),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand.setName("journal-export").setDescription("Exports all journal entries as CSV"),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("journal-import")
+        .setDescription("Imports journal entries from a CSV file")
+        .addAttachmentOption((option) =>
+          option.setName("file").setDescription("CSV file with date,prompt columns").setRequired(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -93,6 +129,21 @@ export default {
         break;
       case "fix-integrity":
         await fixIntegrity(interaction);
+        break;
+      case "journal-set":
+        await journalSet(interaction);
+        break;
+      case "journal-delete":
+        await journalDelete(interaction);
+        break;
+      case "journal-list":
+        await journalList(interaction);
+        break;
+      case "journal-export":
+        await journalExport(interaction);
+        break;
+      case "journal-import":
+        await journalImport(interaction);
         break;
       default:
         await errorReply(interaction, "Invalid Subcommand", "Unknown subcommand.", { deferred: true });
@@ -219,6 +270,133 @@ async function vcEmojiCommand(interaction: ChatInputCommandInteraction<"cached">
     log.debug("VC emoji fetched", { emoji: currentEmoji });
     await interaction.editReply(`Current voice channel emoji: ${currentEmoji}`);
   }
+}
+
+async function journalSet(interaction: ChatInputCommandInteraction<"cached">) {
+  const rawDate = interaction.options.getString("date", true);
+  const prompt = interaction.options.getString("prompt", true);
+  const date = validateJournalDate(rawDate);
+
+  if (!date) {
+    await errorReply(interaction, "Invalid Date", "Please use the YYYY-MM-DD format for the journal date.", {
+      deferred: true,
+    });
+    return;
+  }
+
+  const [existing] = await db.select().from(journalEntryTable).where(eq(journalEntryTable.date, date)).limit(1);
+
+  await db.insert(journalEntryTable).values({ date, prompt }).onConflictDoUpdate({
+    target: journalEntryTable.date,
+    set: {
+      prompt,
+    },
+  });
+
+  log.info("Journal entry upserted", { date, updated: Boolean(existing), userId: interaction.user.id });
+  await interaction.editReply(`${existing ? "Updated" : "Created"} journal entry for ${date}.`);
+}
+
+async function journalDelete(interaction: ChatInputCommandInteraction<"cached">) {
+  const rawDate = interaction.options.getString("date", true);
+  const date = validateJournalDate(rawDate);
+
+  if (!date) {
+    await errorReply(interaction, "Invalid Date", "Please use the YYYY-MM-DD format for the journal date.", {
+      deferred: true,
+    });
+    return;
+  }
+
+  const deletedRows = await db.delete(journalEntryTable).where(eq(journalEntryTable.date, date)).returning({
+    id: journalEntryTable.id,
+  });
+
+  if (deletedRows.length === 0) {
+    await interaction.editReply(`No journal entry exists for ${date}.`);
+    return;
+  }
+
+  log.info("Journal entry deleted", { date, userId: interaction.user.id });
+  await interaction.editReply(`Deleted journal entry for ${date}.`);
+}
+
+async function journalList(interaction: ChatInputCommandInteraction<"cached">) {
+  const today = getJournalDate();
+  const entries = await db
+    .select({
+      date: journalEntryTable.date,
+      prompt: journalEntryTable.prompt,
+    })
+    .from(journalEntryTable)
+    .where(gte(journalEntryTable.date, today))
+    .orderBy(asc(journalEntryTable.date));
+
+  if (entries.length === 0) {
+    await interaction.editReply("No upcoming journal entries are configured.");
+    return;
+  }
+
+  const lines = entries.map((entry) => {
+    return `${entry.date} ${truncatePrompt(entry.prompt)}`;
+  });
+
+  await interaction.editReply(`Upcoming journal entries:\n${lines.join("\n")}`);
+}
+
+async function journalExport(interaction: ChatInputCommandInteraction<"cached">) {
+  const entries = await db
+    .select({
+      date: journalEntryTable.date,
+      prompt: journalEntryTable.prompt,
+    })
+    .from(journalEntryTable)
+    .orderBy(asc(journalEntryTable.date));
+
+  const csv = serializeJournalCsv(entries);
+  const attachment = new AttachmentBuilder(Buffer.from(csv, "utf8"), { name: "journal-entries.csv" });
+
+  await interaction.editReply({
+    content: `Exported ${entries.length} journal entr${entries.length === 1 ? "y" : "ies"}.`,
+    files: [attachment],
+  });
+}
+
+async function journalImport(interaction: ChatInputCommandInteraction<"cached">) {
+  try {
+    const file = interaction.options.getAttachment("file", true);
+    const response = await fetch(file.url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch journal CSV attachment: ${response.status} ${response.statusText}`);
+    }
+
+    const rows = parseJournalCsv(await response.text());
+    await db.transaction(async (tx) => {
+      for (const row of rows) {
+        await tx
+          .insert(journalEntryTable)
+          .values(row)
+          .onConflictDoUpdate({
+            target: journalEntryTable.date,
+            set: {
+              prompt: row.prompt,
+              updatedAt: new Date(),
+            },
+          });
+      }
+    });
+
+    log.info("Journal CSV imported", { count: rows.length, userId: interaction.user.id });
+    await interaction.editReply(`Imported ${rows.length} journal entr${rows.length === 1 ? "y" : "ies"}.`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown import error.";
+    await errorReply(interaction, "Journal Import Failed", message, { deferred: true });
+  }
+}
+
+function truncatePrompt(prompt: string, maxLength = 80): string {
+  return prompt.length <= maxLength ? prompt : `${prompt.slice(0, maxLength - 3)}...`;
 }
 
 interface ExpectedValues {

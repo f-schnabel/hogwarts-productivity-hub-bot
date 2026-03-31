@@ -10,6 +10,7 @@ Discord bot for a Hogwarts-themed productivity community. Track voice time, earn
 - **Message Streaks** - Maintain daily message streaks shown in nickname
 - **Submissions** - Submit screenshots for bonus points, reviewed by staff
 - **Scoreboards** - House and user leaderboards
+- **Journal Prompts** - Schedule date-based daily journaling embeds with CSV import/export
 - **Analytics Dashboard** - Web dashboard for stats
 
 ## Quick Start
@@ -57,7 +58,7 @@ See `.env.example` for all required variables:
 - Discord: `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`
 - Database: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 - Roles: House roles, staff roles, year roles
-- Channels: Submission channels, announcement channel
+- Channels: Submission channels, journal channel, announcement channel
 
 ## Development
 
