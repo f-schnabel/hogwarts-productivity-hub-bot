@@ -15,16 +15,16 @@ chmod -R o+rX "$REPO_DIR"
 
 # Create symlinks
 sudo mkdir -p /etc/caddy
+sudo mkdir -p /etc/alloy
 sudo ln -sf "$REPO_DIR/grafana/grafana.ini" /etc/grafana/grafana.ini
 sudo ln -sf "$REPO_DIR/caddy/Caddyfile" /etc/caddy/Caddyfile
 sudo ln -sf "$REPO_DIR/caddy/hogwarts.caddyfile" /etc/caddy/hogwarts.caddyfile
+sudo ln -sf "$REPO_DIR/alloy/config.alloy" /etc/alloy/config.alloy
 sudo ln -sf "$REPO_DIR/loki/config.yml" /etc/loki/config.yml
 sudo ln -sf "$REPO_DIR/prometheus/prometheus.yml" /etc/prometheus/prometheus.yml
-sudo ln -sf "$REPO_DIR/promtail/config.yml" /etc/promtail/config.yml
 
 sudo ln -sf "$REPO_DIR/loki/loki.service" /etc/systemd/system/loki.service
 sudo ln -sf "$REPO_DIR/prometheus/prometheus.service" /etc/systemd/system/prometheus.service
-sudo ln -sf "$REPO_DIR/promtail/promtail.service" /etc/systemd/system/promtail.service
 
 # Ensure systemd overrides for services with ProtectHome
 sudo mkdir -p /etc/systemd/system/grafana-server.service.d
@@ -37,7 +37,7 @@ sudo systemctl daemon-reload
 sudo caddy fmt --overwrite /etc/caddy/Caddyfile
 sudo caddy validate --config /etc/caddy/hogwarts.caddyfile
 sudo caddy validate --config /etc/caddy/Caddyfile
-sudo systemctl restart grafana-server prometheus loki promtail
+sudo systemctl restart grafana-server prometheus loki alloy
 sudo systemctl reload caddy
 echo "Services restarted"
 

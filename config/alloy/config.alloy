@@ -1,0 +1,67 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://localhost:3100/loki/api/v1/push"
+  }
+}
+
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "manager_unit"
+  }
+
+  rule {
+    source_labels = ["__journal__systemd_user_unit"]
+    target_label  = "user_unit"
+  }
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+
+  rule {
+    source_labels = ["__journal__systemd_user_unit"]
+    target_label  = "unit"
+  }
+
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label  = "host"
+  }
+
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label  = "syslog_identifier"
+  }
+
+  // Preserve the existing behavior: keep only logs for user@1001.service.
+  rule {
+    action        = "keep"
+    source_labels = ["manager_unit"]
+    regex         = "user@1001\\.service"
+  }
+}
+
+loki.source.journal "journal" {
+  forward_to     = [loki.write.local.receiver]
+  relabel_rules = loki.relabel.journal.rules
+  format_as_json = false
+  max_age       = "12h"
+  path          = "/var/log/journal"
+  labels = {
+    job = "systemd-journal",
+  }
+}

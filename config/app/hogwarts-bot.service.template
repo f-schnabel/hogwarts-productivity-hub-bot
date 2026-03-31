@@ -4,7 +4,6 @@ After=network.target
 
 [Service]
 Type=simple
-SyslogIdentifier=hogwarts-bot
 StandardOutput=journal
 StandardError=journal
 WorkingDirectory=__REPO_DIR__
