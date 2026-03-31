@@ -30,6 +30,30 @@ export type DbOrTx = Tx | typeof db;
 class MyLogger implements Logger {
   dbLogger = createLogger("DB");
 
+  private formatParam(param: unknown): string {
+    if (param === null) return "null";
+    if (param === undefined) return "undefined";
+    if (param instanceof Date) return `'${param.toISOString()}'`;
+    if (typeof param === "string") return `'${param.replaceAll("'", "''")}'`;
+    if (typeof param === "number" || typeof param === "bigint") return String(param);
+    if (typeof param === "boolean") return param ? "true" : "false";
+    if (Array.isArray(param)) return `ARRAY[${param.map((value) => this.formatParam(value)).join(", ")}]`;
+
+    try {
+      return `'${JSON.stringify(param).replaceAll("'", "''")}'`;
+    } catch {
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      return `'${String(param).replaceAll("'", "''")}'`;
+    }
+  }
+
+  private renderQuery(query: string, params: unknown[]): string {
+    return query.replace(/\$(\d+)/g, (match, index: string) => {
+      const param = params[Number(index) - 1];
+      return param === undefined ? match : this.formatParam(param);
+    });
+  }
+
   logQuery(query: string, params: unknown[]): void {
     query = query.replaceAll('"', "");
     if (query.includes("insert into user")) {
@@ -51,7 +75,7 @@ class MyLogger implements Logger {
       return;
     }
 
-    this.dbLogger.debug(`Performing query`, { query, params });
+    this.dbLogger.debug(`Performing query`, { query: this.renderQuery(query, params) });
   }
 }
 
