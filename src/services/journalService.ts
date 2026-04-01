@@ -95,7 +95,8 @@ export async function processTodayJournalEntry(
       throw new Error(`Journal channel ${channelId} was not found or is not text based.`);
     }
 
-    const message = await channel.send(buildJournalMessage(entry.prompt));
+    const resolvedStaticLines = JOURNAL_STATIC_LINES.map(resolveGuildEmojis);
+    const message = await channel.send(buildJournalMessage(entry.prompt, resolvedStaticLines));
     await deps.saveMessageId(entry.id, message.id);
 
     log.info("Journal entry sent", { date, messageId: message.id });
@@ -107,13 +108,24 @@ export function getJournalDate(now: dayjs.Dayjs = dayjs.utc()): string {
   return now.utc().format("YYYY-MM-DD");
 }
 
-export function buildJournalMessage(prompt: string) {
+function resolveGuildEmojis(text: string): string {
+  const guildId = process.env["GUILD_ID"];
+  if (!guildId) return text;
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return text;
+  return text.replace(/:([a-zA-Z0-9_]+):/g, (match, name) => {
+    const emoji = guild.emojis.cache.find((e) => e.name === name);
+    return emoji ? emoji.toString() : match;
+  });
+}
+
+export function buildJournalMessage(prompt: string, staticLines: string[] = JOURNAL_STATIC_LINES) {
   return {
     embeds: [
       {
         color: BOT_COLORS.INFO,
         title: "Daily Journal Check-In",
-        description: [...JOURNAL_STATIC_LINES, `Prompt: ${prompt}`].join("\n"),
+        description: [...staticLines, `Prompt: ${prompt}`].join("\n"),
       },
     ],
   };
