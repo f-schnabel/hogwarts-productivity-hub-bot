@@ -12,7 +12,7 @@ const log = createLogger("Journal");
 
 const JOURNAL_STATIC_LINES = [
   "Sleep Rating: 0 (couldn't sleep) - 5 (good refreshing sleep)",
-  "Mood rating: :SalazarSlytherin: bad mood / :RowenaRavenclaw: meh day / :godricgryffindor: could have been better / :HelgaHufflepuff: happy mood",
+  "Mood rating: 😢 bad mood / 🫤  meh day / 😮‍💨  could have been better / 😊  happy mood",
   "Emotions: happy, excited, grateful, relaxed, content, tired, unsure, bored, anxious, sad, stressed (can be multiple)",
 ];
 
