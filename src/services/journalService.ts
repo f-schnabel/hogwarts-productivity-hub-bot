@@ -108,7 +108,7 @@ export function getJournalDate(now: dayjs.Dayjs = dayjs.utc()): string {
 }
 
 function resolveGuildEmojis(text: string): string {
-  const guildId = process.env["GUILD_ID"];
+  const guildId = process.env.GUILD_ID;
   if (!guildId) return text;
   const guild = client.guilds.cache.get(guildId);
   if (!guild) return text;
