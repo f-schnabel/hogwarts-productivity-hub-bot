@@ -1,7 +1,6 @@
 import cron from "node-cron";
 import dayjs from "dayjs";
 import { eq } from "drizzle-orm";
-import { BOT_COLORS } from "@/common/constants.ts";
 import { createLogger, OpId } from "@/common/logger.ts";
 import { runWithOpContext } from "@/common/opContext.ts";
 import { db } from "@/db/db.ts";
@@ -120,13 +119,8 @@ function resolveGuildEmojis(text: string): string {
 
 export function buildJournalMessage(prompt: string) {
   const resolvedLines = JOURNAL_STATIC_LINES.map(resolveGuildEmojis);
+  const body = [...resolvedLines, `Prompt: ${prompt}`].join("\n");
   return {
-    embeds: [
-      {
-        color: BOT_COLORS.INFO,
-        title: "Daily Journal Check-In",
-        description: [...resolvedLines, `Prompt: ${prompt}`].join("\n"),
-      },
-    ],
+    content: `**Daily Journal Check-In**\n\`\`\`\n${body}\n\`\`\``,
   };
 }
