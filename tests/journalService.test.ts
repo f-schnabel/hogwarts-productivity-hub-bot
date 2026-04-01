@@ -9,11 +9,12 @@ describe("buildJournalMessage", () => {
   it("includes the fixed journal template and prompt", () => {
     const message = buildJournalMessage("Write about a comforting song.");
 
-    expect(message.embeds[0]?.title).toBe("Daily Journal Check-In");
-    expect(message.embeds[0]?.description).toContain("Sleep Rating: 0 (couldn't sleep) - 5 (good refreshing sleep)");
-    expect(message.embeds[0]?.description).toContain("Mood rating:");
-    expect(message.embeds[0]?.description).toContain("Emotions:");
-    expect(message.embeds[0]?.description).toContain("Prompt: Write about a comforting song.");
+    expect(message.content).toContain("**Daily Journal Check-In**");
+    expect(message.content).toContain("```");
+    expect(message.content).toContain("Sleep Rating: 0 (couldn't sleep) - 5 (good refreshing sleep)");
+    expect(message.content).toContain("Mood rating:");
+    expect(message.content).toContain("Emotions:");
+    expect(message.content).toContain("Prompt: Write about a comforting song.");
   });
 });
 
