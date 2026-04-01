@@ -28,7 +28,7 @@ import { updateMember } from "@/discord/events/voiceStateUpdate.ts";
 import type { Command, Sums } from "@/common/types.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../utils/scoreboardService.ts";
 import { parseJournalCsv, serializeJournalCsv, validateJournalDate } from "@/services/journalCsv.ts";
-import { getJournalDate } from "@/services/journalService.ts";
+import { buildJournalMessage, getJournalDate } from "@/services/journalService.ts";
 import { asc, desc, eq, gte, isNull, not } from "drizzle-orm";
 import dayjs from "dayjs";
 import assert from "assert";
@@ -105,6 +105,14 @@ export default {
         .addAttachmentOption((option) =>
           option.setName("file").setDescription("CSV file with date,prompt columns").setRequired(true),
         ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("journal-show")
+        .setDescription("Previews the journal message for a date without linking the message ID")
+        .addStringOption((option) =>
+          option.setName("date").setDescription("Journal date in YYYY-MM-DD format (defaults to today)"),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -144,6 +152,9 @@ export default {
         break;
       case "journal-import":
         await journalImport(interaction);
+        break;
+      case "journal-show":
+        await journalShow(interaction);
         break;
       default:
         await errorReply(interaction, "Invalid Subcommand", "Unknown subcommand.", { deferred: true });
@@ -393,6 +404,28 @@ async function journalImport(interaction: ChatInputCommandInteraction<"cached">)
     const message = error instanceof Error ? error.message : "Unknown import error.";
     await errorReply(interaction, "Journal Import Failed", message, { deferred: true });
   }
+}
+
+async function journalShow(interaction: ChatInputCommandInteraction<"cached">) {
+  const rawDate = interaction.options.getString("date");
+  const date = rawDate ? validateJournalDate(rawDate) : getJournalDate();
+
+  if (!date) {
+    await errorReply(interaction, "Invalid Date", "Please use the YYYY-MM-DD format for the journal date.", {
+      deferred: true,
+    });
+    return;
+  }
+
+  const [entry] = await db.select().from(journalEntryTable).where(eq(journalEntryTable.date, date)).limit(1);
+
+  if (!entry) {
+    await interaction.editReply(`No journal entry configured for ${date}.`);
+    return;
+  }
+
+  log.info("Journal entry previewed", { date, userId: interaction.user.id });
+  await interaction.editReply(buildJournalMessage(entry.prompt));
 }
 
 function truncatePrompt(prompt: string, maxLength = 80): string {
