@@ -171,7 +171,7 @@ async function setTimezone(
       embeds: [
         {
           color: BOT_COLORS.WARNING,
-          title: `No Change Needed`,
+          title: "No Change Needed",
           description: `${whose} timezone is already set to \`${newTimezone}\`.`,
         },
       ],
@@ -200,7 +200,7 @@ async function setTimezone(
     embeds: [
       {
         color: BOT_COLORS.SUCCESS,
-        title: `Timezone Updated Successfully`,
+        title: "Timezone Updated Successfully",
         fields: [
           {
             name: `${whose} New Local Time`,

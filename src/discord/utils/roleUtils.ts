@@ -25,7 +25,7 @@ export async function VCRoleNeedsAdding(member: GuildMember): Promise<string[]> 
 
 function VCRoleNeedsAddingSync(member: GuildMember, role: RoleType): string[] {
   if (member.roles.cache.has(role.id)) {
-    //log.debug("User already has VC role", ctx);
+    // log.debug("User already has VC role", ctx);
     return [];
   }
   log.debug("Adding VC role", { userId: member.id, username: member.user.username });

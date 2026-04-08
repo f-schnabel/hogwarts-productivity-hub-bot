@@ -141,7 +141,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
         duration: voiceSessionTable.duration,
       });
 
-    assert(voiceSessionWithDuration !== undefined, `Expected exactly one voice session to end, but found none`);
+    assert(voiceSessionWithDuration !== undefined, "Expected exactly one voice session to end, but found none");
     assert(extra.length === 0, `Expected exactly one voice session to end, but found ${extra.length} extra rows`);
 
     const duration = voiceSessionWithDuration.duration ?? 0;

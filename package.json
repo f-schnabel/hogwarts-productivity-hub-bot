@@ -6,7 +6,7 @@
     "start": "tsx src/index.ts",
     "analytics:dev": "tsx watch src/analytics-dev.ts",
     "register": "tsx src/register-commands.ts",
-    "format": "prettier --write .",
+    "format": "eslint . --fix",
     "test": "vitest",
     "test:arch": "vitest tests/architecture.test.ts",
     "test:watch": "vitest --watch",
@@ -44,6 +44,7 @@
     "twig": "^2.0.0"
   },
   "devDependencies": {
+    "@stylistic/eslint-plugin": "^5.6.1",
     "@eslint/js": "^10.0.1",
     "@types/common-tags": "^1.8.4",
     "@types/express": "^5.0.6",
@@ -55,22 +56,11 @@
     "archunit": "^2.1.66",
     "drizzle-kit": "^0.31.10",
     "eslint": "^10.2.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
     "jiti": "^2.6.1",
     "knip": "^5.88.1",
-    "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.58.0",
     "vitest": "^4.1.2"
-  },
-  "prettier": {
-    "printWidth": 120,
-    "tabWidth": 2,
-    "useTabs": false,
-    "semi": true,
-    "singleQuote": false,
-    "trailingComma": "all"
   }
 }

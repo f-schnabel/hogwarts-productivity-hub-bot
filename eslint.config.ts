@@ -1,14 +1,30 @@
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import { defineConfig } from "eslint/config";
-import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended";
+import stylistic from "@stylistic/eslint-plugin";
 
 export default defineConfig([
-  { ignores: ["coverage/**"] },
+  {
+    ignores: [
+      "coverage/**",
+      "drizzle/meta/**",
+      ".claude/**",
+    ],
+  },
   eslint.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
+  stylistic.configs.customize({
+    commaDangle: "always-multiline",
+    semi: true,
+    arrowParens: true,
+    braceStyle: "1tbs",
+    severity: "warn",
+  }),
   {
+    plugins: {
+      "@stylistic": stylistic,
+    },
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -27,12 +43,12 @@ export default defineConfig([
           allowRegExp: false,
         },
       ],
-    },
-  },
-  {
-    extends: [eslintPluginPrettierRecommended],
-    rules: {
-      "prettier/prettier": "warn",
+      "@stylistic/quotes": ["warn", "double", {
+        avoidEscape: true,
+      }],
+      "@stylistic/operator-linebreak": ["warn", "after", { overrides: { "?": "before", ":": "before" } }],
+      "@stylistic/no-multiple-empty-lines": ["warn", { max: 2 }],
+      "@stylistic/lines-between-class-members": "off",
     },
   },
 ]);

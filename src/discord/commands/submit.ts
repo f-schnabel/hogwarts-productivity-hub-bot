@@ -434,7 +434,7 @@ export async function submissionMessage({
   } else if (submission.status === "CANCELED") {
     embed.addFields({
       name: "Cancelled",
-      value: `This submission was cancelled by the user.`,
+      value: "This submission was cancelled by the user.",
       inline: false,
     });
   }
