@@ -109,34 +109,33 @@ async function leave(oldVoiceSession: VoiceSession, member: GuildMember) {
     VCRoleNeedsRemoval(member),
   ]);
 
-  const { rolesToRemove = [], rolesToAdd: yearRolesToAdd } = calculateYearRoles(member, user) ?? {};
+  const { rolesToRemove = [], rolesToAdd } = calculateYearRoles(member, user) ?? {};
 
-  await updateMember({
-    member,
-    reason: "User left voice channel",
-    nickname,
-    roleUpdates: {
-      rolesToAdd: yearRolesToAdd,
-      rolesToRemove: rolesToRemove.concat(vcRole),
-    },
-  });
-  if (yearRolesToAdd && yearRolesToAdd.length > 0) {
-    await announceYearPromotion(member, user);
-  }
+  await Promise.all([
+    updateMember({
+      member,
+      reason: "User left voice channel",
+      nickname,
+      roleUpdates: {
+        rolesToAdd,
+        rolesToRemove: rolesToRemove.concat(vcRole),
+      },
+    }),
+    announceYearPromotion(member, user),
+  ]);
 }
 
 async function vcSwitch(oldVoiceSession: VoiceSession, newVoiceSession: VoiceSession, member: GuildMember) {
   const user = await endVoiceSession(oldVoiceSession, db);
-  const roleUpdates = calculateYearRoles(member, user);
 
   await Promise.all([
     updateMember({
       member,
       reason: "User switched voice channel",
-      roleUpdates,
+      roleUpdates: calculateYearRoles(member, user),
     }),
     startVoiceSession(newVoiceSession, db),
-    ...((roleUpdates?.rolesToAdd.length ?? 0) > 0 ? [announceYearPromotion(member, user)] : []),
+    announceYearPromotion(member, user),
   ]);
 }
 

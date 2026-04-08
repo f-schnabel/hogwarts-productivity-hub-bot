@@ -38,28 +38,29 @@ export async function announceYearPromotion(
   const hours = YEAR_THRESHOLDS_HOURS[year - 1];
   assert(hours, `No hours threshold configured for year ${year}`);
 
-  const message = YEAR_MESSAGES[user.house]
-    .replace("{ROLE}", roleMention(roleId))
-    .replace("{HOURS}", hours.toString() + (hours === 1 ? " hour" : " hours"));
   try {
     const channel = await member.guild.channels.fetch(YEAR_ANNOUNCEMENT_CHANNEL_ID);
-    if (channel?.isTextBased()) {
-      await channel.send({
-        content: `Congratulations ${member.toString()}!`,
-        embeds: [
-          {
-            title: "New Activity Rank Attained!",
-            description: message,
-            color: HOUSE_COLORS[user.house],
-          },
-        ],
-      });
-      await db.update(userTable).set({ announcedYear: year }).where(eq(userTable.discordId, member.id));
-    } else {
+    if (!channel?.isTextBased()) {
       log.error("Year announcement channel is not text-based", ctx);
+      return;
     }
+
+    await channel.send({
+      content: `Congratulations ${member.toString()}!`,
+      embeds: [
+        {
+          title: "New Activity Rank Attained!",
+          description: YEAR_MESSAGES[user.house]
+            .replace("{ROLE}", roleMention(roleId))
+            .replace("{HOURS}", hours.toString() + (hours === 1 ? " hour" : " hours")),
+          color: HOUSE_COLORS[user.house],
+        },
+      ],
+    });
+
+    await db.update(userTable).set({ announcedYear: year }).where(eq(userTable.discordId, member.id));
   } catch (error) {
-    log.error("Failed to send year promotion announcement:", { error, ...ctx });
+    log.error("Failed to send year promotion announcement:", ctx, error);
   }
 }
 
