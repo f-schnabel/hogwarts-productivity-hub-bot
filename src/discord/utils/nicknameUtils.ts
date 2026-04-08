@@ -1,6 +1,6 @@
 import type { GuildMember } from "discord.js";
 import { hasAnyRole } from "./roleUtils.ts";
-import { createLogger, type Ctx } from "../../common/logger.ts";
+import { createLogger } from "../../common/logger.ts";
 import { Role } from "../../common/constants.ts";
 import { getVCEmoji } from "../../db/db.ts";
 
@@ -36,31 +36,31 @@ export async function updateMessageStreakInNickname(member: GuildMember | null, 
   }
 }
 
-export async function VCEmojiNeedsAdding(ctx: Ctx, member: GuildMember): Promise<string | null> {
+export async function VCEmojiNeedsAdding(member: GuildMember): Promise<string | null> {
   if (hasAnyRole(member, Role.PROFESSOR)) return null;
-  return VCEmojiNeedsAddingSync(ctx, member, await getVCEmoji());
+  return VCEmojiNeedsAddingSync(member, await getVCEmoji());
 }
 
-function VCEmojiNeedsAddingSync(ctx: Ctx, member: GuildMember, emoji: string): string | null {
+function VCEmojiNeedsAddingSync(member: GuildMember, emoji: string): string | null {
   if (hasAnyRole(member, Role.PROFESSOR)) return null;
   if (member.nickname?.includes(" " + emoji)) return null;
 
   const newNickname = member.displayName + " " + emoji;
   if (newNickname.length > 32) {
-    log.debug("Nickname too long to add VC emoji", { ...ctx, newNickname });
+    log.debug("Nickname too long to add VC emoji", { userId: member.id, username: member.user.username, newNickname });
     return null;
   }
 
-  log.debug("Adding VC emoji to nickname", { ...ctx, newNickname });
+  log.debug("Adding VC emoji to nickname", { userId: member.id, username: member.user.username, newNickname });
   return newNickname;
 }
 
-export async function VCEmojiNeedsRemoval(ctx: Ctx, member: GuildMember): Promise<string | null> {
+export async function VCEmojiNeedsRemoval(member: GuildMember): Promise<string | null> {
   if (hasAnyRole(member, Role.PROFESSOR)) return null;
-  return VCEmojiNeedsRemovalSync(ctx, member, await getVCEmoji());
+  return VCEmojiNeedsRemovalSync(member, await getVCEmoji());
 }
 
-export function VCEmojiNeedsRemovalSync(ctx: Ctx, member: GuildMember, emoji: string): string | null {
+export function VCEmojiNeedsRemovalSync(member: GuildMember, emoji: string): string | null {
   if (hasAnyRole(member, Role.PROFESSOR)) return null;
   if (!member.nickname?.includes(" " + emoji)) return null;
 
@@ -69,7 +69,6 @@ export function VCEmojiNeedsRemovalSync(ctx: Ctx, member: GuildMember, emoji: st
     .replaceAll(emoji, "")
     .trim();
   if (newNickname.length === 0) return null;
-
-  log.debug("Removing VC emoji from nickname", { ...ctx, newNickname });
+  log.debug("Removing VC emoji from nickname", { userId: member.id, username: member.user.username, newNickname });
   return newNickname;
 }

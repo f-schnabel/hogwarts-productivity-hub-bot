@@ -1,7 +1,7 @@
 import { roleMention, type Guild, type GuildMember } from "discord.js";
 import { db } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
-import { createLogger, type Ctx } from "../../common/logger.ts";
+import { createLogger } from "../../common/logger.ts";
 import assert from "node:assert";
 import type { House, UpdateMemberParams } from "@/common/types.ts";
 import { HOUSE_COLORS, YEAR_MESSAGES, YEAR_THRESHOLDS_HOURS, type YEAR } from "../../common/constants.ts";
@@ -26,11 +26,11 @@ export function getYearFromMonthlyVoiceTime(seconds: number): YEAR | null {
 export async function announceYearPromotion(
   member: GuildMember,
   user: { monthlyVoiceTime: number; house: House | null; announcedYear: number } | null,
-  ctx: Ctx,
 ): Promise<void> {
   if (!user?.house) return;
   const year = getYearFromMonthlyVoiceTime(user.monthlyVoiceTime);
   if (year === null || user.announcedYear >= year) return; // Already announced this year or higher
+  const ctx = { userId: member.id, username: member.user.username };
 
   const roleId = YEAR_ROLE_IDS[year - 1];
   assert(roleId, `No role ID configured for year ${year}`);

@@ -87,12 +87,10 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
 }
 
 export async function join(newVoiceSession: VoiceSession, member: GuildMember) {
-  const ctx = { userId: member.id, username: member.user.username };
-
   const [, nickname, vcRole] = await Promise.all([
     startVoiceSession(newVoiceSession, db),
-    VCEmojiNeedsAdding(ctx, member),
-    VCRoleNeedsAdding(ctx, member),
+    VCEmojiNeedsAdding(member),
+    VCRoleNeedsAdding(member),
   ]);
   await updateMember({
     member,
@@ -105,12 +103,10 @@ export async function join(newVoiceSession: VoiceSession, member: GuildMember) {
 }
 
 async function leave(oldVoiceSession: VoiceSession, member: GuildMember) {
-  const ctx = { userId: member.id, username: member.user.username };
-
   const [user, nickname, vcRole] = await Promise.all([
     endVoiceSession(oldVoiceSession, db),
-    VCEmojiNeedsRemoval(ctx, member),
-    VCRoleNeedsRemoval(ctx, member),
+    VCEmojiNeedsRemoval(member),
+    VCRoleNeedsRemoval(member),
   ]);
 
   const { rolesToRemove = [], rolesToAdd: yearRolesToAdd } = calculateYearRoles(member, user) ?? {};
@@ -125,19 +121,22 @@ async function leave(oldVoiceSession: VoiceSession, member: GuildMember) {
     },
   });
   if (yearRolesToAdd && yearRolesToAdd.length > 0) {
-    await announceYearPromotion(member, user, ctx);
+    await announceYearPromotion(member, user);
   }
 }
 
 async function vcSwitch(oldVoiceSession: VoiceSession, newVoiceSession: VoiceSession, member: GuildMember) {
   const user = await endVoiceSession(oldVoiceSession, db);
+  const roleUpdates = calculateYearRoles(member, user);
+
   await Promise.all([
     updateMember({
       member,
       reason: "User switched voice channel",
-      roleUpdates: calculateYearRoles(member, user),
+      roleUpdates,
     }),
     startVoiceSession(newVoiceSession, db),
+    ...((roleUpdates?.rolesToAdd.length ?? 0) > 0 ? [announceYearPromotion(member, user)] : []),
   ]);
 }
 
