@@ -208,14 +208,12 @@ async function resetVCEmojisAndRoles(c: Client<true>) {
 
   await Promise.all(
     membersToReset.map(async (member) => {
-      const ctx = { userId: member.id, username: member.user.username };
-
       await updateMember({
         member,
         reason: "Resetting VC emoji and role on startup",
-        nickname: VCEmojiNeedsRemovalSync(ctx, member, emoji),
+        nickname: VCEmojiNeedsRemovalSync(member, emoji),
         roleUpdates: {
-          rolesToRemove: VCRoleNeedsRemovalSync(ctx, member, role),
+          rolesToRemove: VCRoleNeedsRemovalSync(member, role),
         },
       });
     }),
