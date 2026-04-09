@@ -10,7 +10,7 @@ import type { House } from "@/common/types.ts";
  * Can be bypassed with secret param, or forced with mystery=1 param
  */
 async function isMysteryMode(query: Record<string, unknown>): Promise<boolean> {
-  if (query["secret"] === process.env["MYSTERY_SECRET"]) return false;
+  if (query["secret"] === process.env.MYSTERY_SECRET) return false;
   if (query["mystery"] === "1") return true;
 
   const now = dayjs();

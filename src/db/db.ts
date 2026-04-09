@@ -19,7 +19,7 @@ import type { PgTransaction } from "drizzle-orm/pg-core";
 import dayjs from "dayjs";
 import { MIN_MONTHLY_POINTS_FOR_WEIGHTED, SETTINGS_KEYS } from "../common/constants.ts";
 import assert from "node:assert/strict";
-import type { House, HousePoints } from "@/common/types.ts";
+import type { CountingState, House, HousePoints } from "@/common/types.ts";
 import { createLogger } from "@/common/logger.ts";
 
 type Schema = typeof schema;
@@ -160,6 +160,31 @@ export async function getVCEmoji(): Promise<string> {
 
 export async function setVCEmoji(emoji: string) {
   await setSetting(SETTINGS_KEYS.VC_EMOJI, emoji);
+}
+
+export async function getCountingState(tx: Tx): Promise<CountingState> {
+  const [count, discordId] = await Promise.all([
+    tx.select().from(schema.settingsTable).where(eq(schema.settingsTable.key, SETTINGS_KEYS.COUNTING_COUNT)).for("update").then((rows) => rows[0]?.value ?? ""),
+    tx.select().from(schema.settingsTable).where(eq(schema.settingsTable.key, SETTINGS_KEYS.COUNTING_DISCORD_ID)).for("update").then((rows) => rows[0]?.value),
+  ]);
+
+  return {
+    count: parseInt(count) || 0,
+    discordId,
+  };
+}
+
+export async function setCountingState(state: CountingState, tx: Tx) {
+  await Promise.all([
+    tx.insert(schema.settingsTable).values({ key: SETTINGS_KEYS.COUNTING_COUNT, value: String(state.count) }).onConflictDoUpdate({
+      target: schema.settingsTable.key,
+      set: { value: String(state.count) },
+    }),
+    tx.insert(schema.settingsTable).values({ key: SETTINGS_KEYS.COUNTING_DISCORD_ID, value: state.discordId ?? "" }).onConflictDoUpdate({
+      target: schema.settingsTable.key,
+      set: { value: state.discordId ?? "" },
+    }),
+  ]);
 }
 
 const HOUSE_ROLES = [

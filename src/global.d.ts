@@ -25,6 +25,9 @@ export declare global {
       SLYTHERIN_CREST_EMOJI_ID: string;
       HUFFLEPUFF_CREST_EMOJI_ID: string;
       RAVENCLAW_CREST_EMOJI_ID: string;
+      JOURNAL_CHANNEL_ID: string;
+      MYSTERY_SECRET: string;
+      COUNTING_CHANNEL_ID: string;
     }
   }
 }

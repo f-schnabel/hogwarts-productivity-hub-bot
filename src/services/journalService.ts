@@ -84,7 +84,7 @@ export async function processTodayJournalEntry(
       return "already-sent";
     }
 
-    const channelId = process.env["JOURNAL_CHANNEL_ID"];
+    const channelId = process.env.JOURNAL_CHANNEL_ID;
     if (!channelId) {
       throw new Error("JOURNAL_CHANNEL_ID is not configured.");
     }

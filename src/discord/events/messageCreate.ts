@@ -1,5 +1,5 @@
 import type { Message, OmitPartialGroupDMChannel } from "discord.js";
-import { db, ensureUserExists } from "../../db/db.ts";
+import { db, ensureUserExists, getCountingState, setCountingState } from "../../db/db.ts";
 import { userTable } from "../../db/schema.ts";
 import { eq, sql } from "drizzle-orm";
 import { createLogger } from "../../common/logger.ts";
@@ -44,4 +44,31 @@ export async function execute(message: OmitPartialGroupDMChannel<Message>): Prom
 
   assert(row, "Failed to update daily messages");
   await updateMessageStreakInNickname(message.member, row.messageStreak);
+
+  await counting(message, discordId);
+}
+
+async function counting(message: Message, discordId: string) {
+  if (process.env.COUNTING_CHANNEL_ID !== message.channelId) {
+    return;
+  }
+
+  const content = message.content.trim();
+  const count = parseInt(content);
+
+  if (content !== String(count)) {
+    return;
+  }
+
+  const result = await db.transaction(async (tx) => {
+    const state = await getCountingState(tx);
+    if (discordId !== state.discordId && count === state.count + 1) {
+      await setCountingState({ count, discordId }, tx);
+      return true;
+    }
+    return false;
+  });
+  if (result) {
+    await message.react("✅");
+  }
 }

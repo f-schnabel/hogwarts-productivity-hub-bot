@@ -7,6 +7,7 @@ import {
   getUnweightedHousePoints,
   setMonthStartDate,
   setVCEmoji,
+  setCountingState,
 } from "@/db/db.ts";
 import { awardPoints } from "@/services/pointsService.ts";
 import { errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
@@ -113,6 +114,14 @@ export default {
         .addStringOption((option) =>
           option.setName("date").setDescription("Journal date in YYYY-MM-DD format (defaults to today)"),
         ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("counting-set")
+        .setDescription("Sets the current counting channel number")
+        .addIntegerOption((option) =>
+          option.setName("number").setDescription("The current number to store").setRequired(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -155,6 +164,9 @@ export default {
         break;
       case "journal-show":
         await journalShow(interaction);
+        break;
+      case "counting-set":
+        await countingSet(interaction);
         break;
       default:
         await errorReply(interaction, "Invalid Subcommand", "Unknown subcommand.", { deferred: true });
@@ -426,6 +438,16 @@ async function journalShow(interaction: ChatInputCommandInteraction<"cached">) {
 
   log.info("Journal entry previewed", { date, userId: interaction.user.id });
   await interaction.editReply(buildJournalMessage(entry.prompt));
+}
+
+async function countingSet(interaction: ChatInputCommandInteraction<"cached">) {
+  const count = interaction.options.getInteger("number", true);
+  await db.transaction(async (tx) => {
+    await setCountingState({ count }, tx);
+  });
+
+  log.info("Counting value set", { count, userId: interaction.user.id });
+  await interaction.editReply(`Current counting value set to ${count}.`);
 }
 
 function truncatePrompt(prompt: string, maxLength = 80): string {

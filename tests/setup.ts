@@ -22,7 +22,7 @@ process.env.NODE_ENV = "test";
 process.env.DB_NAME = "discord_bot_test";
 process.env.DISCORD_TOKEN = "test-token";
 process.env.SUBMISSION_CHANNEL_IDS = "";
-process.env["JOURNAL_CHANNEL_ID"] = "journal-channel-id";
+process.env.JOURNAL_CHANNEL_ID = "journal-channel-id";
 process.env.YEAR_ROLE_IDS = "";
 
 // Mock console methods in tests to reduce noise

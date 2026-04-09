@@ -54,6 +54,11 @@ export interface HousePoints {
   memberCount: number;
 }
 
+export interface CountingState {
+  count: number;
+  discordId?: string;
+}
+
 export interface UpdateMemberParams {
   member: GuildMember;
   reason?: string;
