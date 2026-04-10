@@ -43,6 +43,7 @@ export default defineConfig([
           allowRegExp: false,
         },
       ],
+      "@typescript-eslint/no-confusing-void-expression": ["error", { ignoreArrowShorthand: true }],
       "@stylistic/quotes": ["warn", "double", {
         avoidEscape: true,
       }],

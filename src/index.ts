@@ -53,47 +53,13 @@ try {
 }
 
 function registerEvents(client: Client) {
-  client.on(
-    Events.ClientReady,
-    (i) =>
-      void runOpId(OpId.start(), async () => {
-        await ClientReady.execute(i);
-      }),
-  );
-  client.on(
-    Events.InteractionCreate,
-    (i) =>
-      void runOpId(OpId.cmd(), async () => {
-        await InteractionCreate.execute(i);
-      }),
-  );
-  client.on(
-    Events.VoiceStateUpdate,
-    (a, b) =>
-      void runOpId(OpId.vc(), async () => {
-        await VoiceStateUpdate.execute(a, b);
-      }),
-  );
-  client.on(
-    Events.MessageCreate,
-    (m) =>
-      void runOpId(OpId.msg(), async () => {
-        await MessageCreate.execute(m);
-      }),
-  );
-  client.on(
-    Events.MessageReactionAdd,
-    (reaction, user) =>
-      void runOpId(OpId.msg(), async () => {
-        await MessageReactionAdd.execute(reaction, user);
-      }),
-  );
-  client.on(Events.Debug, (info) => {
-    log.debug(info);
-  });
-  client.on(Events.Warn, (info) => {
-    log.warn(info);
-  });
+  client.on(Events.ClientReady, (i) => void runOpId(OpId.start(), () => ClientReady.execute(i)));
+  client.on(Events.InteractionCreate, (i) => void runOpId(OpId.cmd(), () => InteractionCreate.execute(i)));
+  client.on(Events.VoiceStateUpdate, (a, b) => void runOpId(OpId.vc(), () => VoiceStateUpdate.execute(a, b)));
+  client.on(Events.MessageCreate, (m) => void runOpId(OpId.msg(), () => MessageCreate.execute(m)));
+  client.on(Events.MessageReactionAdd, (r, u) => void runOpId(OpId.msg(), async () => MessageReactionAdd.execute(r, u)));
+  client.on(Events.Debug, (info) => log.debug(info));
+  client.on(Events.Warn, (info) => log.warn(info));
   client.on(Events.Error, (error) => {
     log.error("Client error event", undefined, error);
     void alertOwner(`Client error event: ${error}`);
@@ -124,9 +90,7 @@ function registerShutdownHandlers() {
   process.on("SIGINT", () => void shutdown("SIGINT"));
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
-  process.on("uncaughtException", (error) => {
-    void alertOwner(`Uncaught Exception: ${error}`);
-  });
+  process.on("uncaughtException", (error) => void alertOwner(`Uncaught Exception: ${error}`));
   process.on("unhandledRejection", (reason) => {
     void alertOwner(`Unhandled Rejection, reason: ${reason instanceof Error ? reason : "Unknown Error"}`);
   });
