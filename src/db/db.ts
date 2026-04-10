@@ -164,8 +164,8 @@ export async function setVCEmoji(emoji: string) {
 
 export async function getCountingState(tx: Tx): Promise<CountingState> {
   const [count, discordId] = await Promise.all([
-    tx.select().from(schema.settingsTable).where(eq(schema.settingsTable.key, SETTINGS_KEYS.COUNTING_COUNT)).for("update").then((rows) => rows[0]?.value ?? ""),
-    tx.select().from(schema.settingsTable).where(eq(schema.settingsTable.key, SETTINGS_KEYS.COUNTING_DISCORD_ID)).for("update").then((rows) => rows[0]?.value),
+    tx.select().from(schema.settingsTable).where(eq(schema.settingsTable.key, SETTINGS_KEYS.COUNTING_COUNT)).for("no key update").then((rows) => rows[0]?.value ?? ""),
+    tx.select().from(schema.settingsTable).where(eq(schema.settingsTable.key, SETTINGS_KEYS.COUNTING_DISCORD_ID)).for("no key update").then((rows) => rows[0]?.value),
   ]);
 
   return {

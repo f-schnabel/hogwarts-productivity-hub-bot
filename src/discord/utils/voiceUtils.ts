@@ -111,7 +111,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
           isNull(voiceSessionTable.leftAt),
         ),
       )
-      .for("update");
+      .for("no key update");
     if (existingVoiceSession.length !== 1) {
       log.error("Unexpected session count", { ...ctx, found: existingVoiceSession.length, expected: 1 });
       await alertOwner(
