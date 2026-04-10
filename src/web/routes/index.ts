@@ -1,5 +1,5 @@
 import { HOUSE_COLORS } from "@/common/constants.ts";
-import { getMonthStartDate, getWeightedHousePoints, getUnweightedHousePoints } from "@/db/db.ts";
+import { getMonthStartDate, getWeightedHousePoints, getUnweightedHousePoints, db } from "@/db/db.ts";
 import { getHouseColor } from "../utils.ts";
 import dayjs from "dayjs";
 import type { Router } from "express";
@@ -28,8 +28,8 @@ async function isMysteryMode(query: Record<string, unknown>): Promise<boolean> {
 export default function registerIndexRoute(app: Router) {
   app.get("/", async (req, res) => {
     const [unweightedHouseData, weightedHouseData] = await Promise.all([
-      getUnweightedHousePoints(),
-      getWeightedHousePoints(),
+      getUnweightedHousePoints(db),
+      getWeightedHousePoints(db),
     ]);
 
     const unweightedMap = new Map(

@@ -149,8 +149,11 @@ export async function getMonthStartDate(): Promise<Date> {
   return setting ? new Date(setting) : dayjs().startOf("month").toDate();
 }
 
-export async function setMonthStartDate(date: Date) {
-  await setSetting(SETTINGS_KEYS.LAST_MONTHLY_RESET, date.toISOString());
+export async function setMonthStartDate(date: Date, db: DbOrTx) {
+  await db.insert(schema.settingsTable).values({ key: SETTINGS_KEYS.LAST_MONTHLY_RESET, value: date.toISOString() }).onConflictDoUpdate({
+    target: schema.settingsTable.key,
+    set: { value: date.toISOString() },
+  });
 }
 
 export async function getVCEmoji(): Promise<string> {
@@ -195,7 +198,7 @@ const HOUSE_ROLES = [
 ] as const;
 
 /** Weighted house points: SUM(monthlyPoints) / COUNT(*) for users above threshold */
-export async function getWeightedHousePoints(): Promise<HousePoints[]> {
+export async function getWeightedHousePoints(db: DbOrTx): Promise<HousePoints[]> {
   const totalPoints = sql<number>`${sum(schema.userTable.monthlyPoints)} / ${count()}`.as("total_points");
   return await db
     .select({
@@ -213,7 +216,7 @@ export async function getWeightedHousePoints(): Promise<HousePoints[]> {
 }
 
 /** Unweighted house points: SUM(monthlyPoints) for users with any points */
-export async function getUnweightedHousePoints(): Promise<HousePoints[]> {
+export async function getUnweightedHousePoints(db: DbOrTx): Promise<HousePoints[]> {
   const totalPoints = sql<number>`${sum(schema.userTable.monthlyPoints)}`.as("total_points");
   return await db
     .select({
