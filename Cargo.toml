@@ -25,7 +25,7 @@ tokio = { version = "1", features = ["full"] }
 
 # Web server
 axum = { version = "0.7", features = ["macros"] }
-tower-http = { version = "0.5", features = ["limit"] }
+tower-http = { version = "0.5", features = ["limit", "trace"] }
 
 # Templates
 askama = { version = "0.12" }

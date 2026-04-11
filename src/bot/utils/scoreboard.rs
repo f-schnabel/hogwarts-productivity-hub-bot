@@ -1,6 +1,6 @@
 use chrono::Utc;
 use serenity::all::{
-    ChannelId, CreateEmbed, CreateMessage, EditMessage, MessageId,
+    ChannelId, CreateEmbed, EditMessage, MessageId,
 };
 use sqlx::PgPool;
 use tracing::{debug, error, warn};
@@ -25,7 +25,7 @@ pub async fn refresh_house_scoreboards(pool: &PgPool, house: &str) -> anyhow::Re
 /// Build the scoreboard embed for a house, using the member display names from the cache.
 pub async fn build_scoreboard_embed(
     pool: &PgPool,
-    http: &serenity::http::Http,
+    _http: &serenity::http::Http,
     cache: &serenity::cache::Cache,
     guild_id: serenity::all::GuildId,
     house: &str,

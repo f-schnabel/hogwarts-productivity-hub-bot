@@ -130,8 +130,8 @@
     <tbody>
       {% for student in students %}
       <tr>
-        <td class="rank{% if student.rank == 1 %} rank-1{% elif student.rank == 2 %} rank-2{% elif student.rank == 3 %} rank-3{% endif %}">
-          {% if student.rank == 1 %}🥇{% elif student.rank == 2 %}🥈{% elif student.rank == 3 %}🥉{% else %}{{ student.rank }}{% endif %}
+        <td class="rank{% if student.rank == 1 %} rank-1{% else if student.rank == 2 %} rank-2{% else if student.rank == 3 %} rank-3{% endif %}">
+          {% if student.rank == 1 %}🥇{% else if student.rank == 2 %}🥈{% else if student.rank == 3 %}🥉{% else %}{{ student.rank }}{% endif %}
         </td>
         <td><a class="user-link" href="/user/{{ student.discord_id }}">{{ student.display_name }}</a></td>
         <td>

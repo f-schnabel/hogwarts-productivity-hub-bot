@@ -144,7 +144,7 @@ async fn main() -> anyhow::Result<()> {
                 }
                 #[cfg(not(unix))]
                 {
-                    futures::future::pending::<()>().await;
+                    std::future::pending::<()>().await;
                 }
             } => {}
         }

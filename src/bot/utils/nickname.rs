@@ -76,7 +76,7 @@ pub async fn update_message_streak_in_nickname(
 
 /// Returns the new nickname with the VC emoji appended, or None if no change needed.
 pub async fn vc_emoji_needs_adding(
-    http: &serenity::http::Http,
+    _http: &serenity::http::Http,
     member: &Member,
     config: &Config,
     pool: &PgPool,
@@ -116,7 +116,7 @@ pub fn vc_emoji_needs_adding_sync(
 
 /// Returns the new nickname with the VC emoji removed, or None if no change needed.
 pub async fn vc_emoji_needs_removal(
-    http: &serenity::http::Http,
+    _http: &serenity::http::Http,
     member: &Member,
     config: &Config,
     pool: &PgPool,

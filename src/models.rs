@@ -1,17 +1,18 @@
-use chrono::{DateTime, Utc};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 // ─── Database row types ────────────────────────────────────────────────────
+// DB uses `timestamp` (without timezone) → maps to NaiveDateTime in sqlx.
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct User {
     pub discord_id: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
     pub username: String,
     pub house: Option<String>,
     pub timezone: String,
-    pub last_daily_reset: DateTime<Utc>,
+    pub last_daily_reset: NaiveDateTime,
     pub daily_points: i32,
     pub monthly_points: i32,
     pub total_points: i32,
@@ -27,8 +28,8 @@ pub struct User {
 pub struct VoiceSession {
     pub id: i32,
     pub discord_id: String,
-    pub joined_at: DateTime<Utc>,
-    pub left_at: Option<DateTime<Utc>>,
+    pub joined_at: NaiveDateTime,
+    pub left_at: Option<NaiveDateTime>,
     pub channel_id: String,
     pub channel_name: String,
     pub is_tracked: bool,
@@ -41,8 +42,8 @@ pub struct VoiceSession {
 pub struct Submission {
     pub id: i32,
     pub discord_id: String,
-    pub submitted_at: DateTime<Utc>,
-    pub reviewed_at: Option<DateTime<Utc>>,
+    pub submitted_at: NaiveDateTime,
+    pub reviewed_at: Option<NaiveDateTime>,
     pub reviewed_by: Option<String>,
     pub message_id: Option<String>,
     pub channel_id: Option<String>,
@@ -61,7 +62,7 @@ pub struct HouseScoreboard {
     pub house: String,
     pub channel_id: String,
     pub message_id: String,
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -75,7 +76,7 @@ pub struct HouseCupMonth {
     pub id: i32,
     pub month: String, // "YYYY-MM"
     pub winner: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -97,17 +98,17 @@ pub struct PointAdjustment {
     pub adjusted_by: String,
     pub amount: i32,
     pub reason: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct JournalEntry {
     pub id: i32,
-    pub date: String, // "YYYY-MM-DD"
+    pub date: chrono::NaiveDate, // DATE type in DB
     pub prompt: String,
     pub message_id: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 // ─── Lightweight projections ───────────────────────────────────────────────
@@ -133,7 +134,7 @@ pub struct OpenVoiceSession {
     pub username: String,
     pub channel_id: String,
     pub channel_name: String,
-    pub joined_at: DateTime<Utc>,
+    pub joined_at: NaiveDateTime,
 }
 
 // ─── Domain types ──────────────────────────────────────────────────────────

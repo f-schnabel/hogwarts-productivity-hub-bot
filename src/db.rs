@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context as _};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use sqlx::{PgPool, Postgres, Transaction};
 
 use crate::constants::{
@@ -208,34 +208,34 @@ pub async fn set_setting_tx<'c>(
     Ok(())
 }
 
-pub async fn get_month_start_date(pool: &PgPool) -> anyhow::Result<DateTime<Utc>> {
+pub async fn get_month_start_date(pool: &PgPool) -> anyhow::Result<NaiveDateTime> {
     match get_setting(pool, SETTINGS_KEY_LAST_MONTHLY_RESET).await? {
         Some(s) => s
             .parse::<DateTime<Utc>>()
+            .map(|dt| dt.naive_utc())
             .map_err(|e| anyhow!("Invalid month start date in settings: {e}")),
         None => Ok(start_of_current_month()),
     }
 }
 
-pub fn start_of_current_month() -> DateTime<Utc> {
+pub fn start_of_current_month() -> NaiveDateTime {
     use chrono::Datelike;
     let now = Utc::now();
-    let naive = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1)
+    chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1)
         .unwrap_or_else(|| now.date_naive())
         .and_hms_opt(0, 0, 0)
-        .unwrap();
-    DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc)
+        .unwrap()
 }
 
-pub async fn set_month_start_date(pool: &PgPool, date: DateTime<Utc>) -> anyhow::Result<()> {
-    set_setting(pool, SETTINGS_KEY_LAST_MONTHLY_RESET, &date.to_rfc3339()).await
+pub async fn set_month_start_date(pool: &PgPool, date: NaiveDateTime) -> anyhow::Result<()> {
+    set_setting(pool, SETTINGS_KEY_LAST_MONTHLY_RESET, &date.and_utc().to_rfc3339()).await
 }
 
 pub async fn set_month_start_date_tx<'c>(
     tx: &mut Transaction<'c, Postgres>,
-    date: DateTime<Utc>,
+    date: NaiveDateTime,
 ) -> anyhow::Result<()> {
-    set_setting_tx(tx, SETTINGS_KEY_LAST_MONTHLY_RESET, &date.to_rfc3339()).await
+    set_setting_tx(tx, SETTINGS_KEY_LAST_MONTHLY_RESET, &date.and_utc().to_rfc3339()).await
 }
 
 pub async fn get_vc_emoji(pool: &PgPool) -> anyhow::Result<String> {

@@ -1,5 +1,3 @@
-use poise::serenity_prelude as serenity;
-
 use crate::bot::utils::interaction::member_has_role;
 use crate::bot::utils::scoreboard::build_scoreboard_embed;
 use crate::constants::{ROLE_OWNER, ROLE_PROFESSOR};
@@ -73,7 +71,7 @@ pub async fn scoreboard(
     let embed = build_scoreboard_embed(
         &data.pool,
         ctx.http(),
-        ctx.cache().unwrap(),
+        ctx.cache(),
         guild_id,
         house_str,
         crest_emoji_id,

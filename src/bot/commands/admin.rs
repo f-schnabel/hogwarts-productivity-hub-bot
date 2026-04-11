@@ -29,7 +29,7 @@ pub async fn admin(_ctx: Context<'_>) -> crate::error::Result {
     Ok(())
 }
 
-fn require_admin(ctx: &Context<'_>) -> Option<()> {
+fn require_admin(_ctx: &Context<'_>) -> Option<()> {
     // Checked inline in each subcommand to get correct error handling
     Some(())
 }
@@ -163,7 +163,7 @@ pub async fn reset_monthly_points(ctx: Context<'_>) -> crate::error::Result {
     .execute(&mut *tx)
     .await?;
 
-    crate::db::set_month_start_date_tx(&mut tx, Utc::now()).await?;
+    crate::db::set_month_start_date_tx(&mut tx, Utc::now().naive_utc()).await?;
     tx.commit().await?;
 
     tracing::info!(winner, month, users_reset = result.rows_affected(), "Monthly reset complete");
@@ -171,28 +171,24 @@ pub async fn reset_monthly_points(ctx: Context<'_>) -> crate::error::Result {
     // Refresh scoreboards in background
     if let Some(guild_id) = ctx.guild_id() {
         let pool = data.pool.clone();
-        let http = ctx.http().clone();
-        let cache_arc = ctx.cache().map(|c| c.clone());
+        let http = ctx.serenity_context().http.clone();
+        let cache = ctx.serenity_context().cache.clone();
         let config = data.config.clone();
         tokio::spawn(async move {
-            if let Some(cache) = cache_arc {
-                if let Err(e) = crate::bot::utils::scoreboard::update_scoreboard_messages(&pool, &http, &cache, guild_id, &config).await {
-                    tracing::warn!("Scoreboard refresh failed after monthly reset: {e}");
-                }
+            if let Err(e) = crate::bot::utils::scoreboard::update_scoreboard_messages(&pool, &http, &cache, guild_id, &config).await {
+                tracing::warn!("Scoreboard refresh failed after monthly reset: {e}");
             }
         });
 
         // Refresh year roles (removes all since monthly_voice_time is now 0)
         let pool = data.pool.clone();
-        let http = ctx.http().clone();
-        let cache_arc = ctx.cache().map(|c| c.clone());
+        let http = ctx.serenity_context().http.clone();
+        let cache = ctx.serenity_context().cache.clone();
         let config = data.config.clone();
         tokio::spawn(async move {
-            if let Some(cache) = cache_arc {
-                match crate::bot::utils::year_roles::refresh_all_year_roles(&pool, &http, &cache, guild_id, &config).await {
-                    Ok(n) => tracing::info!(n, "Year roles refreshed after monthly reset"),
-                    Err(e) => tracing::warn!("Year role refresh failed: {e}"),
-                }
+            match crate::bot::utils::year_roles::refresh_all_year_roles(&pool, &http, &cache, guild_id, &config).await {
+                Ok(n) => tracing::info!(n, "Year roles refreshed after monthly reset"),
+                Err(e) => tracing::warn!("Year role refresh failed: {e}"),
             }
         });
     }
@@ -220,7 +216,7 @@ pub async fn refresh_ranks(ctx: Context<'_>) -> crate::error::Result {
         }
     };
 
-    let cache = ctx.cache().ok_or_else(|| anyhow::anyhow!("Cache not available"))?;
+    let cache = ctx.cache();
     let count = crate::bot::utils::year_roles::refresh_all_year_roles(
         &data.pool,
         ctx.http(),
@@ -255,30 +251,32 @@ pub async fn vc_emoji(
         // Update nicknames of members currently in VC
         if old_emoji != new_emoji {
             if let Some(guild_id) = ctx.guild_id() {
-                if let Some(cache) = ctx.cache() {
-                    let members_in_vc: Vec<_> = cache
-                        .guild(guild_id)
-                        .map(|g| {
-                            g.members
-                                .values()
-                                .filter(|m| m.voice.channel_id.is_some())
-                                .filter(|m| {
-                                    m.nick
-                                        .as_deref()
-                                        .map(|n| n.contains(&format!(" {old_emoji}")))
-                                        .unwrap_or(false)
-                                })
-                                .map(|m| (m.user.id, m.nick.clone()))
-                                .collect::<Vec<_>>()
-                        })
-                        .unwrap_or_default();
+                let members_in_vc: Vec<_> = ctx.cache()
+                    .guild(guild_id)
+                    .map(|g| {
+                        let vc_user_ids: std::collections::HashSet<_> = g.voice_states
+                            .values()
+                            .filter_map(|vs| vs.channel_id.map(|_| vs.user_id))
+                            .collect();
+                        g.members
+                            .values()
+                            .filter(|m| vc_user_ids.contains(&m.user.id))
+                            .filter(|m| {
+                                m.nick
+                                    .as_deref()
+                                    .map(|n| n.contains(&format!(" {old_emoji}")))
+                                    .unwrap_or(false)
+                            })
+                            .map(|m| (m.user.id, m.nick.clone()))
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
 
-                    for (uid, nick) in members_in_vc {
-                        if let Some(nick) = nick {
-                            let new_nick = nick.replace(&format!(" {old_emoji}"), &format!(" {new_emoji}")).trim().to_string();
-                            if new_nick.len() <= 32 && new_nick != nick {
-                                let _ = guild_id.edit_member(ctx.http(), uid, serenity::EditMember::new().nickname(new_nick)).await;
-                            }
+                for (uid, nick) in members_in_vc {
+                    if let Some(nick) = nick {
+                        let new_nick = nick.replace(&format!(" {old_emoji}"), &format!(" {new_emoji}")).trim().to_string();
+                        if new_nick.len() <= 32 && new_nick != nick {
+                            let _ = guild_id.edit_member(ctx.http(), uid, serenity::EditMember::new().nickname(new_nick)).await;
                         }
                     }
                 }
@@ -399,7 +397,7 @@ async fn compute_integrity(
     .fetch_all(pool)
     .await?;
 
-    let user_reset_map: std::collections::HashMap<&str, chrono::DateTime<Utc>> =
+    let user_reset_map: std::collections::HashMap<&str, chrono::NaiveDateTime> =
         users.iter().map(|u| (u.discord_id.as_str(), u.last_daily_reset)).collect();
 
     let mut vp_map: std::collections::HashMap<String, crate::models::Sums> = users
@@ -490,10 +488,12 @@ pub async fn journal_set(
     }
     ctx.defer().await?;
 
+    let date_parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|_| anyhow::anyhow!("Invalid date format. Use YYYY-MM-DD"))?;
     sqlx::query!(
-        r#"INSERT INTO journal_entry (date, prompt) VALUES ($1::date, $2)
+        r#"INSERT INTO journal_entry (date, prompt) VALUES ($1, $2)
            ON CONFLICT (date) DO UPDATE SET prompt = $2, updated_at = NOW()"#,
-        date,
+        date_parsed,
         prompt,
     )
     .execute(&data.pool)
@@ -517,7 +517,9 @@ pub async fn journal_delete(
     }
     ctx.defer().await?;
 
-    let result = sqlx::query!("DELETE FROM journal_entry WHERE date = $1::date", date)
+    let date_parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|_| anyhow::anyhow!("Invalid date format. Use YYYY-MM-DD"))?;
+    let result = sqlx::query!("DELETE FROM journal_entry WHERE date = $1", date_parsed)
         .execute(&data.pool)
         .await?;
 
@@ -540,9 +542,9 @@ pub async fn journal_list(ctx: Context<'_>) -> crate::error::Result {
     }
     ctx.defer().await?;
 
-    let today = Utc::now().format("%Y-%m-%d").to_string();
+    let today = Utc::now().naive_utc().date();
     let entries = sqlx::query!(
-        "SELECT date, prompt FROM journal_entry WHERE date >= $1::date ORDER BY date ASC LIMIT 20",
+        "SELECT date, prompt FROM journal_entry WHERE date >= $1 ORDER BY date ASC LIMIT 20",
         today,
     )
     .fetch_all(&data.pool)
@@ -628,10 +630,17 @@ pub async fn journal_import(
             continue;
         };
 
+        let date_parsed = match chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d") {
+            Ok(d) => d,
+            Err(_) => {
+                errors += 1;
+                continue;
+            }
+        };
         let result = sqlx::query!(
-            r#"INSERT INTO journal_entry (date, prompt) VALUES ($1::date, $2)
+            r#"INSERT INTO journal_entry (date, prompt) VALUES ($1, $2)
                ON CONFLICT (date) DO UPDATE SET prompt = $2, updated_at = NOW()"#,
-            date,
+            date_parsed,
             prompt,
         )
         .execute(&data.pool)
@@ -661,14 +670,19 @@ pub async fn journal_show(
     }
     ctx.defer().await?;
 
-    let date_str = date.unwrap_or_else(|| Utc::now().format("%Y-%m-%d").to_string());
+    let date_parsed = match date {
+        Some(d) => chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d")
+            .map_err(|_| anyhow::anyhow!("Invalid date format. Use YYYY-MM-DD"))?,
+        None => Utc::now().naive_utc().date(),
+    };
 
     let entry = sqlx::query!(
-        "SELECT prompt FROM journal_entry WHERE date = $1::date LIMIT 1",
-        date_str,
+        "SELECT prompt FROM journal_entry WHERE date = $1 LIMIT 1",
+        date_parsed,
     )
     .fetch_optional(&data.pool)
     .await?;
+    let date_str = date_parsed.format("%Y-%m-%d").to_string();
 
     match entry {
         None => ctx.say(format!("No journal entry for {date_str}.")).await?,

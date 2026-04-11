@@ -14,14 +14,15 @@ const JOURNAL_STATIC_LINES: &[&str] = &[
 ];
 
 pub fn build_journal_message(prompt: &str) -> String {
-    let mut lines = JOURNAL_STATIC_LINES.to_vec();
-    lines.push(&format!("Prompt: {prompt}"));
+    let prompt_line = format!("Prompt: {prompt}");
+    let mut lines: Vec<&str> = JOURNAL_STATIC_LINES.to_vec();
+    lines.push(&prompt_line);
     let body = lines.join("\n");
     format!("**Daily Journal Check-In**\n```\n{body}\n```")
 }
 
-pub fn get_journal_date_str() -> String {
-    Utc::now().format("%Y-%m-%d").to_string()
+pub fn get_journal_date() -> chrono::NaiveDate {
+    Utc::now().naive_utc().date()
 }
 
 pub async fn start(
@@ -41,9 +42,9 @@ pub async fn start(
         let config = config_c.clone();
         let http = http_c.clone();
         Box::pin(async move {
-            let date = get_journal_date_str();
+            let date = get_journal_date();
             match process_journal_entry(&pool, &config, &http).await {
-                Ok(result) => info!(result, date, "Journal dispatch complete"),
+                Ok(result) => info!(result, date = %date.format("%Y-%m-%d"), "Journal dispatch complete"),
                 Err(e) => warn!("Journal dispatch error: {e}"),
             }
         })
@@ -59,7 +60,7 @@ pub async fn process_journal_entry(
     config: &Config,
     http: &serenity::http::Http,
 ) -> anyhow::Result<&'static str> {
-    let date = get_journal_date_str();
+    let date = get_journal_date();
 
     let entry = sqlx::query!(
         "SELECT id, prompt, message_id FROM journal_entry WHERE date = $1 LIMIT 1",
@@ -70,14 +71,14 @@ pub async fn process_journal_entry(
 
     let entry = match entry {
         None => {
-            debug!(date, "No journal entry configured");
+            debug!(date = %date.format("%Y-%m-%d"), "No journal entry configured");
             return Ok("missing");
         }
         Some(e) => e,
     };
 
     if entry.message_id.is_some() {
-        debug!(date, "Journal entry already sent");
+        debug!(date = %date.format("%Y-%m-%d"), "Journal entry already sent");
         return Ok("already-sent");
     }
 
@@ -100,6 +101,6 @@ pub async fn process_journal_entry(
     .execute(pool)
     .await?;
 
-    info!(date, message_id = %msg.id, "Journal entry sent");
+    info!(date = %date.format("%Y-%m-%d"), message_id = %msg.id, "Journal entry sent");
     Ok("sent")
 }

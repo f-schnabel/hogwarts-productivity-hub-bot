@@ -40,16 +40,16 @@ pub async fn build_client(
             on_error: |err| Box::pin(on_error(err)),
             pre_command: |ctx| {
                 Box::pin(async move {
-                    let cmd = ctx.command().name;
+                    let cmd = ctx.command().name.as_str();
                     info!(command = cmd, user = %ctx.author().id, "Command invoked");
                 })
             },
             post_command: |ctx| {
                 Box::pin(async move {
-                    let cmd = ctx.command().name;
-                    let sub = ctx.command().qualified_name.clone();
+                    let cmd = ctx.command().name.as_str();
+                    let sub = ctx.command().qualified_name.as_str();
                     INTERACTION_TIMER
-                        .get_metric_with_label_values(&[cmd, &sub, ""])
+                        .get_metric_with_label_values(&[cmd, sub, ""])
                         .map(|h| h.observe(0.0))
                         .ok();
                 })
@@ -91,7 +91,7 @@ async fn on_error(err: poise::FrameworkError<'_, Data, Error>) {
             tracing::error!("Framework setup error: {error:#}");
         }
         poise::FrameworkError::Command { error, ctx, .. } => {
-            let cmd = ctx.command().name;
+            let cmd = ctx.command().name.as_str();
             let user = ctx.author().id;
             tracing::error!(command = cmd, user = %user, "Command error: {error:#}");
 

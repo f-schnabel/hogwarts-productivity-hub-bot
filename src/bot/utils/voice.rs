@@ -2,7 +2,7 @@ use sqlx::PgPool;
 use tracing::{debug, error, info, warn};
 
 use crate::models::VoiceSessionInput;
-use crate::services::points::{award_points, calculate_points};
+use crate::services::points::{calculate_points};
 
 /// Start a new voice session for a user.
 /// If an open session already exists, it is closed without tracking first.

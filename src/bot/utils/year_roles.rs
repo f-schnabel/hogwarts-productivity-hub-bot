@@ -110,7 +110,7 @@ pub async fn announce_year_promotion(
         .send_message(
             http,
             CreateMessage::new()
-                .content(format!("Congratulations {}!", member.mention()))
+                .content(format!("Congratulations <@{}>!", member.user.id))
                 .embed(
                     CreateEmbed::new()
                         .title("New Activity Rank Attained!")
@@ -174,7 +174,7 @@ pub async fn refresh_all_year_roles(
             Err(_) => continue,
         };
 
-        let member = match cache.member(guild_id, user_id) {
+        let member = match cache.guild(guild_id).and_then(|g| g.members.get(&user_id).cloned()) {
             Some(m) => m,
             None => continue,
         };

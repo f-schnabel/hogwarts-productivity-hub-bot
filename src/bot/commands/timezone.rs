@@ -2,7 +2,7 @@ use chrono::Utc;
 use chrono_tz::TZ_VARIANTS;
 use poise::serenity_prelude as serenity;
 
-use crate::bot::utils::interaction::{error_message, member_has_role};
+use crate::bot::utils::interaction::{member_has_role};
 use crate::constants::{BOT_COLOR_SUCCESS, BOT_COLOR_WARNING, ROLE_OWNER, ROLE_PREFECT, ROLE_PROFESSOR};
 
 use super::super::Context;
@@ -12,7 +12,7 @@ use super::super::Context;
 async fn timezone_autocomplete<'a>(
     _ctx: Context<'a>,
     partial: &'a str,
-) -> Vec<poise::AutocompleteChoice<String>> {
+) -> Vec<serenity::AutocompleteChoice> {
     let query = partial.to_lowercase();
     let words: Vec<&str> = query.split_whitespace().collect();
 
@@ -37,7 +37,7 @@ async fn timezone_autocomplete<'a>(
     scored
         .into_iter()
         .take(25)
-        .map(|(_, display, value)| poise::AutocompleteChoice::new(display, value))
+        .map(|(_, display, value)| serenity::AutocompleteChoice::new(display, value))
         .collect()
 }
 

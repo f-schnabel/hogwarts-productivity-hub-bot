@@ -1,9 +1,9 @@
 use anyhow::Context as _;
-use chrono::{DateTime, Utc};
+use chrono::NaiveDateTime;
 use sqlx::PgPool;
 
 use crate::constants::{FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS};
-use crate::db::{self, get_month_start_date};
+use crate::db::{get_month_start_date};
 
 // ─── Points calculation ────────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ pub async fn reverse_submission_points(
     pool: &PgPool,
     discord_id: &str,
     points: i32,
-    reviewed_at: DateTime<Utc>,
+    reviewed_at: NaiveDateTime,
 ) -> anyhow::Result<()> {
     let month_start = get_month_start_date(pool).await?;
 

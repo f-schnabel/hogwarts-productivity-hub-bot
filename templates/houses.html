@@ -114,8 +114,8 @@
 <div class="houses-grid{% if mystery_mode %} mystery-mode{% endif %}">
   {% for house in houses %}
   <div class="house-card" style="--house-color: {{ house.color }}; --house-glow: {{ house.color }}40;">
-    <div class="rank-badge{% if house.rank == 1 %} rank-1{% elif house.rank == 2 %} rank-2{% elif house.rank == 3 %} rank-3{% endif %}">
-      {% if house.rank == 1 %}🥇{% elif house.rank == 2 %}🥈{% elif house.rank == 3 %}🥉{% else %}#{{ house.rank }}{% endif %}
+    <div class="rank-badge{% if house.rank == 1 %} rank-1{% else if house.rank == 2 %} rank-2{% else if house.rank == 3 %} rank-3{% endif %}">
+      {% if house.rank == 1 %}🥇{% else if house.rank == 2 %}🥈{% else if house.rank == 3 %}🥉{% else %}#{{ house.rank }}{% endif %}
     </div>
     <div class="house-name">{{ house.name }}</div>
     <div class="house-points">{{ house.points }}</div>

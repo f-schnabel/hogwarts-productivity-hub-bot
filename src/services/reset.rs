@@ -63,16 +63,19 @@ pub async fn process_daily_resets(
     let mut users_needing_reset: Vec<String> = Vec::new();
     for user in &all_users {
         // Check if member is still in the guild (cache check)
-        let member_in_guild = cache.member(guild_id, serenity::all::UserId::new(
+        let user_id = serenity::all::UserId::new(
             user.discord_id.parse::<u64>().unwrap_or(0)
-        )).is_some();
+        );
+        let member_in_guild = cache.guild(guild_id)
+            .map(|g| g.members.contains_key(&user_id))
+            .unwrap_or(false);
         if !member_in_guild {
             continue;
         }
 
         let tz: Tz = user.timezone.parse().unwrap_or(chrono_tz::UTC);
         let user_local = now_utc.with_timezone(&tz);
-        let last_reset_local = user.last_daily_reset.with_timezone(&tz);
+        let last_reset_local = user.last_daily_reset.and_utc().with_timezone(&tz);
 
         if user_local.date_naive() != last_reset_local.date_naive() {
             users_needing_reset.push(user.discord_id.clone());
@@ -175,7 +178,9 @@ pub async fn process_daily_resets(
             Ok(id) => serenity::all::UserId::new(id),
             Err(_) => continue,
         };
-        if let Some(member) = cache.member(guild_id, user_id) {
+        let member = cache.guild(guild_id)
+            .and_then(|g| g.members.get(&user_id).cloned());
+        if let Some(member) = member {
             if let Err(e) = crate::bot::utils::nickname::update_message_streak_in_nickname(
                 http,
                 &member,

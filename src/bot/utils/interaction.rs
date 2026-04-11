@@ -1,10 +1,10 @@
 use serenity::all::{
-    CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage, Interaction,
+    CreateEmbed, CreateInteractionResponseMessage,
     Member,
 };
 
 use crate::config::Config;
-use crate::constants::{BOT_COLOR_ERROR, ROLE_OWNER, ROLE_PREFECT, ROLE_PROFESSOR};
+use crate::constants::{BOT_COLOR_ERROR};
 
 use super::roles::has_any_role;
 

@@ -100,7 +100,7 @@ pub async fn points(
     .await?;
 
     let active_duration = active_session.as_ref().map(|s| {
-        let secs = (Utc::now() - s.joined_at).num_seconds().max(0) as i32;
+        let secs = (Utc::now().naive_utc() - s.joined_at).num_seconds().max(0) as i32;
         let pts = crate::services::points::calculate_points(user_row.daily_voice_time, user_row.daily_voice_time + secs);
         (secs, pts)
     });
@@ -110,19 +110,19 @@ pub async fn points(
     let mut daily: HashMap<String, (i32, i32, i32, i32)> = HashMap::new(); // (voice_secs, voice_pts, sub_pts, sub_count)
 
     for s in &voice_sessions {
-        let day = s.joined_at.with_timezone(&tz).format("%Y-%m-%d").to_string();
+        let day = s.joined_at.and_utc().with_timezone(&tz).format("%Y-%m-%d").to_string();
         let e = daily.entry(day).or_default();
         e.0 += s.duration.unwrap_or(0);
         e.1 += s.points.unwrap_or(0);
     }
     for s in &submissions {
-        let day = s.submitted_at.with_timezone(&tz).format("%Y-%m-%d").to_string();
+        let day = s.submitted_at.and_utc().with_timezone(&tz).format("%Y-%m-%d").to_string();
         let e = daily.entry(day).or_default();
         e.2 += s.points;
         e.3 += 1;
     }
     if let Some((secs, pts)) = active_duration {
-        let day = active_session.as_ref().unwrap().joined_at.with_timezone(&tz).format("%Y-%m-%d").to_string();
+        let day = active_session.as_ref().unwrap().joined_at.and_utc().with_timezone(&tz).format("%Y-%m-%d").to_string();
         let e = daily.entry(day).or_default();
         e.0 += secs;
         e.1 += pts;
@@ -334,9 +334,9 @@ pub async fn points_detailed(
 
     // Merge consecutive same-channel sessions within 2 seconds
     struct Merged {
-        channel: Option<String>,
-        joined_at: chrono::DateTime<Utc>,
-        left_at: Option<chrono::DateTime<Utc>>,
+        channel: String,
+        joined_at: chrono::NaiveDateTime,
+        left_at: Option<chrono::NaiveDateTime>,
         duration: i32,
     }
 
@@ -347,7 +347,7 @@ pub async fn points_detailed(
             let consecutive = last.left_at.map(|la| {
                 let diff = (s.joined_at - la).num_milliseconds().abs();
                 diff < 2000
-                    && la.with_timezone(&tz).date_naive() == s.joined_at.with_timezone(&tz).date_naive()
+                    && la.and_utc().with_timezone(&tz).date_naive() == s.joined_at.and_utc().with_timezone(&tz).date_naive()
             }).unwrap_or(false);
             same_channel && consecutive
         } else {
@@ -371,15 +371,12 @@ pub async fn points_detailed(
     let lines: Vec<String> = merged
         .iter()
         .map(|s| {
-            let join_str = s.joined_at.with_timezone(&tz).format("%-d %H:%M").to_string();
+            let join_str = s.joined_at.and_utc().with_timezone(&tz).format("%-d %H:%M").to_string();
             let left_str = s
                 .left_at
-                .map(|l| l.with_timezone(&tz).format("%H:%M").to_string())
+                .map(|l| l.and_utc().with_timezone(&tz).format("%H:%M").to_string())
                 .unwrap_or_else(|| "ongoing".to_string());
-            let channel = s
-                .channel
-                .as_deref()
-                .unwrap_or("Unknown")
+            let channel = &s.channel
                 .chars()
                 .take(3)
                 .collect::<String>();

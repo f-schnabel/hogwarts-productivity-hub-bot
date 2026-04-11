@@ -8,7 +8,7 @@ use tracing::{debug, error, info, warn};
 use crate::bot::utils::interaction::get_house_from_member;
 use crate::bot::utils::nickname::{
     apply_member_update, update_message_streak_in_nickname, vc_emoji_needs_adding,
-    vc_emoji_needs_adding_sync, vc_emoji_needs_removal, vc_emoji_needs_removal_sync,
+    vc_emoji_needs_removal, vc_emoji_needs_removal_sync,
 };
 use crate::bot::utils::roles::{has_any_role, vc_role_needs_adding, vc_role_needs_removal};
 use crate::bot::utils::voice::{
@@ -204,7 +204,7 @@ async fn scan_and_start_tracking(
                     return None;
                 }
                 let channel = guild_ref.channels.get(&channel_id)?;
-                if channel.kind == ChannelType::GuildStageVoice {
+                if channel.kind == ChannelType::Stage {
                     return None;
                 }
                 Some(VoiceEntry {
@@ -228,7 +228,7 @@ async fn scan_and_start_tracking(
         let discord_id = entry.user_id.get().to_string();
         users_in_voice.insert(discord_id.clone());
 
-        let member = ctx.cache.member(guild_id, entry.user_id);
+        let member = ctx.cache.guild(guild_id).and_then(|g| g.members.get(&entry.user_id).cloned());
         if member.as_ref().map(|m| m.user.bot).unwrap_or(false) {
             continue;
         }
@@ -262,14 +262,14 @@ async fn scan_and_start_tracking(
         // Find newest valid session (< MAX_SESSION_AGE_SECS)
         let valid_idx = sorted
             .iter()
-            .position(|s| (now - s.joined_at).num_seconds() <= MAX_SESSION_AGE_SECS);
+            .position(|s| (now.naive_utc() - s.joined_at).num_seconds() <= MAX_SESSION_AGE_SECS);
 
         // Close all sessions except the valid one
         for (i, sess) in sorted.iter().enumerate() {
             if Some(i) == valid_idx {
                 continue;
             }
-            let age_secs = (now - sess.joined_at).num_seconds();
+            let age_secs = (now.naive_utc() - sess.joined_at).num_seconds();
             let input = VoiceSessionInput {
                 discord_id: discord_id.clone(),
                 username: username.clone(),
@@ -288,7 +288,7 @@ async fn scan_and_start_tracking(
             sessions_resumed += 1;
             // Valid session found — just add VC emoji/role without starting new session
             if let Some(ref m) = member {
-                let session_input = VoiceSessionInput {
+                let _session_input = VoiceSessionInput {
                     discord_id: discord_id.clone(),
                     username: username.clone(),
                     channel_id: Some(entry.channel_id.get().to_string()),
@@ -324,7 +324,7 @@ async fn scan_and_start_tracking(
             continue;
         }
         for sess in sessions {
-            let age_secs = (now - sess.joined_at).num_seconds();
+            let age_secs = (now.naive_utc() - sess.joined_at).num_seconds();
             let input = VoiceSessionInput {
                 discord_id: discord_id.clone(),
                 username: sess.username.clone(),
@@ -408,7 +408,7 @@ async fn reset_nickname_streaks(
     let mut update_count = 0usize;
 
     for (user_id, nick, streak_in_db) in members {
-        let member = match ctx.cache.member(guild_id, user_id) {
+        let member = match ctx.cache.guild(guild_id).and_then(|g| g.members.get(&user_id).cloned()) {
             Some(m) => m,
             None => continue,
         };
@@ -490,7 +490,7 @@ async fn reset_vc_emojis_and_roles(
     };
 
     for (user_id, roles, _nick) in members_not_in_vc {
-        let member = match ctx.cache.member(guild_id, user_id) {
+        let member = match ctx.cache.guild(guild_id).and_then(|g| g.members.get(&user_id).cloned()) {
             Some(m) => m,
             None => continue,
         };
@@ -579,7 +579,7 @@ async fn log_user_retention(
     let stale: Vec<String> = db_users
         .iter()
         .filter(|u| {
-            !member_ids.contains(&u.discord_id) && u.updated_at < one_month_ago
+            !member_ids.contains(&u.discord_id) && u.updated_at < one_month_ago.naive_utc()
         })
         .map(|u| u.discord_id.clone())
         .collect();
@@ -682,7 +682,7 @@ async fn on_voice_state_update(
     let member = match new
         .member
         .clone()
-        .or_else(|| ctx.cache.member(guild_id, user_id).map(|m| m.clone()))
+        .or_else(|| ctx.cache.guild(guild_id).and_then(|g| g.members.get(&user_id).cloned()))
     {
         Some(m) => m,
         None => return Ok(()),
@@ -721,7 +721,7 @@ async fn on_voice_state_update(
                 }
                 channel_info
                     .get(&cid)
-                    .map(|(_, kind)| *kind == ChannelType::GuildStageVoice)
+                    .map(|(_, kind)| *kind == ChannelType::Stage)
                     .unwrap_or(false)
             }
         }
@@ -833,7 +833,7 @@ async fn on_message(
     msg: &serenity::Message,
     data: &Data,
 ) -> anyhow::Result<()> {
-    if msg.author.bot || !msg.guild_id.is_some() || msg.is_system() {
+    if msg.author.bot || !msg.guild_id.is_some() || msg.kind != serenity::all::MessageType::Regular {
         return Ok(());
     }
 
@@ -841,7 +841,9 @@ async fn on_message(
     let username = msg.author.name.clone();
 
     // Ensure user exists
-    let member = msg.guild_id.and_then(|gid| ctx.cache.member(gid, msg.author.id));
+    let member = msg.guild_id.and_then(|gid| {
+        ctx.cache.guild(gid).and_then(|g| g.members.get(&msg.author.id).cloned())
+    });
     let house = member
         .as_ref()
         .and_then(|m| get_house_from_member(m, &data.config));
@@ -945,7 +947,7 @@ async fn on_reaction_add(
     };
 
     // Check if the reactor is a bot
-    let member = match ctx.cache.member(guild_id, user_id) {
+    let member = match ctx.cache.guild(guild_id).and_then(|g| g.members.get(&user_id).cloned()) {
         Some(m) => m,
         None => return Ok(()),
     };

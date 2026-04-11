@@ -147,9 +147,9 @@
 
 {% block scripts %}
 <script>
-const labels = {{ user.chart_labels|json_encode()|safe }};
-const hours = {{ user.chart_hours|json_encode()|safe }};
-const todoPoints = {{ user.chart_todo_points|json_encode()|safe }};
+const labels = {{ user.chart_labels_json|safe }};
+const hours = {{ user.chart_hours_json|safe }};
+const todoPoints = {{ user.chart_todo_points_json|safe }};
 const houseColor = '{{ user.house_color }}';
 {% if let Some(ymax) = user.chart_y_max %}
 const chartYMax = {{ ymax }};

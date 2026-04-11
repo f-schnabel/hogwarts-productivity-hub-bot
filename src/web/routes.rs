@@ -8,7 +8,7 @@ use chrono::{Datelike, Utc};
 use regex::Regex;
 use serenity::all::GuildId;
 
-use crate::constants::{ANALYTICS_HOUSE_COLORS, HOUSES, YEAR_THRESHOLDS_HOURS};
+use crate::constants::{HOUSES, YEAR_THRESHOLDS_HOURS};
 
 use super::WebState;
 
@@ -67,9 +67,9 @@ pub struct UserProfileData {
     pub total_points: i32,
     pub total_study: String,
     pub year_progress: YearProgress,
-    pub chart_labels: Vec<String>,
-    pub chart_hours: Vec<f64>,
-    pub chart_todo_points: Vec<i32>,
+    pub chart_labels_json: String,
+    pub chart_hours_json: String,
+    pub chart_todo_points_json: String,
     pub chart_y_max: Option<f64>,
 }
 
@@ -169,7 +169,7 @@ struct ErrorTemplate {
 
 // ─── Error helper ──────────────────────────────────────────────────────────
 
-enum AppError {
+pub enum AppError {
     NotFound(String),
     Internal(anyhow::Error),
 }
@@ -254,7 +254,9 @@ fn fetch_member_info(
     let mut info = HashMap::new();
     for id_str in discord_ids {
         if let Ok(uid) = id_str.parse::<u64>() {
-            if let Some(member) = cache.member(guild_id, serenity::all::UserId::new(uid)) {
+            if let Some(member) = cache.guild(guild_id)
+                .and_then(|g| g.members.get(&serenity::all::UserId::new(uid)).cloned())
+            {
                 let display_name = member.display_name().to_string();
                 let is_professor = member
                     .roles
@@ -294,7 +296,7 @@ async fn is_mystery_mode(
 
     // Check days since last monthly reset
     if let Ok(month_start) = crate::db::get_month_start_date(pool).await {
-        let days_since_reset = (now - month_start).num_days();
+        let days_since_reset = (now.naive_utc() - month_start).num_days();
         if days_since_reset <= 1 {
             return false;
         }
@@ -631,18 +633,18 @@ pub async fn user_profile(
     use chrono_tz::Tz;
     let tz: Tz = user.timezone.parse().unwrap_or(chrono_tz::UTC);
     let now_local = Utc::now().with_timezone(&tz);
-    let month_start_local = month_start.with_timezone(&tz);
+    let month_start_local = month_start.and_utc().with_timezone(&tz);
 
     let mut daily_hours: HashMap<String, f64> = HashMap::new();
     let mut daily_todo_pts: HashMap<String, i32> = HashMap::new();
 
     for s in &sessions {
-        let day = s.joined_at.with_timezone(&tz).format("%Y-%m-%d").to_string();
+        let day = s.joined_at.and_utc().with_timezone(&tz).format("%Y-%m-%d").to_string();
         *daily_hours.entry(day).or_default() +=
             s.duration.unwrap_or(0) as f64 / 3600.0;
     }
     for s in &submissions {
-        let day = s.submitted_at.with_timezone(&tz).format("%Y-%m-%d").to_string();
+        let day = s.submitted_at.and_utc().with_timezone(&tz).format("%Y-%m-%d").to_string();
         *daily_todo_pts.entry(day).or_default() += s.points;
     }
 
@@ -691,9 +693,9 @@ pub async fn user_profile(
             total_points: user.total_points,
             total_study: format_time(user.total_voice_time),
             year_progress,
-            chart_labels,
-            chart_hours,
-            chart_todo_points: chart_todo_pts,
+            chart_labels_json: serde_json::to_string(&chart_labels).unwrap_or_default(),
+            chart_hours_json: serde_json::to_string(&chart_hours).unwrap_or_default(),
+            chart_todo_points_json: serde_json::to_string(&chart_todo_pts).unwrap_or_default(),
             chart_y_max,
         },
     }

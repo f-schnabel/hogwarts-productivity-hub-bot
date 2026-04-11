@@ -2,10 +2,10 @@ use chrono::{Duration, Utc};
 use chrono_tz::Tz;
 use poise::serenity_prelude as serenity;
 use serenity::{
-    ButtonStyle, ChannelId, ComponentInteraction, ComponentInteractionDataKind,
-    CreateActionRow, CreateButton, CreateEmbed, CreateEmbedFooter, CreateInteractionResponse,
+    ButtonStyle, ChannelId, ComponentInteraction,
+    CreateActionRow, CreateButton, CreateEmbed, CreateInteractionResponse,
     CreateInteractionResponseMessage, CreateMessage, MessageId, ModalInteraction,
-    CreateModal, CreateActionRow as CAR, CreateInputText, InputTextStyle,
+    CreateModal, CreateInputText, InputTextStyle,
 };
 
 use crate::bot::utils::interaction::{get_house_from_member, member_has_role};
@@ -121,8 +121,8 @@ pub async fn submit(
         ORDER BY submitted_at ASC
         "#,
         discord_id,
-        day_start.with_timezone(&Utc),
-        day_end.with_timezone(&Utc),
+        day_start.naive_utc(),
+        day_end.naive_utc(),
     )
     .fetch_all(&data.pool)
     .await?;
@@ -184,14 +184,14 @@ pub async fn submit(
     if sub_type_str == "COMPLETED" {
         if let Some(new_sub) = existing_new {
             let retry_time = new_sub.submitted_at + Duration::hours(1);
-            if Utc::now() < retry_time {
-                let too_late = retry_time >= day_end.with_timezone(&Utc);
+            if Utc::now().naive_utc() < retry_time {
+                let too_late = retry_time >= day_end.naive_utc();
                 let wait_msg = if too_late {
                     "It is too late to submit again today.".to_string()
                 } else {
                     format!(
                         "Please wait until <t:{}:t> before submitting again.",
-                        retry_time.timestamp()
+                        retry_time.and_utc().timestamp()
                     )
                 };
                 ctx.send(
@@ -225,7 +225,7 @@ pub async fn submit(
         INSERT INTO submission (discord_id, points, screenshot_url, house, submission_type, linked_submission_id, house_id)
         VALUES (
             $1, $2, $3, $4, $5, $6,
-            (SELECT COUNT(*) + 1 FROM submission WHERE house = $4 AND submitted_at >= $7)
+            (SELECT COUNT(*) + 1 FROM submission WHERE house = $7 AND submitted_at >= $8)
         )
         RETURNING *
         "#,
@@ -235,6 +235,7 @@ pub async fn submit(
         house,
         sub_type_str,
         linked_sub_id,
+        house,
         month_start,
     )
     .fetch_one(&data.pool)
@@ -253,11 +254,12 @@ pub async fn submit(
     );
 
     // Reply and capture message ID
-    let reply = ctx
-        .send(poise::CreateReply::default()
-            .embeds(msg_content.0)
-            .components(msg_content.1))
-        .await?;
+    let mut reply_builder = poise::CreateReply::default();
+    for embed in msg_content.0 {
+        reply_builder = reply_builder.embed(embed);
+    }
+    reply_builder = reply_builder.components(msg_content.1);
+    let reply = ctx.send(reply_builder).await?;
 
     let message = reply.message().await?;
 
@@ -320,7 +322,7 @@ pub fn build_submission_message(
     };
 
     let tz: Tz = user_tz.parse().unwrap_or(chrono_tz::UTC);
-    let submitted_local = sub.submitted_at.with_timezone(&tz);
+    let submitted_local = sub.submitted_at.and_utc().with_timezone(&tz);
     let formatted_time = submitted_local.format("%-I:%M %p on %b %-d (%Z)").to_string();
 
     let type_label = match sub.submission_type.as_deref() {
@@ -360,7 +362,7 @@ pub fn build_submission_message(
                 if let Some(reviewed_at) = sub.reviewed_at {
                     embed = embed.field(
                         "Approved by",
-                        format!("<@{reviewer}> at <t:{}>", reviewed_at.timestamp()),
+                        format!("<@{reviewer}> at <t:{}>", reviewed_at.and_utc().timestamp()),
                         false,
                     );
                 }
@@ -371,7 +373,7 @@ pub fn build_submission_message(
                 if let Some(reviewed_at) = sub.reviewed_at {
                     embed = embed.field(
                         "Rejected by",
-                        format!("<@{reviewer}> at <t:{}>", reviewed_at.timestamp()),
+                        format!("<@{reviewer}> at <t:{}>", reviewed_at.and_utc().timestamp()),
                         false,
                     );
                 }
@@ -478,14 +480,12 @@ async fn handle_cancel(
 
     let user_tz = crate::db::get_user_timezone(pool, &discord_id).await?;
     let (embeds, components) = build_submission_message(&msg, &user_tz, None, None, guild_id);
-    component
-        .edit_response(
-            ctx,
-            serenity::EditInteractionResponse::new()
-                .embeds(embeds)
-                .components(components),
-        )
-        .await?;
+    let mut edit_builder = serenity::EditInteractionResponse::new();
+    for embed in embeds {
+        edit_builder = edit_builder.embed(embed);
+    }
+    edit_builder = edit_builder.components(components);
+    component.edit_response(ctx, edit_builder).await?;
     Ok(())
 }
 
@@ -557,21 +557,19 @@ async fn handle_approve(
         linked.as_ref().map(|(ch, msg)| (ch.as_deref(), msg.as_deref())),
         data.config.guild_id,
     );
-    component
-        .edit_response(
-            ctx,
-            serenity::EditInteractionResponse::new()
-                .embeds(embeds)
-                .components(components),
-        )
-        .await?;
+    let mut edit_builder = serenity::EditInteractionResponse::new();
+    for embed in embeds {
+        edit_builder = edit_builder.embed(embed);
+    }
+    edit_builder = edit_builder.components(components);
+    component.edit_response(ctx, edit_builder).await?;
     Ok(())
 }
 
 async fn handle_reject(
     ctx: &serenity::Context,
     component: &ComponentInteraction,
-    pool: &sqlx::PgPool,
+    _pool: &sqlx::PgPool,
     member: &serenity::Member,
     sub_id: i32,
     data: &crate::bot::Data,
