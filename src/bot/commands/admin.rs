@@ -1,4 +1,5 @@
 use chrono::Utc;
+use csv::ReaderBuilder;
 use poise::serenity_prelude as serenity;
 
 use crate::bot::utils::interaction::member_has_role;
@@ -609,28 +610,36 @@ pub async fn journal_import(
     ctx.defer().await?;
 
     let content = reqwest::get(&file.url).await?.text().await?;
-    let mut lines = content.lines();
-    lines.next(); // skip header
+    let content = content.strip_prefix('\u{feff}').unwrap_or(&content);
+    let mut reader = ReaderBuilder::new()
+        .has_headers(true)
+        .from_reader(content.as_bytes());
 
     let mut imported = 0usize;
     let mut errors = 0usize;
 
-    for line in lines {
-        let line = line.trim();
-        if line.is_empty() { continue; }
-
-        // Simple CSV parse: date,prompt (prompt may be quoted)
-        let (date, prompt) = if let Some(comma) = line.find(',') {
-            let date = &line[..comma];
-            let prompt_raw = &line[comma + 1..];
-            let prompt = prompt_raw.trim_matches('"').replace("\"\"", "\"");
-            (date.to_string(), prompt)
-        } else {
-            errors += 1;
-            continue;
+    for record in reader.records() {
+        let record = match record {
+            Ok(record) => record,
+            Err(_) => {
+                errors += 1;
+                continue;
+            }
         };
 
-        let date_parsed = match chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d") {
+        if record.len() == 1 && record.get(0).unwrap_or("").trim().is_empty() {
+            continue;
+        }
+
+        let (date, prompt) = match (record.get(0), record.get(1), record.len()) {
+            (Some(date), Some(prompt), 2) => (date, prompt),
+            _ => {
+                errors += 1;
+                continue;
+            }
+        };
+
+        let date_parsed = match chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
             Ok(d) => d,
             Err(_) => {
                 errors += 1;
