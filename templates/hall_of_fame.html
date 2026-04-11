@@ -1,0 +1,147 @@
+{% extends "layout.html" %}
+
+{% block styles %}
+<style>
+  .cup-wins-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    animation: fadeSlideUp 0.5s ease-out 0.1s both;
+  }
+  .cup-win-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-top: 3px solid var(--house-color);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+  }
+  .cup-win-card:hover { border-color: var(--house-color); transform: translateY(-3px); }
+  .cup-wins-count {
+    font-family: 'Cinzel', serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--house-color);
+    line-height: 1;
+    margin-bottom: 0.25rem;
+  }
+  .cup-wins-trophy { font-size: 1.5rem; margin-bottom: 0.5rem; }
+  .cup-house-name { font-family: 'Cinzel', serif; font-size: 0.9rem; color: var(--text-secondary); }
+  .timeline { margin-bottom: 2.5rem; }
+  .timeline-entry {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    animation: fadeSlideUp 0.4s ease-out both;
+  }
+  .timeline-month { font-family: 'Cinzel', serif; font-size: 0.9rem; color: var(--text-muted); min-width: 80px; }
+  .timeline-winner { font-weight: 600; color: var(--winner-color); font-family: 'Cinzel', serif; }
+  .timeline-houses { display: flex; gap: 0.5rem; flex-wrap: wrap; flex: 1; justify-content: flex-end; }
+  .timeline-house-pts {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 8px;
+    color: var(--text-muted);
+  }
+  .timeline-house-pts.winner { color: var(--winner-color); font-weight: 600; }
+  .section-title { font-family: 'Cinzel', serif; font-size: 1.3rem; color: var(--accent-gold); margin-bottom: 1.5rem; }
+  .house-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.4rem; vertical-align: middle; }
+  .all-time-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+  .all-time-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .all-time-pts { font-family: 'Cinzel', serif; font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Hall of Fame</h1>
+
+<div class="cup-wins-grid">
+  {% for card in cup_win_cards %}
+  <div class="cup-win-card" style="--house-color: {{ card.color }}">
+    <div class="cup-wins-trophy">🏆</div>
+    <div class="cup-wins-count">{{ card.wins }}</div>
+    <div class="cup-house-name">{{ card.name }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if !all_time_houses.is_empty() %}
+<div class="section-title">All-Time House Points</div>
+<div class="all-time-grid">
+  {% for house in all_time_houses %}
+  <div class="all-time-card">
+    <div style="color: {{ house.color }}; font-family: Cinzel, serif; font-size: 0.9rem; margin-bottom: 0.5rem;">{{ house.name }}</div>
+    <div class="all-time-pts">{{ house.total_points }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if !timeline.is_empty() %}
+<div class="section-title">Cup History</div>
+<div class="timeline">
+  {% for entry in timeline %}
+  <div class="timeline-entry" style="--winner-color: {{ entry.winner_color }}">
+    <div class="timeline-month">{{ entry.month }}</div>
+    <div class="timeline-winner">{{ entry.winner }}</div>
+    <div class="timeline-houses">
+      {% for h in entry.houses %}
+      <span class="timeline-house-pts{% if h.is_winner %} winner{% endif %}"
+            style="{% if h.is_winner %}color: {{ entry.winner_color }};{% endif %}">
+        {{ h.house }}: {{ h.weighted_points }}
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if !students.is_empty() %}
+<div class="section-title">All-Time Top Students</div>
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>House</th>
+        <th>Total Points</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for student in students %}
+      <tr>
+        <td class="rank{% if student.rank == 1 %} rank-1{% elif student.rank == 2 %} rank-2{% elif student.rank == 3 %} rank-3{% endif %}">
+          {% if student.rank == 1 %}🥇{% elif student.rank == 2 %}🥈{% elif student.rank == 3 %}🥉{% else %}{{ student.rank }}{% endif %}
+        </td>
+        <td><a class="user-link" href="/user/{{ student.discord_id }}">{{ student.display_name }}</a></td>
+        <td>
+          <span class="house-dot" style="background: {{ student.house_color }}"></span>{{ student.house }}
+        </td>
+        <td><strong>{{ student.total_points }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
