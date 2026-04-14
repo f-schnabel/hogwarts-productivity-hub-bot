@@ -14,6 +14,7 @@ import { createLogger } from "@/common/logging/logger.ts";
 import { getGuild } from "@/discord/events/clientReady/index.ts";
 import { MAX_SESSION_AGE_MS } from "@/common/constants.ts";
 import { join } from "@/discord/events/voiceStateUpdate/index.ts";
+import { getActivePomodoroSession } from "@/discord/utils/pomodoroUtils.ts";
 
 const log = createLogger("VoiceScan");
 
@@ -194,6 +195,7 @@ async function scanVoiceChannel(
 ) {
   const logCtx = { channel: channel.name };
   const now = Date.now();
+  const activePomodoro = await getActivePomodoroSession(channel.id);
 
   try {
     const members = channel.members;
@@ -262,6 +264,11 @@ async function scanVoiceChannel(
             continue;
           }
           // All sessions were stale, start fresh below
+        }
+
+        if (activePomodoro?.stage === "BREAK") {
+          usersResumed.push(`${username} (break)`);
+          continue;
         }
 
         await ensureUserExists(member, discordId, username);

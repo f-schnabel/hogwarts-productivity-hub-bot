@@ -23,6 +23,13 @@ export interface VoiceSession {
   channelName: string | null;
 }
 
+export type PomodoroStage = "FOCUS" | "BREAK";
+
+export interface PomodoroChannelConfig {
+  focusMinutes: number;
+  breakMinutes: number;
+}
+
 export interface YearProgress {
   badge: string;
   badgeColor: string;
