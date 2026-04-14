@@ -19,6 +19,7 @@ export declare global {
       PROFESSOR_ROLE_ID: string;
       VC_ROLE_ID: string;
       SUBMISSION_CHANNEL_IDS: string;
+      GRINGOTTS_CHANNEL_ID: string;
       YEAR_ROLE_IDS: string;
       YEAR_ANNOUNCEMENT_CHANNEL_ID: string;
       GRYFFINDOR_CREST_EMOJI_ID: string;

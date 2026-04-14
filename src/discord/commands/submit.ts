@@ -200,6 +200,11 @@ export default {
         );
       }
     }
+    if (userTimezone === "UTC") {
+      await interaction.followUp({
+        content: `${userMention(interaction.user.id)}\nYour timezone is not set yet. Please adjust it in ${channelMention(process.env.GRINGOTTS_CHANNEL_ID)} using command \`/timezone\`.`,
+      });
+    }
   },
 
   async buttonHandler(interaction: ButtonInteraction, event: string, submissionId: string | undefined): Promise<void> {
