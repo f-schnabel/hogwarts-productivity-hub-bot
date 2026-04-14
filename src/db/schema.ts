@@ -104,6 +104,45 @@ export const houseScoreboardTable = pgTable("house_scoreboard", {
   updatedAt: timestamp().defaultNow().notNull(),
 });
 
+// Stores per-guild Discord configuration that may change over time.
+export const guildConfigTable = pgTable("guild_config", {
+  guildId: varchar({ length: 255 }).primaryKey().notNull(),
+  createdAt: timestamp().notNull().defaultNow(),
+  updatedAt: timestamp().notNull().defaultNow().$onUpdate(() => new Date()),
+
+  prefectRoleId: text(),
+  professorRoleId: text(),
+  vcRoleId: text(),
+  gryffindorRoleId: text(),
+  slytherinRoleId: text(),
+  hufflepuffRoleId: text(),
+  ravenclawRoleId: text(),
+  yearRoleIds: text().array().notNull().default(sql`'{}'::text[]`),
+
+  yearAnnouncementChannelId: text(),
+  journalChannelId: text(),
+  countingChannelId: text(),
+  gringottsChannelId: text(),
+  submissionChannelIds: text().array().notNull().default(sql`'{}'::text[]`),
+  excludeVoiceChannelIds: text().array().notNull().default(sql`'{}'::text[]`),
+  vcEmoji: text(),
+
+  gryffindorCrestEmojiId: text(),
+  slytherinCrestEmojiId: text(),
+  hufflepuffCrestEmojiId: text(),
+  ravenclawCrestEmojiId: text(),
+});
+
+// Stores per-guild mutable runtime state separately from guild configuration.
+export const guildStateTable = pgTable("guild_state", {
+  guildId: varchar({ length: 255 }).primaryKey().notNull(),
+  createdAt: timestamp().notNull().defaultNow(),
+  updatedAt: timestamp().notNull().defaultNow().$onUpdate(() => new Date()),
+  lastMonthlyReset: timestamp(),
+  countingCount: integer().notNull().default(0),
+  countingDiscordId: text(),
+});
+
 // Stores global settings
 export const settingsTable = pgTable("settings", {
   key: varchar({ length: 255 }).primaryKey().notNull(),
