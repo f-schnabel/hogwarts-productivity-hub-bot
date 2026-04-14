@@ -64,7 +64,7 @@ export default function registerHallOfFameRoute(app: Router) {
       db
         .select()
         .from(houseCupMonthTable)
-        .orderBy(desc(houseCupMonthTable.createdAt))
+        .orderBy(desc(houseCupMonthTable.month))
         .catch((): CupMonth[] => []),
       db
         .select({
