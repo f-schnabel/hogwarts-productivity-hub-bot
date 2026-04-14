@@ -218,6 +218,13 @@
       "when": 1776178755117,
       "tag": "0030_cheerful_umar",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1776179817983,
+      "tag": "0031_supreme_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }
