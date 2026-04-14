@@ -8,12 +8,14 @@ import { formatDuration } from "@/discord/utils/interaction.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
 import { awardPoints, calculatePoints } from "@/discord/core/points.ts";
 import { oneLine } from "common-tags";
+import { BaseGuildVoiceChannel, ChannelType } from "discord.js";
+import { getGuild } from "@/discord/events/clientReady/index.ts";
 
 const log = createLogger("Voice");
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
 // Start a voice session when user joins VC (timezone-aware)
-export async function startVoiceSession(session: VoiceSession, db: DbOrTx) {
+export async function startVoiceSession(session: VoiceSession, db: DbOrTx, joinedAt: Date = new Date()) {
   const { channelName, discordId, username, channelId } = session;
   const ctx = { discordId, username, channelName };
 
@@ -41,7 +43,7 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx) {
       await closeVoiceSessionUntracked(session, db); // End existing session without tracking
     }
 
-    await db.insert(voiceSessionTable).values({ discordId, channelId, channelName });
+    await db.insert(voiceSessionTable).values({ discordId, channelId, channelName, joinedAt });
 
     log.info("Session started", ctx);
   });
@@ -81,7 +83,7 @@ export async function closeVoiceSessionUntracked(session: VoiceSession, db: DbOr
 
 /** End a voice session when user leaves VC
  */
-export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
+export async function endVoiceSession(session: VoiceSession, db: DbOrTx, leftAt: Date = new Date()) {
   const channelId = session.channelId;
   const ctx = { userId: session.discordId, user: session.username, channel: session.channelName };
 
@@ -115,7 +117,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
 
     const [voiceSessionWithDuration, ...extra] = await db
       .update(voiceSessionTable)
-      .set({ leftAt: new Date(), isTracked: true })
+      .set({ leftAt, isTracked: true })
       .where(inArray(voiceSessionTable.id, existingVoiceSession.map((s) => s.id)))
       .returning({
         id: voiceSessionTable.id,
@@ -170,3 +172,13 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
   });
 }
 
+export async function fetchVoiceChannel(channelId: string): Promise<BaseGuildVoiceChannel | null> {
+  const channel = getGuild().channels.cache.get(channelId) ?? (await getGuild().channels.fetch(channelId));
+  if (channel?.type !== ChannelType.GuildVoice) return null;
+  return channel;
+}
+
+export function getMembers(channel: BaseGuildVoiceChannel | null, excludeDiscordId?: string) {
+  if (!channel) return [];
+  return [...channel.members.values()].filter((member) => !member.user.bot && member.id !== excludeDiscordId);
+}
