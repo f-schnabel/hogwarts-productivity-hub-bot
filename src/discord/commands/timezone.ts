@@ -1,10 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
-import { BOT_COLORS, Role } from "@/common/constants.ts";
+import { BOT_COLORS } from "@/common/constants.ts";
 import dayjs from "dayjs";
 import { db, getUserTimezone } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import { eq } from "drizzle-orm";
-import { errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
+import { errorReply } from "@/discord/utils/interactionUtils.ts";
 import type { Command } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import { createLogger } from "@/common/logger.ts";
@@ -34,7 +34,7 @@ export function asOffsetQuery(word: string): string | null {
   return /^[+\-\d:]+$/.test(word) ? normalizeOffset(word) : null;
 }
 
-const processedTimezones = rawTimeZones.map((tz) => ({
+const TIMEZONES = rawTimeZones.map((tz) => ({
   name: tz.name,
   displayBaseName: `${tz.name} - ${tz.alternativeName}`,
   tzName: tz.name.toLowerCase(),
@@ -48,7 +48,7 @@ const processedTimezones = rawTimeZones.map((tz) => ({
 export function scoreTimezones(words: string[]): { score: number; displayBaseName: string; value: string }[] {
   const scored: { score: number; displayBaseName: string; value: string }[] = [];
 
-  for (const tz of processedTimezones) {
+  for (const tz of TIMEZONES) {
     let totalScore = 0;
     for (const word of words) {
       const offsetQuery = asOffsetQuery(word);
@@ -77,33 +77,17 @@ export default {
       option
         .setName("timezone")
         .setDescription("Your timezone (e.g., America/New_York, Europe/London)")
+        .setRequired(true)
         .setAutocomplete(true),
-    )
-    .addUserOption((option) => option.setName("user").setDescription("User to manage (Prefects only)")),
+    ),
 
   /**
-   * View or set your timezone.
+   * Set the timezone.
    *
    * Does not use deferReply as this command is expected to be quick.
    */
   async execute(interaction: ChatInputCommandInteraction) {
-    const targetUser = interaction.options.getUser("user");
-    const newTimezone = interaction.options.getString("timezone");
-
-    let discordId = interaction.user.id;
-    let whose = "Your";
-
-    if (targetUser && targetUser.id !== interaction.user.id) {
-      if (!inGuild(interaction) || !requireRole(interaction, Role.PREFECT | Role.PROFESSOR | Role.OWNER)) return;
-      discordId = targetUser.id;
-      whose = `${targetUser.displayName}'s`;
-    }
-
-    if (newTimezone) {
-      await setTimezone(interaction, discordId, whose, newTimezone);
-    } else {
-      await viewTimezone(interaction, discordId, whose);
-    }
+    await setTimezone(interaction, interaction.user.id);
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
@@ -111,7 +95,7 @@ export default {
 
     if (words.length === 0) {
       await interaction.respond(
-        processedTimezones.slice(0, 25).map(({ displayBaseName, name }) => ({
+        TIMEZONES.slice(0, 25).map(({ displayBaseName, name }) => ({
           name: `${displayBaseName} (${dayjs().tz(name).format("HH:mm")})`,
           value: name,
         })),
@@ -129,26 +113,13 @@ export default {
   },
 } as Command;
 
-async function viewTimezone(interaction: ChatInputCommandInteraction, discordId: string, whose: string) {
-  const userTimezone = await getUserTimezone(discordId);
-  const userLocalTime = dayjs().tz(userTimezone).format("HH:mm");
-
-  await interaction.reply({
-    embeds: [
-      {
-        color: BOT_COLORS.SUCCESS,
-        description: `${whose} timezone is currently set to \`${userTimezone}\` (Currently ${userLocalTime})`,
-      },
-    ],
-  });
-}
-
-async function setTimezone(
+export async function setTimezone(
   interaction: ChatInputCommandInteraction,
   discordId: string,
-  whose: string,
-  newTimezone: string,
+  whose = "Your",
+  opts?: { deferred?: boolean },
 ) {
+  const newTimezone = interaction.options.getString("timezone", true);
   // Validate timezone
   try {
     dayjs().tz(newTimezone);
@@ -158,8 +129,9 @@ async function setTimezone(
       interaction,
       "Invalid Timezone",
       stripIndent`
-      The timezone \`${newTimezone}\` is not valid.
-      Check [IANA timezone list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)`,
+        The timezone \`${newTimezone}\` is not valid.
+        Check [IANA timezone list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)`,
+      opts,
     );
     return;
   }
@@ -167,15 +139,18 @@ async function setTimezone(
   // Get current timezone for comparison
   const oldTimezone = await getUserTimezone(discordId);
   if (oldTimezone === newTimezone) {
-    await interaction.reply({
-      embeds: [
-        {
-          color: BOT_COLORS.WARNING,
-          title: "No Change Needed",
-          description: `${whose} timezone is already set to \`${newTimezone}\`.`,
-        },
-      ],
-    });
+    const reply = {
+      embeds: [{
+        color: BOT_COLORS.WARNING,
+        title: "No Change Needed",
+        description: `${whose} timezone is already set to \`${newTimezone}\`.`,
+      }],
+    };
+    if (opts?.deferred) {
+      await interaction.editReply(reply);
+    } else {
+      await interaction.reply(reply);
+    }
     return;
   }
 
@@ -192,23 +167,24 @@ async function setTimezone(
       interaction,
       "Timezone Update Failed",
       `Failed to update ${whose.toLowerCase()} timezone. Please try again later.`,
+      opts,
     );
     return;
   }
-
-  await interaction.reply({
-    embeds: [
-      {
-        color: BOT_COLORS.SUCCESS,
-        title: "Timezone Updated Successfully",
-        fields: [
-          {
-            name: `${whose} New Local Time`,
-            value: dayjs().tz(newTimezone).format("dddd, MMMM D, YYYY [at] h:mm A"),
-            inline: true,
-          },
-        ],
-      },
-    ],
-  });
+  const reply = {
+    embeds: [{
+      color: BOT_COLORS.SUCCESS,
+      title: "Timezone Updated Successfully",
+      fields: [{
+        name: `${whose} New Local Time`,
+        value: dayjs().tz(newTimezone).format("dddd, MMMM D, YYYY [at] h:mm A"),
+        inline: true,
+      }],
+    }],
+  };
+  if (opts?.deferred) {
+    await interaction.editReply(reply);
+  } else {
+    await interaction.reply(reply);
+  }
 }

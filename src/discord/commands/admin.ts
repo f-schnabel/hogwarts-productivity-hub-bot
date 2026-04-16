@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder, AutocompleteInteraction } from "discord.js";
 import {
   db,
   getMonthStartDate,
@@ -31,8 +31,10 @@ import { desc, eq, isNull, not } from "drizzle-orm";
 import dayjs from "dayjs";
 import assert from "assert";
 import { journalDelete, journalExport, journalImport, journalList, journalSet, journalShow } from "./admin/journal.ts";
+import timezone, { setTimezone } from "./timezone.ts";
 
 const log = createLogger("Admin");
+const ALLOWED_PREFECT_COMMANDS = ["timezone"];
 
 export default {
   data: new SlashCommandBuilder()
@@ -120,10 +122,29 @@ export default {
         .addIntegerOption((option) =>
           option.setName("number").setDescription("The current number to store").setRequired(true),
         ),
+    ).addSubcommand((subcommand) =>
+      subcommand
+        .setName("timezone")
+        .setDescription("Set someone's timezone for accurate daily/monthly resets")
+        .addUserOption((option) =>
+          option.setName("user").setDescription("The user to set the timezone for").setRequired(true),
+        )
+        .addStringOption((option) =>
+          option
+            .setName("timezone")
+            .setDescription("The timezone to set")
+            .setRequired(true)
+            .setAutocomplete(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    if (!inGuild(interaction) || !requireRole(interaction, Role.PROFESSOR | Role.OWNER)) return;
+    let roles = Role.PROFESSOR | Role.OWNER;
+    if (ALLOWED_PREFECT_COMMANDS.includes(interaction.options.getSubcommand())) {
+      roles |= Role.PREFECT;
+    }
+    if (!inGuild(interaction) || !requireRole(interaction, roles)) return;
+
     await interaction.deferReply();
 
     switch (interaction.options.getSubcommand()) {
@@ -166,9 +187,19 @@ export default {
       case "counting-set":
         await countingSet(interaction);
         break;
+      case "timezone": {
+        const user = interaction.options.getUser("user", true);
+        await setTimezone(interaction, user.id, `${user.username}'s`, { deferred: true });
+        break;
+      }
       default:
         await errorReply(interaction, "Invalid Subcommand", "Unknown subcommand.", { deferred: true });
         return;
+    }
+  },
+  async autocomplete(interaction: AutocompleteInteraction) {
+    if (interaction.options.getSubcommand() === "timezone") {
+      await timezone.autocomplete?.(interaction);
     }
   },
 } as Command;
