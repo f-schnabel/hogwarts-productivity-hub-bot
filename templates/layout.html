@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark only">
+  <title>{{ title }} - Hogwarts Productivity</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  {% if include_chart_js %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  {% endif %}
+  <style>
+    :root {
+      color-scheme: dark only;
+      --bg-deep: #0a0a12;
+      --bg-surface: #12121c;
+      --bg-card: rgba(20, 20, 35, 0.7);
+      --bg-card-hover: rgba(30, 30, 50, 0.8);
+      --text-primary: #f0e6d3;
+      --text-secondary: rgba(240, 230, 211, 0.7);
+      --text-muted: rgba(240, 230, 211, 0.5);
+      --accent-gold: #d4a853;
+      --accent-gold-bright: #f0c674;
+      --border-subtle: rgba(212, 168, 83, 0.15);
+      --border-glow: rgba(212, 168, 83, 0.3);
+      --shadow-ambient: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --shadow-glow: 0 0 40px rgba(212, 168, 83, 0.1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Outfit', system-ui, sans-serif;
+      font-weight: 400;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(212, 168, 83, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(100, 60, 120, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 30% at 10% 80%, rgba(60, 80, 120, 0.08) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .page-wrapper { position: relative; z-index: 2; padding: 2rem; min-height: 100vh; }
+    .container { max-width: 960px; margin: 0 auto; }
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 3rem;
+      padding: 1rem;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      animation: fadeSlideDown 0.6s ease-out;
+    }
+    nav a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 0.6rem 1.4rem;
+      border-radius: 10px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    nav a:hover { color: var(--accent-gold); background: rgba(212, 168, 83, 0.1); }
+    h1, h2, h3 { font-family: 'Cinzel', serif; font-weight: 600; letter-spacing: 0.04em; }
+    h1 {
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      text-align: center;
+      margin-bottom: 2.5rem;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-gold) 50%, var(--text-primary) 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmerText 8s linear infinite, fadeSlideDown 0.8s ease-out 0.1s both;
+    }
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 1.75rem;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card:hover { background: var(--bg-card-hover); border-color: var(--border-glow); transform: translateY(-4px); }
+    .table-wrapper {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      text-align: left;
+      padding: 1.25rem 1.5rem;
+      background: rgba(0,0,0,0.3);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    td { padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(212, 168, 83, 0.05); }
+    .rank { font-family: 'Cinzel', serif; font-weight: 700; color: var(--accent-gold); }
+    .rank-1 { color: #ffd700; }
+    .rank-2 { color: #c0c0c0; }
+    .rank-3 { color: #cd7f32; }
+    .user-link { color: var(--text-primary); text-decoration: none; font-weight: 500; }
+    .user-link:hover { color: var(--accent-gold); }
+    @keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shimmerText { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
+    @media (max-width: 640px) { .page-wrapper { padding: 1rem; } th, td { padding: 0.75rem 1rem; font-size: 0.9rem; } }
+  </style>
+  {% block styles %}{% endblock %}
+</head>
+<body>
+  <div class="page-wrapper">
+    <div class="container">
+      <nav>
+        <a href="/">Houses</a>
+        <a href="/leaderboard">Leaderboard</a>
+        <a href="/hall-of-fame">Hall of Fame</a>
+      </nav>
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

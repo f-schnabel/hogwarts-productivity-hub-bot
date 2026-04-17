@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+
+{% block styles %}
+<style>
+  .mystery-mode .rank-badge, .mystery-mode .house-points-overlay { display: none; }
+  .mystery-mode .sand-fill, .mystery-mode .sand-fill-upper { background: #0a0a12 !important; }
+  .mystery-mode .glass-bulb { background: rgba(5,5,10,0.9); }
+
+  .houses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    animation: fadeSlideUp 0.6s ease-out 0.2s both;
+  }
+
+  .house-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+  }
+
+  .house-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--house-color);
+    opacity: 0.8;
+  }
+
+  .house-card:hover {
+    transform: translateY(-6px);
+    border-color: var(--house-color-20, var(--border-glow));
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 30px var(--house-glow, rgba(212, 168, 83, 0.1));
+  }
+
+  .rank-badge {
+    position: absolute;
+    top: 1rem; right: 1rem;
+    font-family: 'Cinzel', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+
+  .house-name {
+    font-family: 'Cinzel', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+    color: var(--house-color);
+  }
+
+  .house-points {
+    font-size: 2.5rem;
+    font-weight: 700;
+    font-family: 'Cinzel', serif;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 0.25rem;
+  }
+
+  .house-points-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+  }
+
+  .house-stats {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .mystery-mode .house-points {
+    color: transparent;
+    text-shadow: none;
+    background: var(--house-color, #888);
+    -webkit-background-clip: text;
+    background-clip: text;
+    opacity: 0.15;
+    user-select: none;
+  }
+
+  .page-subtitle {
+    text-align: center;
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-top: -1.5rem;
+    margin-bottom: 2rem;
+    letter-spacing: 0.06em;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>House Standings</h1>
+{% if let Some(sub) = subtitle %}
+<p class="page-subtitle">{{ sub }}</p>
+{% endif %}
+
+<div class="houses-grid{% if mystery_mode %} mystery-mode{% endif %}">
+  {% for house in houses %}
+  <div class="house-card" style="--house-color: {{ house.color }}; --house-glow: {{ house.color }}40;">
+    <div class="rank-badge{% if house.rank == 1 %} rank-1{% else if house.rank == 2 %} rank-2{% else if house.rank == 3 %} rank-3{% endif %}">
+      {% if house.rank == 1 %}🥇{% else if house.rank == 2 %}🥈{% else if house.rank == 3 %}🥉{% else %}#{{ house.rank }}{% endif %}
+    </div>
+    <div class="house-name">{{ house.name }}</div>
+    <div class="house-points">{{ house.points }}</div>
+    <div class="house-points-label">Weighted Points</div>
+    <div class="house-stats">
+      <span>{{ house.member_count }} qualifying</span>
+      <span>{{ house.unweighted_points }} raw</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

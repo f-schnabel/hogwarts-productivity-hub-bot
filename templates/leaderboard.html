@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+
+{% block styles %}
+<style>
+  .year-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .house-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+  }
+  .leaderboard-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .house-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .filter-pill {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+  }
+  .filter-pill:hover { border-color: var(--pill-color, var(--border-glow)); color: var(--pill-color, var(--text-primary)); }
+  .filter-pill.active { border-color: var(--pill-color, var(--accent-gold)); color: var(--pill-color, var(--accent-gold)); background: color-mix(in srgb, var(--pill-color, var(--accent-gold)) 10%, transparent); }
+  .filter-pill.gryffindor { --pill-color: {{ gryffindor_color }}; }
+  .filter-pill.hufflepuff { --pill-color: {{ hufflepuff_color }}; }
+  .filter-pill.ravenclaw { --pill-color: {{ ravenclaw_color }}; }
+  .filter-pill.slytherin { --pill-color: {{ slytherin_color }}; }
+  .points-breakdown { font-size: 0.8rem; color: var(--text-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Leaderboard</h1>
+
+<div class="leaderboard-controls">
+  <div class="house-filters">
+    <button class="filter-pill active" onclick="filterHouse('all', this)">All Houses</button>
+    <button class="filter-pill gryffindor" onclick="filterHouse('Gryffindor', this)">Gryffindor</button>
+    <button class="filter-pill hufflepuff" onclick="filterHouse('Hufflepuff', this)">Hufflepuff</button>
+    <button class="filter-pill ravenclaw" onclick="filterHouse('Ravenclaw', this)">Ravenclaw</button>
+    <button class="filter-pill slytherin" onclick="filterHouse('Slytherin', this)">Slytherin</button>
+  </div>
+</div>
+
+<div class="table-wrapper">
+  <table id="leaderboard-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>House</th>
+        <th>Points</th>
+        <th>Study</th>
+        <th>Year</th>
+        <th>Streak</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr data-house="{{ user.house }}">
+        <td class="rank{% if user.rank == 1 %} rank-1{% else if user.rank == 2 %} rank-2{% else if user.rank == 3 %} rank-3{% endif %}">
+          {% if user.rank == 1 %}🥇{% else if user.rank == 2 %}🥈{% else if user.rank == 3 %}🥉{% else %}{{ user.rank }}{% endif %}
+        </td>
+        <td>
+          <a class="user-link" href="/user/{{ user.discord_id }}">{{ user.display_name }}</a>
+        </td>
+        <td>
+          <span class="house-dot" style="background: {{ user.house_color }}"></span>{{ user.house }}
+        </td>
+        <td>
+          <strong>{{ user.monthly_points }}</strong>
+          <div class="points-breakdown">{{ user.voice_points }}vc + {{ user.todo_points }}td</div>
+        </td>
+        <td>{{ user.study_time }}</td>
+        <td>
+          <span class="year-badge" style="background: color-mix(in srgb, var(--y{{ user.year_rank }}-color, #888) 30%, transparent); color: var(--y{{ user.year_rank }}-color, #888);">
+            Y{{ user.year_rank }}
+          </span>
+        </td>
+        <td>{{ user.message_streak }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterHouse(house, btn) {
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#leaderboard-table tbody tr').forEach(row => {
+    row.style.display = (house === 'all' || row.dataset.house === house) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

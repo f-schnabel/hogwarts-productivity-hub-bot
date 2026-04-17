@@ -1,0 +1,206 @@
+{% extends "layout.html" %}
+
+{% block styles %}
+<style>
+  .user-header {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-subtle);
+    border-top: 3px solid {{ user.house_color }};
+    padding: 3rem 2rem;
+    border-radius: 24px;
+    text-align: center;
+    margin-bottom: 2rem;
+    animation: fadeSlideDown 0.6s ease-out;
+  }
+  .user-house {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: {{ user.house_color }};
+    margin-top: 0.5rem;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  .stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    padding: 1.5rem 1rem;
+    border-radius: 16px;
+    text-align: center;
+    transition: all 0.3s ease;
+  }
+  .stat:hover { border-color: var(--border-glow); }
+  .stat-value {
+    font-family: 'Cinzel', serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--accent-gold-bright);
+    display: block;
+  }
+  .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .chart-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+    animation: fadeSlideUp 0.6s ease-out 0.3s both;
+  }
+  .chart-title { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--text-secondary); margin-bottom: 1rem; }
+  .year-progress-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+  .year-badge-large {
+    display: inline-block;
+    padding: 0.4rem 1.2rem;
+    border-radius: 12px;
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    background: color-mix(in srgb, {{ user.year_progress.bar_start }} 25%, transparent);
+    color: {{ user.year_progress.bar_start }};
+    border: 1px solid color-mix(in srgb, {{ user.year_progress.bar_start }} 40%, transparent);
+    margin-bottom: 1rem;
+  }
+  .progress-track {
+    height: 12px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 0.75rem 0;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, {{ user.year_progress.bar_start }}, {{ user.year_progress.bar_end }});
+    border-radius: 6px;
+    width: {{ user.year_progress.percent }}%;
+    box-shadow: 0 0 8px {{ user.year_progress.bar_glow }};
+    transition: width 1s ease;
+  }
+  .progress-labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="user-header">
+  <h1>{{ user.display_name }}</h1>
+  {% if !user.house.is_empty() %}
+  <div class="user-house">{{ user.house }}</div>
+  {% endif %}
+</div>
+
+<div class="stat-grid">
+  <div class="stat">
+    <span class="stat-value">{{ user.monthly_points }}</span>
+    <span class="stat-label">Monthly Points</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ user.monthly_study }}</span>
+    <span class="stat-label">Monthly Study</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ user.message_streak }}</span>
+    <span class="stat-label">Streak</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ user.total_points }}</span>
+    <span class="stat-label">Total Points</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ user.total_study }}</span>
+    <span class="stat-label">Total Study</span>
+  </div>
+</div>
+
+<div class="year-progress-wrap">
+  <div class="year-badge-large">{{ user.year_progress.badge }}</div>
+  <div class="progress-track">
+    <div class="progress-fill"></div>
+  </div>
+  <div class="progress-labels">
+    <span>{{ user.year_progress.left_label }}</span>
+    <span>{{ user.year_progress.text }}</span>
+    <span>{{ user.year_progress.right_label }}</span>
+  </div>
+</div>
+
+<div class="chart-card">
+  <div class="chart-title">Cumulative Study Hours</div>
+  <canvas id="hoursChart" height="80"></canvas>
+</div>
+
+<div class="chart-card">
+  <div class="chart-title">Daily To-Do Points</div>
+  <canvas id="todoChart" height="60"></canvas>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const labels = {{ user.chart_labels_json|safe }};
+const hours = {{ user.chart_hours_json|safe }};
+const todoPoints = {{ user.chart_todo_points_json|safe }};
+const houseColor = '{{ user.house_color }}';
+{% if let Some(ymax) = user.chart_y_max %}
+const chartYMax = {{ ymax }};
+{% else %}
+const chartYMax = null;
+{% endif %}
+
+new Chart(document.getElementById('hoursChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Hours',
+      data: hours,
+      borderColor: houseColor,
+      backgroundColor: houseColor + '20',
+      fill: true,
+      tension: 0.4,
+      pointRadius: 3,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#888', maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' }, max: chartYMax, min: 0 }
+    }
+  }
+});
+
+new Chart(document.getElementById('todoChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [{
+      label: 'To-Do Points',
+      data: todoPoints,
+      backgroundColor: '#d4a85380',
+      borderColor: '#d4a853',
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#888', maxRotation: 45 }, grid: { display: false } },
+      y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }
+    }
+  }
+});
+</script>
+{% endblock %}
