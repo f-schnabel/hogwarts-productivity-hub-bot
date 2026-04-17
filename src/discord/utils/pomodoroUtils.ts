@@ -7,7 +7,7 @@ import { time, userMention, type BaseGuildVoiceChannel, type GuildMember, type M
 import { closeVoiceSessionUntracked, endVoiceSession, fetchVoiceChannel, getMembers, startVoiceSession } from "@/discord/events/voiceStateUpdate/voiceSession.ts";
 import dayjs from "dayjs";
 import assert from "node:assert/strict";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 
 const log = createLogger("Pomodoro");
 const timers = new Map<string, NodeJS.Timeout>();
@@ -44,21 +44,11 @@ export async function ensurePomodoroSessionForChannel(channel: BaseGuildVoiceCha
   const config = parsePomodoroChannelName(channel.name);
   if (!config) return null;
 
-  const existing = await getActivePomodoroSession(channel.id);
-  if (existing) {
-    if (existing.channelName === channel.name) return existing;
-
-    // Update channel name if it has changed
-    return await db
-      .update(pomodoroSessionTable)
-      .set({ channelName: channel.name })
-      .where(eq(pomodoroSessionTable.id, existing.id))
-      .returning()
-      .then(([updated]) => updated ?? existing);
-  }
-
   const now = new Date();
-  const [created] = await db
+  // Upsert against the partial unique index (channel_id WHERE ended_at IS NULL) so concurrent
+  // joins can never create a second active row. xmax = 0 distinguishes a fresh insert from an
+  // update so we only boot timers/status-message once per session.
+  const [row] = await db
     .insert(pomodoroSessionTable)
     .values({
       channelId: channel.id,
@@ -70,16 +60,27 @@ export async function ensurePomodoroSessionForChannel(channel: BaseGuildVoiceCha
       nextStageAt: dayjs(now).add(config.focusMinutes, "minute").toDate(),
       startedAt: now,
     })
-    .returning();
-  assert(created, `Failed to create pomodoro session for channel ${channel.id}`);
+    .onConflictDoUpdate({
+      target: pomodoroSessionTable.channelId,
+      targetWhere: sql`${pomodoroSessionTable.endedAt} IS NULL`,
+      set: { channelName: channel.name },
+    })
+    .returning({
+      ...getTableColumns(pomodoroSessionTable),
+      wasInserted: sql<boolean>`xmax = 0`,
+    });
+  assert(row, `Failed to upsert pomodoro session for channel ${channel.id}`);
 
-  const sessionWithMessage = await upsertMessage(created, channel);
+  const { wasInserted, ...session } = row;
+  if (!wasInserted) return session;
+
+  const sessionWithMessage = await upsertMessage(session, channel);
   scheduleTimer(sessionWithMessage.channelId, sessionWithMessage.nextStageAt);
   log.info("Pomodoro session started", {
     channelId: channel.id,
     channel: channel.name,
-    focusMinutes: created.focusMinutes,
-    breakMinutes: created.breakMinutes,
+    focusMinutes: session.focusMinutes,
+    breakMinutes: session.breakMinutes,
   });
 
   return sessionWithMessage;
