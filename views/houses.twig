@@ -700,6 +700,24 @@
     color: var(--text-primary);
   }
 
+  /* House Pace Chart */
+  .pace-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .pace-chart-container {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    animation: fadeSlideUp 0.6s ease-out 0.3s both;
+  }
+
   /* Footer */
   .footer-note {
     text-align: center;
@@ -877,7 +895,102 @@
   </div>
 </div>
 
+{% if not mysteryMode and chartData %}
+<div class="pace-section">
+  <p class="section-title">House Cup Pace (Weighted)</p>
+  <div class="pace-chart-container">
+    <canvas id="housePaceChart"></canvas>
+  </div>
+</div>
+{% endif %}
+
 <p class="footer-note">Monthly points · Resets at the start of each month</p>
 
 </div>
 {% endblock %}
+
+{% if not mysteryMode and chartData %}
+{% block scripts %}
+<script>
+const paceLabels = {{ chartData.labels|json_encode|raw }};
+const paceDatasets = {{ chartData.datasets|json_encode|raw }};
+
+Chart.defaults.font.family = "'Outfit', system-ui, sans-serif";
+
+new Chart(document.getElementById('housePaceChart'), {
+  type: 'line',
+  data: {
+    labels: paceLabels,
+    datasets: paceDatasets.map(d => ({
+      label: d.house,
+      data: d.data,
+      borderColor: d.color,
+      backgroundColor: d.color + '22',
+      fill: false,
+      tension: 0.25,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: d.color,
+      pointHoverBorderColor: '#fff',
+      pointHoverBorderWidth: 2,
+      borderWidth: 2.5,
+    })),
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          color: 'rgba(240, 230, 211, 0.75)',
+          font: { family: "'Cinzel', serif", size: 12, weight: 600 },
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 16,
+        },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(15, 15, 25, 0.95)',
+        titleColor: '#f0e6d3',
+        titleFont: { family: "'Cinzel', serif", size: 13, weight: 600 },
+        bodyColor: 'rgba(240, 230, 211, 0.85)',
+        bodyFont: { size: 12 },
+        borderColor: 'rgba(212, 168, 83, 0.4)',
+        borderWidth: 1,
+        cornerRadius: 10,
+        padding: 14,
+        itemSort: (a, b) => b.parsed.y - a.parsed.y,
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: 'rgba(240, 230, 211, 0.5)',
+          maxRotation: 0,
+          font: { size: 10 },
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Weighted Points',
+          color: 'rgba(240, 230, 211, 0.45)',
+          font: { size: 11, family: "'Outfit', sans-serif" },
+        },
+        ticks: {
+          color: 'rgba(240, 230, 211, 0.45)',
+          font: { size: 10 },
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+        beginAtZero: true,
+      },
+    },
+    animation: { duration: 1200, easing: 'easeOutQuart' },
+  },
+});
+</script>
+{% endblock %}
+{% endif %}

@@ -5,6 +5,7 @@ import {
   eq,
   and,
   gt,
+  gte,
   desc,
   count,
   sum,
@@ -213,6 +214,87 @@ export async function getWeightedHousePoints(db: DbOrTx): Promise<HousePoints[]>
     .groupBy(schema.userTable.house)
     .orderBy(desc(totalPoints))
     .then((rows) => rows.filter((r): r is HousePoints => r.house !== null));
+}
+
+/**
+ * Daily point events per user since `monthStart`, aggregated from the timestamps
+ * when points actually affect monthly standings: tracked voice session end,
+ * submission approval, and admin adjustment creation. Day string is YYYY-MM-DD in UTC.
+ * House is taken from userTable (current house) so weighted calcs stay consistent.
+ */
+export async function getDailyUserPointEvents(
+  db: DbOrTx,
+  monthStart: Date,
+): Promise<{ discordId: string; house: House; day: string; points: number }[]> {
+  const day = (col: unknown) => sql<string>`to_char(${col}, 'YYYY-MM-DD')`;
+
+  const [voice, submissions, adjustments] = await Promise.all([
+    db
+      .select({
+        discordId: schema.voiceSessionTable.discordId,
+        house: schema.userTable.house,
+        day: day(schema.voiceSessionTable.leftAt).as("day"),
+        points: sql<number>`COALESCE(SUM(${schema.voiceSessionTable.points}), 0)::int`.as("points"),
+      })
+      .from(schema.voiceSessionTable)
+      .innerJoin(schema.userTable, eq(schema.voiceSessionTable.discordId, schema.userTable.discordId))
+      .where(
+        and(
+          not(isNull(schema.voiceSessionTable.leftAt)),
+          gte(schema.voiceSessionTable.leftAt, monthStart),
+          eq(schema.voiceSessionTable.isTracked, true),
+          not(isNull(schema.userTable.house)),
+        ),
+      )
+      .groupBy(schema.voiceSessionTable.discordId, schema.userTable.house, day(schema.voiceSessionTable.leftAt)),
+    db
+      .select({
+        discordId: schema.submissionTable.discordId,
+        house: schema.userTable.house,
+        day: day(schema.submissionTable.reviewedAt).as("day"),
+        points: sql<number>`COALESCE(SUM(${schema.submissionTable.points}), 0)::int`.as("points"),
+      })
+      .from(schema.submissionTable)
+      .innerJoin(schema.userTable, eq(schema.submissionTable.discordId, schema.userTable.discordId))
+      .where(
+        and(
+          eq(schema.submissionTable.status, "APPROVED"),
+          not(isNull(schema.submissionTable.reviewedAt)),
+          gte(schema.submissionTable.reviewedAt, monthStart),
+          not(isNull(schema.userTable.house)),
+        ),
+      )
+      .groupBy(schema.submissionTable.discordId, schema.userTable.house, day(schema.submissionTable.reviewedAt)),
+    db
+      .select({
+        discordId: schema.pointAdjustmentTable.discordId,
+        house: schema.userTable.house,
+        day: day(schema.pointAdjustmentTable.createdAt).as("day"),
+        points: sql<number>`COALESCE(SUM(${schema.pointAdjustmentTable.amount}), 0)::int`.as("points"),
+      })
+      .from(schema.pointAdjustmentTable)
+      .innerJoin(schema.userTable, eq(schema.pointAdjustmentTable.discordId, schema.userTable.discordId))
+      .where(
+        and(
+          gte(schema.pointAdjustmentTable.createdAt, monthStart),
+          not(isNull(schema.userTable.house)),
+        ),
+      )
+      .groupBy(schema.pointAdjustmentTable.discordId, schema.userTable.house, day(schema.pointAdjustmentTable.createdAt)),
+  ]);
+
+  const merged = new Map<string, { discordId: string; house: House; day: string; points: number }>();
+  for (const row of [...voice, ...submissions, ...adjustments]) {
+    if (!row.house) continue;
+    const key = `${row.discordId}|${row.day}`;
+    const existing = merged.get(key);
+    if (existing) {
+      existing.points += row.points;
+    } else {
+      merged.set(key, { discordId: row.discordId, house: row.house, day: row.day, points: row.points });
+    }
+  }
+  return Array.from(merged.values());
 }
 
 /** Unweighted house points: SUM(monthlyPoints) for users with any points */
