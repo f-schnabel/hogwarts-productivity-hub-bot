@@ -96,7 +96,7 @@ export default function registerIndexRoute(app: Router) {
  * Weighted = truncated avg(cumulative monthlyPoints) over users with cumulative > threshold.
  */
 function buildHousePaceChart(
-  events: { discordId: string; house: House; day: string; points: number }[],
+  events: { discordId: string; house: House | null; day: string; points: number }[],
   monthStart: Date,
 ) {
   const start = dayjs(monthStart).startOf("day");
@@ -112,7 +112,7 @@ function buildHousePaceChart(
   }
 
   // user -> house, user -> day -> daily delta
-  const userHouse = new Map<string, House>();
+  const userHouse = new Map<string, House | null>();
   const userDayDelta = new Map<string, Map<string, number>>();
   for (const e of events) {
     userHouse.set(e.discordId, e.house);
