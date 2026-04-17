@@ -93,7 +93,7 @@ export default function registerIndexRoute(app: Router) {
 
 /**
  * Build cumulative weighted-points series per house per day.
- * Weighted = avg(cumulative monthlyPoints) over users with cumulative >= threshold.
+ * Weighted = truncated avg(cumulative monthlyPoints) over users with cumulative > threshold.
  */
 function buildHousePaceChart(
   events: { discordId: string; house: House; day: string; points: number }[],
@@ -150,7 +150,8 @@ function buildHousePaceChart(
           qualifying++;
         }
       }
-      data.push(qualifying > 0 ? Math.round(sum / qualifying) : 0);
+      // Match PostgreSQL integer division used by getWeightedHousePoints.
+      data.push(qualifying > 0 ? Math.trunc(sum / qualifying) : 0);
     }
     return { house, color: getHouseColor(house), data };
   });
