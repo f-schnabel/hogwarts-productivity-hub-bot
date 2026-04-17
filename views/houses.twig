@@ -806,9 +806,13 @@
 <p class="section-title">Weighted Points</p>
 {% endif %}
 
+{% set maxPoints = 300 %}
+{% for h in houses %}
+  {% if h.points > maxPoints %}{% set maxPoints = h.points %}{% endif %}
+{% endfor %}
+
 <div class="hourglasses-container">
   {% for house in houses %}
-    {% set maxPoints = 300 %}
     {% set rawLower = (house.points / maxPoints) * 100 %}
     {% set lowerFillPercent = min(100, rawLower < 10 and house.points > 0 ? 10 : rawLower) %}
     {% set overflowPoints = max(0, house.points - maxPoints) %}
