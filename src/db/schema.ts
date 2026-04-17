@@ -84,6 +84,9 @@ export const pomodoroSessionTable = pgTable(
   (table) => [
     index("pomodoro_session_channel_id_ended_at_idx").on(table.channelId, table.endedAt),
     uniqueIndex("pomodoro_session_status_message_id_idx").on(table.statusMessageId),
+    uniqueIndex("pomodoro_session_active_channel_id_idx")
+      .on(table.channelId)
+      .where(sql`${table.endedAt} IS NULL`),
   ],
 );
 
