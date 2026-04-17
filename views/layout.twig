@@ -56,17 +56,6 @@
       z-index: 0;
     }
 
-    /* Noise texture overlay */
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-      opacity: 0.03;
-      pointer-events: none;
-      z-index: 1;
-    }
-
     .page-wrapper {
       position: relative;
       z-index: 2;
@@ -284,8 +273,6 @@
 
     /* Responsive - tablet */
     @media (max-width: 768px) {
-      /* Perf: disable noise texture early */
-      body::after { display: none; }
       /* Perf: reduce backdrop blur */
       nav, .card, .table-wrapper {
         backdrop-filter: blur(8px);
@@ -306,8 +293,8 @@
         -webkit-backdrop-filter: none;
         background: rgba(20, 20, 35, 0.95);
       }
-      /* Perf: disable fixed overlays (cause scroll jank) */
-      body::before, body::after { display: none; }
+      /* Perf: disable fixed overlay (causes scroll jank) */
+      body::before { display: none; }
       /* Perf: disable shimmer animation */
       h1 { animation: fadeSlideDown 0.8s ease-out 0.1s both; }
     }
