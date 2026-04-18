@@ -56,8 +56,8 @@ export function buildHousePaceChart(
   monthStart: Date,
 ) {
   const start = dayjs(monthStart).startOf("day");
-  const today = dayjs().startOf("day");
-  const days = Math.max(1, today.diff(start, "day") + 1);
+  const end = dayjs(monthStart).add(1, "day").endOf("month");
+  const days = Math.max(1, end.diff(start, "day") + 1);
 
   const labels: string[] = [];
   const dayKeys: string[] = [];

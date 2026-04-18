@@ -54,6 +54,7 @@ export default function registerHallOfFameRoute(app: Router) {
       const prev = houses[i - 1];
       current.rank = prev?.rawPoints === current.rawPoints ? prev.rank : i + 1;
     });
+
     const monthStart = dayjs(cupMonth.month).startOf("month").toDate();
     const dailyEvents = await getDailyUserPointEvents(db, monthStart);
     const chartData = buildHousePaceChart(dailyEvents, monthStart);

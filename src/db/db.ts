@@ -5,6 +5,8 @@ import {
   eq,
   and,
   gt,
+  gte,
+  lt,
   desc,
   count,
   sum,
@@ -14,7 +16,6 @@ import {
   inArray,
   type Logger,
   not,
-  gte,
 } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql/sql";
 import type { PgTransaction } from "drizzle-orm/pg-core";
@@ -227,6 +228,8 @@ export async function getDailyUserPointEvents(
   db: DbOrTx,
   monthStart: Date,
 ): Promise<{ discordId: string; house: House | null; day: string; points: number }[]> {
+  const effectiveMonthEnd = dayjs(monthStart).add(1, "day").endOf("month").toDate();
+
   const voiceEvents = db
     .select({
       discordId: schema.voiceSessionTable.discordId,
@@ -240,6 +243,7 @@ export async function getDailyUserPointEvents(
       and(
         not(isNull(schema.voiceSessionTable.leftAt)),
         gte(schema.voiceSessionTable.leftAt, monthStart),
+        lt(schema.voiceSessionTable.leftAt, effectiveMonthEnd),
         eq(schema.voiceSessionTable.isTracked, true),
         not(isNull(schema.userTable.house)),
       ),
@@ -259,6 +263,7 @@ export async function getDailyUserPointEvents(
         eq(schema.submissionTable.status, "APPROVED"),
         not(isNull(schema.submissionTable.reviewedAt)),
         gte(schema.submissionTable.reviewedAt, monthStart),
+        lt(schema.submissionTable.reviewedAt, effectiveMonthEnd),
         not(isNull(schema.userTable.house)),
       ),
     );
@@ -272,7 +277,13 @@ export async function getDailyUserPointEvents(
     })
     .from(schema.pointAdjustmentTable)
     .innerJoin(schema.userTable, eq(schema.pointAdjustmentTable.discordId, schema.userTable.discordId))
-    .where(and(gte(schema.pointAdjustmentTable.createdAt, monthStart), not(isNull(schema.userTable.house))));
+    .where(
+      and(
+        gte(schema.pointAdjustmentTable.createdAt, monthStart),
+        lt(schema.pointAdjustmentTable.createdAt, effectiveMonthEnd),
+        not(isNull(schema.userTable.house)),
+      ),
+    );
 
   const pointEvents = voiceEvents.unionAll(submissionEvents).unionAll(adjustmentEvents).as("point_events");
 
