@@ -1,10 +1,11 @@
 import { HOUSE_COLORS } from "@/common/constants.ts";
-import { db, getVCEmoji } from "@/db/db.ts";
+import { db, getDailyUserPointEvents, getVCEmoji } from "@/db/db.ts";
 import { houseCupEntryTable, houseCupMonthTable, userTable } from "@/db/schema.ts";
 import { desc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { Router } from "express";
-import { cleanDisplayName, fetchMemberInfo, getHouseColor } from "../utils.ts";
+import { buildHousePaceChart, cleanDisplayName, fetchMemberInfo, getHouseColor } from "../utils.ts";
 import type { House } from "@/common/types.ts";
+import dayjs from "dayjs";
 
 const ALL_HOUSES = Object.keys(HOUSE_COLORS) as House[];
 
@@ -29,8 +30,11 @@ export default function registerHallOfFameRoute(app: Router) {
       return;
     }
 
-    const entries = await db.select().from(houseCupEntryTable).where(eq(houseCupEntryTable.monthId, cupMonth.id));
-    const byHouse = new Map(entries.map((e) => [e.house, e]));
+    const byHouse = await db
+      .select()
+      .from(houseCupEntryTable)
+      .where(eq(houseCupEntryTable.monthId, cupMonth.id))
+      .then((entries) => new Map(entries.map((e) => [e.house, e])));
 
     const houses = ALL_HOUSES.map((house) => {
       const entry = byHouse.get(house);
@@ -50,12 +54,17 @@ export default function registerHallOfFameRoute(app: Router) {
       const prev = houses[i - 1];
       current.rank = prev?.rawPoints === current.rawPoints ? prev.rank : i + 1;
     });
+    const monthStart = dayjs(cupMonth.month).startOf("month").toDate();
+    const dailyEvents = await getDailyUserPointEvents(db, monthStart);
+    const chartData = buildHousePaceChart(dailyEvents, monthStart);
 
     res.render("houses", {
       title: "House Cup Standings",
       subtitle: month,
       houses,
       mysteryMode: false,
+      includeChartJs: true,
+      chartData,
     });
   });
 
