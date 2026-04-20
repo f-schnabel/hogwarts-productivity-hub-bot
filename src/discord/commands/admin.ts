@@ -23,7 +23,7 @@ import {
 } from "@/db/schema.ts";
 import { HOUSES, Role } from "@/common/constants.ts";
 import { refreshAllYearRoles } from "@/discord/utils/yearRoleUtils.ts";
-import { createLogger } from "@/common/logger.ts";
+import { createLogger } from "@/common/logging/logger.ts";
 import { updateMember } from "@/discord/events/voiceStateUpdate.ts";
 import type { Command, Sums } from "@/common/types.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../utils/scoreboardService.ts";

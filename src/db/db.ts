@@ -23,7 +23,7 @@ import dayjs from "dayjs";
 import { MIN_MONTHLY_POINTS_FOR_WEIGHTED, SETTINGS_KEYS } from "../common/constants.ts";
 import assert from "node:assert/strict";
 import type { CountingState, House, HousePoints } from "@/common/types.ts";
-import { createLogger } from "@/common/logger.ts";
+import { createLogger } from "@/common/logging/logger.ts";
 
 type Schema = typeof schema;
 

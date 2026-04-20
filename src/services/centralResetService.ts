@@ -5,11 +5,11 @@ import { userTable } from "@/db/schema.ts";
 import { inArray, sql } from "drizzle-orm";
 import { endVoiceSession, startVoiceSession } from "@/discord/utils/voiceUtils.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
-import { resetExecutionTimer } from "@/common/monitoring.ts";
+import { resetExecutionTimer } from "@/common/logging/monitoring.ts";
 import { updateMessageStreakInNickname } from "@/discord/utils/nicknameUtils.ts";
 import { MIN_DAILY_MESSAGES_FOR_STREAK } from "@/common/constants.ts";
-import { createLogger, OpId } from "@/common/logger.ts";
-import { runWithOpContext } from "@/common/opContext.ts";
+import { createLogger, OpId } from "@/common/logging/logger.ts";
+import { runWithOpContext } from "@/common/logging/opContext.ts";
 import type { Guild } from "discord.js";
 import { getGuild } from "@/discord/events/clientReady.ts";
 

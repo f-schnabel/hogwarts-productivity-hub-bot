@@ -3,7 +3,7 @@ import { userTable, voiceSessionTable } from "../../db/schema.ts";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { VoiceSession } from "../../common/types.ts";
 import assert from "node:assert/strict";
-import { createLogger } from "../../common/logger.ts";
+import { createLogger } from "../../common/logging/logger.ts";
 import { formatDuration } from "./interactionUtils.ts";
 import { alertOwner } from "./alerting.ts";
 import { awardPoints, calculatePoints } from "../../services/pointsService.ts";

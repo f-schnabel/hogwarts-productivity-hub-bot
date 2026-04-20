@@ -1,8 +1,8 @@
 import cron from "node-cron";
 import dayjs from "dayjs";
 import { eq } from "drizzle-orm";
-import { createLogger, OpId } from "@/common/logger.ts";
-import { runWithOpContext } from "@/common/opContext.ts";
+import { createLogger, OpId } from "@/common/logging/logger.ts";
+import { runWithOpContext } from "@/common/logging/opContext.ts";
 import { db } from "@/db/db.ts";
 import { journalEntryTable } from "@/db/schema.ts";
 import { client } from "@/discord/client.ts";

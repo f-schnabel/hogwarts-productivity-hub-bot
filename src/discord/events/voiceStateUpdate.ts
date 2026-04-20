@@ -2,8 +2,8 @@ import { ChannelType, GuildMember, type GuildMemberEditOptions, type VoiceState 
 import { db, ensureUserExists } from "../../db/db.ts";
 import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
 import { wrapWithAlerting } from "../utils/alerting.ts";
-import { voiceSessionExecutionTimer } from "../../common/monitoring.ts";
-import { createLogger } from "../../common/logger.ts";
+import { voiceSessionExecutionTimer } from "../../common/logging/monitoring.ts";
+import { createLogger } from "../../common/logging/logger.ts";
 import { VCEmojiNeedsAdding, VCEmojiNeedsRemoval } from "../utils/nicknameUtils.ts";
 import { VCRoleNeedsAdding, VCRoleNeedsRemoval } from "../utils/roleUtils.ts";
 import type { UpdateMemberParams, VoiceSession } from "../../common/types.ts";

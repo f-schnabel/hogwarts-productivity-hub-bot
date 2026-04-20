@@ -1,4 +1,4 @@
-import { createLogger } from "@/common/logger.ts";
+import { createLogger } from "@/common/logging/logger.ts";
 import { db } from "@/db/db.ts";
 import { journalEntryTable } from "@/db/schema.ts";
 import { errorReply } from "@/discord/utils/interactionUtils.ts";

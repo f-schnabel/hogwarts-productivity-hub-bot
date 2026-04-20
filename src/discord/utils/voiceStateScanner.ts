@@ -10,7 +10,7 @@ import { closeVoiceSessionUntracked, endVoiceSession } from "@/discord/utils/voi
 import { db, ensureUserExists } from "@/db/db.ts";
 import { voiceSessionTable } from "@/db/schema.ts";
 import { isNull } from "drizzle-orm";
-import { createLogger } from "@/common/logger.ts";
+import { createLogger } from "@/common/logging/logger.ts";
 import { getGuild } from "@/discord/events/clientReady.ts";
 import { MAX_SESSION_AGE_MS } from "@/common/constants.ts";
 import { join } from "@/discord/events/voiceStateUpdate.ts";

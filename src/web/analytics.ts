@@ -7,7 +7,7 @@ import express from "express";
 import Twig from "twig";
 import path from "path";
 import { rateLimit } from "express-rate-limit";
-import { createLogger } from "@/common/logger.ts";
+import { createLogger } from "@/common/logging/logger.ts";
 
 const log = createLogger("Analytics");
 

@@ -1,5 +1,5 @@
 import { client } from "@/discord/client.ts";
-import { createLogger } from "../../common/logger.ts";
+import { createLogger } from "../../common/logging/logger.ts";
 
 const log = createLogger("Alert");
 

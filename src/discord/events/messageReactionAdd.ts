@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { db } from "@/db/db.ts";
 import { submissionTable } from "@/db/schema.ts";
 import { Role } from "@/common/constants.ts";
-import { createLogger } from "@/common/logger.ts";
+import { createLogger } from "@/common/logging/logger.ts";
 import { hasAnyRole } from "@/discord/utils/roleUtils.ts";
 import { reverseSubmissionPoints } from "@/services/pointsService.ts";
 import { submissionMessage } from "@/discord/commands/submit.ts";

@@ -5,7 +5,7 @@ import { userTable } from "@/db/schema.ts";
 import type { House } from "@/common/types.ts";
 import { HOUSE_COLORS, HOUSE_CREST_EMOJI_IDS } from "@/common/constants.ts";
 import { client } from "@/discord/client.ts";
-import { createLogger } from "@/common/logger.ts";
+import { createLogger } from "@/common/logging/logger.ts";
 import { getGuild } from "@/discord/events/clientReady.ts";
 
 const log = createLogger("Scoreboard");

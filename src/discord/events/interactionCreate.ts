@@ -10,8 +10,8 @@ import { commands } from "@/discord/commands.ts";
 import assert from "node:assert/strict";
 import { ensureUserExists } from "@/db/db.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
-import { interactionExecutionTimer } from "@/common/monitoring.ts";
-import { createLogger, type Ctx } from "@/common/logger.ts";
+import { interactionExecutionTimer } from "@/common/logging/monitoring.ts";
+import { createLogger, type Ctx } from "@/common/logging/logger.ts";
 
 const log = createLogger("Command");
 

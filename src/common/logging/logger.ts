@@ -1,4 +1,4 @@
-import { getOpId } from "@/common/opContext.ts";
+import { getOpId } from "@/common/logging/opContext.ts";
 
 // Operation ID generator for tracing related logs
 let opCounter = 0;

@@ -8,7 +8,7 @@ import { houseScoreboardTable, userTable } from "@/db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
 import { VCEmojiNeedsRemovalSync, updateMessageStreakInNickname } from "@/discord/utils/nicknameUtils.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "@/discord/utils/scoreboardService.ts";
-import { createLogger } from "@/common/logger.ts";
+import { createLogger } from "@/common/logging/logger.ts";
 import assert from "node:assert";
 import { client } from "@/discord/client.ts";
 import { MIN_USERS_FOR_SAFE_DELETION } from "@/common/constants.ts";

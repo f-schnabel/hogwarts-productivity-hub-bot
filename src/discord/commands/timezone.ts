@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { errorReply } from "@/discord/utils/interactionUtils.ts";
 import type { Command } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
-import { createLogger } from "@/common/logger.ts";
+import { createLogger } from "@/common/logging/logger.ts";
 import { rawTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");

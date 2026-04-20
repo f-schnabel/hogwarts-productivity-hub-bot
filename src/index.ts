@@ -1,5 +1,5 @@
 import "dotenv/config";
-import "@/common/console.ts";
+import "@/common/logging/console.ts";
 
 // Extend dayjs BEFORE any imports that use it
 import dayjs from "dayjs";
@@ -15,7 +15,7 @@ dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 dayjs.tz.setDefault("UTC");
 
-import { startMonitoringServer } from "@/common/monitoring.ts";
+import { startMonitoringServer } from "@/common/logging/monitoring.ts";
 import * as CentralResetService from "@/services/centralResetService.ts";
 import * as JournalService from "@/services/journalService.ts";
 import { client } from "@/discord/client.ts";
@@ -26,11 +26,11 @@ import * as InteractionCreate from "@/discord/events/interactionCreate.ts";
 import * as MessageCreate from "@/discord/events/messageCreate.ts";
 import * as MessageReactionAdd from "@/discord/events/messageReactionAdd.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
-import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTimer } from "@/common/monitoring.ts";
+import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTimer } from "@/common/logging/monitoring.ts";
 import { commands } from "@/discord/commands.ts";
 import { promisify } from "node:util";
-import { createLogger, OpId } from "@/common/logger.ts";
-import { runWithOpContext as runOpId } from "@/common/opContext.ts";
+import { createLogger, OpId } from "@/common/logging/logger.ts";
+import { runWithOpContext as runOpId } from "@/common/logging/opContext.ts";
 import { startAnalyticsServer } from "./web/analytics.ts";
 
 const log = createLogger("Main");
