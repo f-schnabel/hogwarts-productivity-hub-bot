@@ -5,7 +5,7 @@ import { createLogger } from "../../../common/logging/logger.ts";
 import assert from "node:assert";
 import type { House, UpdateMemberParams } from "@/common/types.ts";
 import { HOUSE_COLORS, YEAR_MESSAGES, YEAR_THRESHOLDS_HOURS } from "../../../common/constants.ts";
-import { getYearFromMonthlyVoiceTime } from "@/discord/events/voiceStateUpdate/year.ts";
+import { getYearFromMonthlyVoiceTime } from "@/discord/core/year.ts";
 import { eq, isNotNull } from "drizzle-orm";
 import { updateMember } from "@/discord/utils/updateMember.ts";
 

@@ -6,15 +6,15 @@ import { alertOwner } from "@/discord/utils/alerting.ts";
 import { db, getVCEmoji } from "@/db/db.ts";
 import { houseScoreboardTable, userTable } from "@/db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
-import { updateMessageStreakInNickname } from "@/discord/events/messageCreate/nickname.ts";
+import { updateMessageStreakInNickname } from "@/discord/core/nicknameStreak.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "@/discord/events/interactionCreate/scoreboard/scoreboard.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import assert from "node:assert";
 import { client } from "@/discord/client.ts";
 import { MIN_USERS_FOR_SAFE_DELETION } from "@/common/constants.ts";
 import { updateMember } from "@/discord/utils/updateMember.ts";
-import { VCRoleNeedsRemovalSync } from "@/discord/events/voiceStateUpdate/voice.ts";
-import { VCEmojiNeedsRemovalSync } from "../voiceStateUpdate/nickname.ts";
+import { VCEmojiNeedsRemovalSync } from "@/discord/core/nicknameVC.ts";
+import { VCRoleNeedsRemovalSync } from "@/discord/core/roleVC.ts";
 
 const log = createLogger("Startup");
 

@@ -16,8 +16,8 @@ vi.mock("@/db/db.ts", () => ({
   getVCEmoji: vi.fn().mockResolvedValue("🎧"),
 }));
 
-import * as utils from "@/discord/events/messageCreate/nickname.ts";
-import * as vcUtils from "@/discord/events/voiceStateUpdate/nickname.ts";
+import * as utils from "@/discord/core/nicknameStreak.ts";
+import * as vcUtils from "@/discord/core/nicknameVC.ts";
 
 describe("updateMessageStreakInNickname", () => {
   let mockMember: GuildMember;

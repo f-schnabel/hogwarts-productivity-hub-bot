@@ -5,7 +5,7 @@ import { desc } from "drizzle-orm/sql/expressions/select";
 import { sql } from "drizzle-orm/sql/sql";
 import type { Router } from "express";
 import { cleanDisplayName, fetchMemberInfo, formatTime, getHouseColor } from "../utils.ts";
-import { getYearFromMonthlyVoiceTime } from "@/discord/events/voiceStateUpdate/year.ts";
+import { getYearFromMonthlyVoiceTime } from "@/discord/core/year.ts";
 import { YEAR_COLORS } from "@/common/constants.ts";
 
 export default function registerLeaderboardRoute(app: Router) {

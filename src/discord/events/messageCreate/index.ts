@@ -4,7 +4,7 @@ import { userTable } from "@/db/schema.ts";
 import { eq, sql } from "drizzle-orm";
 import { createLogger } from "@/common/logging/logger.ts";
 import assert from "node:assert/strict";
-import { updateMessageStreakInNickname } from "./nickname.ts";
+import { updateMessageStreakInNickname } from "@/discord/core/nicknameStreak.ts";
 
 const log = createLogger("Message");
 

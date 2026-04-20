@@ -20,18 +20,12 @@ export async function execute(
   const member = reaction.message.guild.members.cache.get(user.id);
   if (!member || !hasAnyRole(member, Role.PREFECT)) return;
 
-  const ctx = {
-    userId: user.id,
-    emoji: reaction.emoji.name,
-    messageId: reaction.message.id,
-    channelId: reaction.message.channelId,
-  };
-
   const submission = await db.query.submissionTable.findFirst({
     where: eq(submissionTable.messageId, reaction.message.id),
   });
 
   if (submission?.status !== "APPROVED" && submission?.status !== "REJECTED") return;
+
 
   const reopenedSubmission = await db.transaction(async (tx) => {
     const [updatedSubmission] = await tx
@@ -61,5 +55,11 @@ export async function execute(
   });
 
   await reaction.message.edit(await submissionMessage({ submission: reopenedSubmission, linkedSubmission }));
-  log.info("Reopened submission from reaction", { ...ctx, submissionId: reopenedSubmission.id });
+  log.info("Reopened submission from reaction", {
+    userId: user.id,
+    emoji: reaction.emoji.name,
+    messageId: reaction.message.id,
+    channelId: reaction.message.channelId,
+    submissionId: reopenedSubmission.id,
+  });
 }

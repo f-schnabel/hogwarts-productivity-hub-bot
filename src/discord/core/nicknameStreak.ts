@@ -1,7 +1,7 @@
 import type { GuildMember } from "discord.js";
-import { hasAnyRole } from "../../utils/role.ts";
-import { createLogger } from "../../../common/logging/logger.ts";
-import { Role } from "../../../common/constants.ts";
+import { hasAnyRole } from "@/discord/utils/role.ts";
+import { createLogger } from "@/common/logging/logger.ts";
+import { Role } from "@/common/constants.ts";
 
 const log = createLogger("Streak");
 

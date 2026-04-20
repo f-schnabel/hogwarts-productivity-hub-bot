@@ -2,11 +2,10 @@ import { createLogger } from "@/common/logging/logger.ts";
 import { db } from "@/db/db.ts";
 import { journalEntryTable } from "@/db/schema.ts";
 import { errorReply } from "@/discord/utils/interaction.ts";
-import { parseJournalCsv, serializeJournalCsv, validateJournalDate } from "@/discord/events/interactionCreate/admin/journalCsv.ts";
-import { buildJournalMessage, getJournalDate } from "@/discord/events/interactionCreate/admin/journalService.ts";
+import { parseJournalCsv, serializeJournalCsv, validateJournalDate } from "./journalCsv.ts";
+import { buildJournalMessage, getJournalDate } from "./journalService.ts";
 import { AttachmentBuilder, type ChatInputCommandInteraction } from "discord.js";
-import { asc } from "drizzle-orm";
-import { eq, gte } from "drizzle-orm/sql/expressions/conditions";
+import { asc, eq, gte } from "drizzle-orm";
 
 const log = createLogger("Admin");
 

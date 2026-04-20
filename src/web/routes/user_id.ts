@@ -5,7 +5,7 @@ import { and, eq, gte } from "drizzle-orm";
 import type { Router } from "express";
 import { cleanDisplayName, fetchMemberInfo, formatTime, getHouseColor } from "../utils.ts";
 import dayjs from "dayjs";
-import { getYearFromMonthlyVoiceTime } from "@/discord/events/voiceStateUpdate/year.ts";
+import { getYearFromMonthlyVoiceTime } from "@/discord/core/year.ts";
 import type { BarColors, YearProgress } from "@/common/types.ts";
 
 const BAR_COLORS: Record<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, BarColors> = {

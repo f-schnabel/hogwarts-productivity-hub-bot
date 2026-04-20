@@ -5,7 +5,7 @@ import { submissionTable, userTable, voiceSessionTable } from "@/db/schema.ts";
 import { and, asc, eq, gte, isNull } from "drizzle-orm";
 import { formatDuration, errorReply, inGuild } from "@/discord/utils/interaction.ts";
 import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "@/common/constants.ts";
-import { getYearFromMonthlyVoiceTime } from "@/discord/events/voiceStateUpdate/year.ts";
+import { getYearFromMonthlyVoiceTime } from "@/discord/core/year.ts";
 import type { Command } from "@/common/types.ts";
 
 import { stripIndent } from "common-tags";

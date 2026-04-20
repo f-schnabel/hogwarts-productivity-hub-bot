@@ -1,13 +1,14 @@
 import { ChannelType, GuildMember, type VoiceState } from "discord.js";
 import { db, ensureUserExists } from "@/db/db.ts";
-import { endVoiceSession, startVoiceSession, VCRoleNeedsAdding, VCRoleNeedsRemoval } from "./voice.ts";
+import { endVoiceSession, startVoiceSession } from "./voiceSession.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import { voiceSessionExecutionTimer } from "@/common/logging/monitoring.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import type { VoiceSession } from "@/common/types.ts";
 import { announceYearPromotion, calculateYearRoles } from "./yearRole.ts";
 import { updateMember } from "@/discord/utils/updateMember.ts";
-import { VCEmojiNeedsAdding, VCEmojiNeedsRemoval } from "./nickname.ts";
+import { VCEmojiNeedsAdding, VCEmojiNeedsRemoval } from "../../core/nicknameVC.ts";
+import { VCRoleNeedsAdding, VCRoleNeedsRemoval } from "@/discord/core/roleVC.ts";
 
 const log = createLogger("Voice");
 

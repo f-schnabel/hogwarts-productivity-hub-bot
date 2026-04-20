@@ -6,7 +6,7 @@
  */
 
 import { BaseGuildVoiceChannel, ChannelType, Collection, type Guild } from "discord.js";
-import { closeVoiceSessionUntracked, endVoiceSession } from "@/discord/events/voiceStateUpdate/voice.ts";
+import { closeVoiceSessionUntracked, endVoiceSession } from "@/discord/events/voiceStateUpdate/voiceSession.ts";
 import { db, ensureUserExists } from "@/db/db.ts";
 import { voiceSessionTable } from "@/db/schema.ts";
 import { isNull } from "drizzle-orm";
