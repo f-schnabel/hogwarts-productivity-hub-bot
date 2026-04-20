@@ -31,8 +31,8 @@ import { desc, eq, isNull, not } from "drizzle-orm";
 import dayjs from "dayjs";
 import assert from "assert";
 import { journalDelete, journalExport, journalImport, journalList, journalSet, journalShow } from "./journal.ts";
-import timezone, { setTimezone } from "../timezone.ts";
-import { requireRole } from "../../../utils/role.ts";
+import { requireRole } from "@/discord/utils/role.ts";
+import { autocompleteTimezone, setTimezone } from "@/discord/core/timezone.ts";
 
 const log = createLogger("Admin");
 const ALLOWED_PREFECT_COMMANDS = ["timezone"];
@@ -200,7 +200,7 @@ export default {
   },
   async autocomplete(interaction: AutocompleteInteraction) {
     if (interaction.options.getSubcommand() === "timezone") {
-      await timezone.autocomplete?.(interaction);
+      await autocompleteTimezone(interaction);
     }
   },
 } as Command;
