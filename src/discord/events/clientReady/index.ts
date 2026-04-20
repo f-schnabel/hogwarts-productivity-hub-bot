@@ -1,19 +1,20 @@
 import type { Client, Guild } from "discord.js";
 import dayjs from "dayjs";
 import { commands } from "@/discord/commands.ts";
-import * as VoiceStateScanner from "@/discord/utils/voiceStateScanner.ts";
+import * as VoiceStateScanner from "@/discord/events/clientReady/voiceStateScanner.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
 import { db, getVCEmoji } from "@/db/db.ts";
 import { houseScoreboardTable, userTable } from "@/db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
-import { VCEmojiNeedsRemovalSync, updateMessageStreakInNickname } from "@/discord/utils/nicknameUtils.ts";
-import { getHousepointMessages, updateScoreboardMessages } from "@/discord/utils/scoreboardService.ts";
+import { updateMessageStreakInNickname } from "@/discord/events/messageCreate/nickname.ts";
+import { getHousepointMessages, updateScoreboardMessages } from "@/discord/events/interactionCreate/scoreboard/scoreboard.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import assert from "node:assert";
 import { client } from "@/discord/client.ts";
 import { MIN_USERS_FOR_SAFE_DELETION } from "@/common/constants.ts";
-import { VCRoleNeedsRemovalSync } from "@/discord/utils/roleUtils.ts";
-import { updateMember } from "./voiceStateUpdate.ts";
+import { updateMember } from "@/discord/utils/updateMember.ts";
+import { VCRoleNeedsRemovalSync } from "@/discord/events/voiceStateUpdate/voice.ts";
+import { VCEmojiNeedsRemovalSync } from "../voiceStateUpdate/nickname.ts";
 
 const log = createLogger("Startup");
 

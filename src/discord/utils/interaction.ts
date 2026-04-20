@@ -1,7 +1,6 @@
 import type { ChatInputCommandInteraction } from "discord.js";
-import { BOT_COLORS, Role } from "../../common/constants.ts";
+import { BOT_COLORS } from "../../common/constants.ts";
 import { createLogger } from "../../common/logging/logger.ts";
-import { hasAnyRole } from "./roleUtils.ts";
 
 const log = createLogger("Interaction");
 
@@ -28,19 +27,6 @@ export function inGuild(
 ): interaction is ChatInputCommandInteraction<"cached"> {
   if (!interaction.inCachedGuild()) {
     void errorReply(interaction, "Invalid Context", "This command can only be used in a server.");
-    return false;
-  }
-  return true;
-}
-
-/** Returns true if role check passed, false if error was sent */
-export function requireRole(interaction: ChatInputCommandInteraction<"cached">, roles: number): boolean {
-  if (!hasAnyRole(interaction.member, roles)) {
-    const roleNames: string[] = [];
-    if (roles & Role.OWNER) roleNames.push("OWNER");
-    if (roles & Role.PREFECT) roleNames.push("PREFECT");
-    if (roles & Role.PROFESSOR) roleNames.push("PROFESSOR");
-    void errorReply(interaction, "Insufficient Permissions", `Only ${roleNames.join(" or ")} can use this command.`);
     return false;
   }
   return true;

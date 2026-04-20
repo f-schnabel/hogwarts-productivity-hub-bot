@@ -1,11 +1,9 @@
 import {
   bold,
   ButtonInteraction,
-  ButtonStyle,
   channelMention,
   ChatInputCommandInteraction,
   ComponentType,
-  EmbedBuilder,
   GuildMember,
   MessageFlags,
   messageLink,
@@ -14,19 +12,19 @@ import {
   TextInputStyle,
   time,
   userMention,
-  type InteractionReplyOptions,
 } from "discord.js";
 import dayjs from "dayjs";
-import { awardPoints } from "@/services/pointsService.ts";
-import { hasAnyRole } from "@/discord/utils/roleUtils.ts";
-import { errorReply, inGuild } from "@/discord/utils/interactionUtils.ts";
+import { awardPoints } from "@/discord/core/points.ts";
+import { hasAnyRole } from "@/discord/utils/role.ts";
+import { errorReply, inGuild } from "@/discord/utils/interaction.ts";
 import assert from "node:assert";
 import { db, getHouseFromMember, getMonthStartDate, getUserTimezone } from "@/db/db.ts";
 import { submissionTable } from "@/db/schema.ts";
 import { and, eq, gte, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
-import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_COLORS, SUBMISSION_TYPES } from "@/common/constants.ts";
+import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_TYPES } from "@/common/constants.ts";
 import type { Command, SubmissionType } from "@/common/types.ts";
-import { alertOwner } from "../utils/alerting.ts";
+import { alertOwner } from "../../../utils/alerting.ts";
+import { getSubmissionTypeLabel, submissionMessage } from "./submissionMessage.ts";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
 
@@ -328,130 +326,4 @@ async function cancelSubmission(submissionId: number, interaction: ButtonInterac
 
   await interaction.editReply(await submissionMessage({ submission: canceled }));
   return;
-}
-
-interface SubmissionMessageParams {
-  submission: typeof submissionTable.$inferSelect;
-  userTimezone?: string;
-  reason?: string;
-  linkedSubmission?: { channelId: string | null; messageId: string | null };
-}
-
-export async function submissionMessage({
-  submission,
-  userTimezone,
-  reason,
-  linkedSubmission,
-}: SubmissionMessageParams) {
-  let components: InteractionReplyOptions["components"] = [];
-  if (submission.status === "PENDING") {
-    components = [
-      {
-        type: ComponentType.ActionRow,
-        components: [
-          {
-            type: ComponentType.Button,
-            customId: `submit|approve|${submission.id}`,
-            label: `Approve ${submission.points} points`,
-            style: ButtonStyle.Success,
-          },
-          {
-            type: ComponentType.Button,
-            customId: `submit|reject|${submission.id}`,
-            label: "Reject",
-            style: ButtonStyle.Secondary,
-          },
-          {
-            type: ComponentType.Button,
-            customId: `submit|cancel|${submission.id}`,
-            label: "Cancel",
-            style: ButtonStyle.Secondary,
-          },
-        ],
-      },
-    ];
-  }
-
-  userTimezone ??= await getUserTimezone(submission.discordId);
-  // Format the submitted time in the user's timezone
-  const formattedSubmittedAt = dayjs(submission.submittedAt).tz(userTimezone).format("h:mm A [on] MMM D (z)");
-
-  const embed = new EmbedBuilder({
-    title: submission.house.toUpperCase(),
-    color: SUBMISSION_COLORS[submission.status],
-    fields: [
-      {
-        name: "Submission ID",
-        value: `${submission.houseId}`,
-        inline: false,
-      },
-      {
-        name: "List Type",
-        value: getSubmissionTypeLabel(submission.submissionType),
-        inline: true,
-      },
-      {
-        name: "Score",
-        value: `${submission.points}`,
-        inline: true,
-      },
-      {
-        name: "Submitted by",
-        value: `${userMention(submission.discordId)} at ${formattedSubmittedAt}`,
-        inline: false,
-      },
-    ],
-    image: {
-      url: submission.screenshotUrl,
-    },
-  });
-
-  const linkedSubmissionUrl =
-    linkedSubmission?.channelId && linkedSubmission.messageId
-      ? messageLink(linkedSubmission.channelId, linkedSubmission.messageId, process.env.GUILD_ID)
-      : null;
-  if (linkedSubmissionUrl) {
-    embed.addFields({
-      name: "Linked Submission",
-      value: `[View linked submission](${linkedSubmissionUrl})`,
-      inline: false,
-    });
-  }
-
-  if (submission.status === "APPROVED") {
-    embed.addFields({
-      name: "Approved by",
-      value: `${userMention(submission.reviewedBy ?? "")} at ${time(submission.reviewedAt ?? new Date())}`,
-      inline: false,
-    });
-  } else if (submission.status === "REJECTED") {
-    assert(reason, "Rejection reason must be provided for rejected submissions");
-    embed.addFields({
-      name: "Rejected by",
-      value: `${userMention(submission.reviewedBy ?? "")} at ${time(submission.reviewedAt ?? new Date())}`,
-      inline: false,
-    });
-    embed.addFields({
-      name: "Reason",
-      value: reason,
-      inline: false,
-    });
-  } else if (submission.status === "CANCELED") {
-    embed.addFields({
-      name: "Cancelled",
-      value: "This submission was cancelled by the user.",
-      inline: false,
-    });
-  }
-
-  return {
-    embeds: [embed],
-    components: components,
-  };
-}
-
-function getSubmissionTypeLabel(submissionType: SubmissionType | null | undefined): string {
-  if (submissionType === SUBMISSION_TYPES.NEW) return "New List";
-  if (submissionType === SUBMISSION_TYPES.COMPLETED) return "Completed List";
-  return "Unknown";
 }

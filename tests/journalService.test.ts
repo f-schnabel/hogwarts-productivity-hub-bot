@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import { describe, expect, it, vi } from "vitest";
-import { buildJournalMessage, processTodayJournalEntry } from "../src/services/journalService.ts";
+import { buildJournalMessage, processTodayJournalEntry } from "../src/discord/events/interactionCreate/admin/journalService.ts";
 
 dayjs.extend(utc);
 

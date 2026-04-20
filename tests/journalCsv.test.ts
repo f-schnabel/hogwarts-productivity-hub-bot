@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseJournalCsv, serializeJournalCsv, validateJournalDate } from "../src/services/journalCsv.ts";
+import { parseJournalCsv, serializeJournalCsv, validateJournalDate } from "../src/discord/events/interactionCreate/admin/journalCsv.ts";
 
 describe("validateJournalDate", () => {
   it("accepts valid YYYY-MM-DD dates", () => {

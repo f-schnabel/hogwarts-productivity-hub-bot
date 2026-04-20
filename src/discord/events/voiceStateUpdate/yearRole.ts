@@ -1,27 +1,18 @@
 import { roleMention, type Guild, type GuildMember } from "discord.js";
 import { db } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
-import { createLogger } from "../../common/logging/logger.ts";
+import { createLogger } from "../../../common/logging/logger.ts";
 import assert from "node:assert";
 import type { House, UpdateMemberParams } from "@/common/types.ts";
-import { HOUSE_COLORS, YEAR_MESSAGES, YEAR_THRESHOLDS_HOURS, type YEAR } from "../../common/constants.ts";
+import { HOUSE_COLORS, YEAR_MESSAGES, YEAR_THRESHOLDS_HOURS } from "../../../common/constants.ts";
+import { getYearFromMonthlyVoiceTime } from "@/discord/events/voiceStateUpdate/year.ts";
 import { eq, isNotNull } from "drizzle-orm";
-import { updateMember } from "@/discord/events/voiceStateUpdate.ts";
+import { updateMember } from "@/discord/utils/updateMember.ts";
 
 const log = createLogger("YearRole");
 
 const YEAR_ROLE_IDS = process.env.YEAR_ROLE_IDS.split(",");
 const YEAR_ANNOUNCEMENT_CHANNEL_ID = process.env.YEAR_ANNOUNCEMENT_CHANNEL_ID;
-
-// Returns 1-7 for year, or null if <1 hour
-export function getYearFromMonthlyVoiceTime(seconds: number): YEAR | null {
-  const hours = seconds / 3600;
-  for (const year of [7, 6, 5, 4, 3, 2, 1] as const) {
-    const threshold = YEAR_THRESHOLDS_HOURS[year - 1];
-    if (threshold !== undefined && hours >= threshold) return year;
-  }
-  return null;
-}
 
 export async function announceYearPromotion(
   member: GuildMember,

@@ -5,9 +5,9 @@ import { db } from "@/db/db.ts";
 import { submissionTable } from "@/db/schema.ts";
 import { Role } from "@/common/constants.ts";
 import { createLogger } from "@/common/logging/logger.ts";
-import { hasAnyRole } from "@/discord/utils/roleUtils.ts";
-import { reverseSubmissionPoints } from "@/services/pointsService.ts";
-import { submissionMessage } from "@/discord/commands/submit.ts";
+import { hasAnyRole } from "@/discord/utils/role.ts";
+import { submissionMessage } from "@/discord/events/interactionCreate/submit/submissionMessage.ts";
+import { reverseSubmissionPoints } from "@/discord/core/points.ts";
 
 const log = createLogger("Reaction");
 

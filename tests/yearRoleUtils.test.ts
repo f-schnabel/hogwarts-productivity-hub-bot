@@ -1,10 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { GuildMember } from "discord.js";
+import { getYearFromMonthlyVoiceTime } from "@/discord/events/voiceStateUpdate/year.ts";
 
 // Set env before importing module
 process.env.YEAR_ROLE_IDS = "year1,year2,year3,year4,year5,year6,year7";
 
-const { getYearFromMonthlyVoiceTime, calculateYearRoles } = await import("@/discord/utils/yearRoleUtils.ts");
+const { calculateYearRoles } = await import("@/discord/events/voiceStateUpdate/yearRole.ts");
 
 describe("getYearFromMonthlyVoiceTime", () => {
   // Thresholds: 1, 10, 20, 40, 80, 100, 120 hours

@@ -1,13 +1,13 @@
-import { ChannelType, GuildMember, type GuildMemberEditOptions, type VoiceState } from "discord.js";
-import { db, ensureUserExists } from "../../db/db.ts";
-import { endVoiceSession, startVoiceSession } from "../utils/voiceUtils.ts";
-import { wrapWithAlerting } from "../utils/alerting.ts";
-import { voiceSessionExecutionTimer } from "../../common/logging/monitoring.ts";
-import { createLogger } from "../../common/logging/logger.ts";
-import { VCEmojiNeedsAdding, VCEmojiNeedsRemoval } from "../utils/nicknameUtils.ts";
-import { VCRoleNeedsAdding, VCRoleNeedsRemoval } from "../utils/roleUtils.ts";
-import type { UpdateMemberParams, VoiceSession } from "../../common/types.ts";
-import { announceYearPromotion, calculateYearRoles } from "../utils/yearRoleUtils.ts";
+import { ChannelType, GuildMember, type VoiceState } from "discord.js";
+import { db, ensureUserExists } from "@/db/db.ts";
+import { endVoiceSession, startVoiceSession, VCRoleNeedsAdding, VCRoleNeedsRemoval } from "./voice.ts";
+import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
+import { voiceSessionExecutionTimer } from "@/common/logging/monitoring.ts";
+import { createLogger } from "@/common/logging/logger.ts";
+import type { VoiceSession } from "@/common/types.ts";
+import { announceYearPromotion, calculateYearRoles } from "./yearRole.ts";
+import { updateMember } from "@/discord/utils/updateMember.ts";
+import { VCEmojiNeedsAdding, VCEmojiNeedsRemoval } from "./nickname.ts";
 
 const log = createLogger("Voice");
 
@@ -137,21 +137,4 @@ async function vcSwitch(oldVoiceSession: VoiceSession, newVoiceSession: VoiceSes
     startVoiceSession(newVoiceSession, db),
     announceYearPromotion(member, user),
   ]);
-}
-
-export async function updateMember({ member, reason, nickname, roleUpdates }: UpdateMemberParams) {
-  const update: GuildMemberEditOptions = {};
-  if (nickname !== null) update.nick = nickname;
-
-  const rolesToAdd = roleUpdates?.rolesToAdd ?? [];
-  const rolesToRemove = roleUpdates?.rolesToRemove ?? [];
-
-  if (rolesToAdd.length > 0 || rolesToRemove.length > 0) {
-    update.roles = [...member.roles.cache.keys().filter((r) => !rolesToRemove.includes(r)), ...rolesToAdd];
-  }
-  if (Object.keys(update).length === 0) return;
-
-  if (reason) update.reason = reason;
-
-  return member.edit(update);
 }

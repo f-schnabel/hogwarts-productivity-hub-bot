@@ -16,7 +16,8 @@ vi.mock("@/db/db.ts", () => ({
   getVCEmoji: vi.fn().mockResolvedValue("🎧"),
 }));
 
-import * as utils from "@/discord/utils/nicknameUtils.ts";
+import * as utils from "@/discord/events/messageCreate/nickname.ts";
+import * as vcUtils from "@/discord/events/voiceStateUpdate/nickname.ts";
 
 describe("updateMessageStreakInNickname", () => {
   let mockMember: GuildMember;
@@ -157,24 +158,24 @@ describe("VCEmojiNeedsAdding", () => {
 
   it("returns null if member is professor", async () => {
     mockMember.roles.cache.set(process.env.PROFESSOR_ROLE_ID, {} as any);
-    const result = await utils.VCEmojiNeedsAdding(mockMember);
+    const result = await vcUtils.VCEmojiNeedsAdding(mockMember);
     expect(result).toBeNull();
   });
 
   it("returns null if nickname already has emoji", async () => {
     mockMember.nickname = "TestUser 🎧";
-    const result = await utils.VCEmojiNeedsAdding(mockMember);
+    const result = await vcUtils.VCEmojiNeedsAdding(mockMember);
     expect(result).toBeNull();
   });
 
   it("returns new nickname with emoji appended", async () => {
-    const result = await utils.VCEmojiNeedsAdding(mockMember);
+    const result = await vcUtils.VCEmojiNeedsAdding(mockMember);
     expect(result).toBe("TestUser 🎧");
   });
 
   it("returns null if new nickname would exceed 32 chars", async () => {
     (mockMember as any).displayName = "VeryLongDisplayNameThatIs30Char";
-    const result = await utils.VCEmojiNeedsAdding(mockMember);
+    const result = await vcUtils.VCEmojiNeedsAdding(mockMember);
     expect(result).toBeNull();
   });
 });
@@ -196,30 +197,30 @@ describe("VCEmojiNeedsRemoval", () => {
 
   it("returns null if member is professor", async () => {
     mockMember.roles.cache.set(process.env.PROFESSOR_ROLE_ID, {} as any);
-    const result = await utils.VCEmojiNeedsRemoval(mockMember);
+    const result = await vcUtils.VCEmojiNeedsRemoval(mockMember);
     expect(result).toBeNull();
   });
 
   it("returns null if nickname does not have emoji", async () => {
     mockMember.nickname = "TestUser";
-    const result = await utils.VCEmojiNeedsRemoval(mockMember);
+    const result = await vcUtils.VCEmojiNeedsRemoval(mockMember);
     expect(result).toBeNull();
   });
 
   it("returns nickname with emoji removed", async () => {
-    const result = await utils.VCEmojiNeedsRemoval(mockMember);
+    const result = await vcUtils.VCEmojiNeedsRemoval(mockMember);
     expect(result).toBe("TestUser");
   });
 
   it("returns null if removing emoji would result in empty string", async () => {
     mockMember.nickname = " 🎧";
-    const result = await utils.VCEmojiNeedsRemoval(mockMember);
+    const result = await vcUtils.VCEmojiNeedsRemoval(mockMember);
     expect(result).toBeNull();
   });
 
   it("removes multiple occurrences of emoji", async () => {
     mockMember.nickname = "Test 🎧 User 🎧";
-    const result = await utils.VCEmojiNeedsRemoval(mockMember);
+    const result = await vcUtils.VCEmojiNeedsRemoval(mockMember);
     expect(result).toBe("Test User");
   });
 });

@@ -1,10 +1,10 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { db as globalDb, getMonthStartDate, type DbOrTx } from "@/db/db.ts";
 import { houseScoreboardTable, userTable } from "@/db/schema.ts";
-import { getHousepointMessages, updateScoreboardMessages } from "../discord/utils/scoreboardService.ts";
+import { getHousepointMessages, updateScoreboardMessages } from "../events/interactionCreate/scoreboard/scoreboard.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
-import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "@/common/constants.ts";
 import type { House } from "@/common/types.ts";
+import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "@/common/constants.ts";
 
 export async function awardPoints(db: DbOrTx, discordId: string, points: number) {
   // Update user's total points
@@ -64,20 +64,17 @@ export function calculatePointsHelper(voiceTime: number): number {
   const ONE_HOUR = 60 * 60;
   const FIVE_MINUTES = 5 * 60;
 
-  // 5 min grace period
   voiceTime += FIVE_MINUTES;
-  // Convert seconds to hours
   voiceTime = Math.floor(voiceTime / ONE_HOUR);
 
   if (voiceTime < 1) {
-    return 0; // No points for less than an hour
+    return 0;
   }
 
   let points = FIRST_HOUR_POINTS;
 
   if (voiceTime >= 2) {
     const hoursCapped = Math.min(voiceTime, MAX_HOURS_PER_DAY) - 1;
-
     points += REST_HOURS_POINTS * hoursCapped;
   }
 

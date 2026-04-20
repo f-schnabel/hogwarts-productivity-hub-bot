@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeOffset, asOffsetQuery, scoreTimezones } from "../src/discord/commands/timezone.ts";
+import { normalizeOffset, asOffsetQuery, scoreTimezones } from "../src/discord/events/interactionCreate/timezone.ts";
 
 describe("normalizeOffset", () => {
   it("is identity for already-normalized offsets", () => {

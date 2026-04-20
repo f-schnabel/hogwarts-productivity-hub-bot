@@ -1,15 +1,17 @@
-import { type DbOrTx } from "../../db/db.ts";
-import { userTable, voiceSessionTable } from "../../db/schema.ts";
+import { type DbOrTx } from "@/db/db.ts";
+import { userTable, voiceSessionTable } from "@/db/schema.ts";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import type { VoiceSession } from "../../common/types.ts";
+import type { VoiceSession } from "@/common/types.ts";
 import assert from "node:assert/strict";
-import { createLogger } from "../../common/logging/logger.ts";
-import { formatDuration } from "./interactionUtils.ts";
-import { alertOwner } from "./alerting.ts";
-import { awardPoints, calculatePoints } from "../../services/pointsService.ts";
+import { createLogger } from "@/common/logging/logger.ts";
+import { formatDuration } from "@/discord/utils/interaction.ts";
+import { alertOwner } from "@/discord/utils/alerting.ts";
+import { awardPoints, calculatePoints } from "@/discord/core/points.ts";
 import { oneLine } from "common-tags";
+import type { GuildMember, Role as RoleType } from "discord.js";
 
 const log = createLogger("Voice");
+const VC_ROLE_ID = process.env.VC_ROLE_ID;
 
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
@@ -188,3 +190,39 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
     return user;
   });
 }
+
+
+export async function VCRoleNeedsAdding(member: GuildMember): Promise<string[]> {
+  const role = await member.guild.roles.fetch(VC_ROLE_ID);
+  if (!role) {
+    await alertOwner("VC role not found: " + VC_ROLE_ID);
+    return [];
+  }
+  return VCRoleNeedsAddingSync(member, role);
+}
+
+function VCRoleNeedsAddingSync(member: GuildMember, role: RoleType): string[] {
+  if (member.roles.cache.has(role.id)) {
+    // log.debug("User already has VC role", ctx);
+    return [];
+  }
+  log.debug("Adding VC role", { userId: member.id, username: member.user.username });
+  return [role.id];
+}
+
+export async function VCRoleNeedsRemoval(member: GuildMember): Promise<string[]> {
+  const role = await member.guild.roles.fetch(VC_ROLE_ID);
+  if (!role) {
+    await alertOwner("VC role not found: " + VC_ROLE_ID);
+    return [];
+  }
+  return VCRoleNeedsRemovalSync(member, role);
+}
+
+export function VCRoleNeedsRemovalSync(member: GuildMember, role: RoleType) {
+  if (!member.roles.cache.has(role.id)) {
+    return [];
+  }
+  return [role.id];
+}
+

@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import { db, getUserTimezone } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import { eq } from "drizzle-orm";
-import { errorReply } from "@/discord/utils/interactionUtils.ts";
+import { errorReply } from "@/discord/utils/interaction.ts";
 import type { Command } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import { createLogger } from "@/common/logging/logger.ts";

@@ -9,8 +9,8 @@ import {
   setVCEmoji,
   setCountingState,
 } from "@/db/db.ts";
-import { awardPoints } from "@/services/pointsService.ts";
-import { errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
+import { awardPoints } from "@/discord/core/points.ts";
+import { errorReply, inGuild } from "@/discord/utils/interaction.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import {
   houseCupEntryTable,
@@ -22,16 +22,17 @@ import {
   voiceSessionTable,
 } from "@/db/schema.ts";
 import { HOUSES, Role } from "@/common/constants.ts";
-import { refreshAllYearRoles } from "@/discord/utils/yearRoleUtils.ts";
+import { refreshAllYearRoles } from "@/discord/events/voiceStateUpdate/yearRole.ts";
 import { createLogger } from "@/common/logging/logger.ts";
-import { updateMember } from "@/discord/events/voiceStateUpdate.ts";
+import { updateMember } from "@/discord/utils/updateMember.ts";
 import type { Command, Sums } from "@/common/types.ts";
-import { getHousepointMessages, updateScoreboardMessages } from "../utils/scoreboardService.ts";
+import { getHousepointMessages, updateScoreboardMessages } from "../scoreboard/scoreboard.ts";
 import { desc, eq, isNull, not } from "drizzle-orm";
 import dayjs from "dayjs";
 import assert from "assert";
-import { journalDelete, journalExport, journalImport, journalList, journalSet, journalShow } from "./admin/journal.ts";
-import timezone, { setTimezone } from "./timezone.ts";
+import { journalDelete, journalExport, journalImport, journalList, journalSet, journalShow } from "./journal.ts";
+import timezone, { setTimezone } from "../timezone.ts";
+import { requireRole } from "../../../utils/role.ts";
 
 const log = createLogger("Admin");
 const ALLOWED_PREFECT_COMMANDS = ["timezone"];

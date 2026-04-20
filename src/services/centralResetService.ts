@@ -3,15 +3,15 @@ import dayjs from "dayjs";
 import { db, getOpenVoiceSessions } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import { inArray, sql } from "drizzle-orm";
-import { endVoiceSession, startVoiceSession } from "@/discord/utils/voiceUtils.ts";
+import { endVoiceSession, startVoiceSession } from "@/discord/events/voiceStateUpdate/voice.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import { resetExecutionTimer } from "@/common/logging/monitoring.ts";
-import { updateMessageStreakInNickname } from "@/discord/utils/nicknameUtils.ts";
+import { updateMessageStreakInNickname } from "@/discord/events/messageCreate/nickname.ts";
 import { MIN_DAILY_MESSAGES_FOR_STREAK } from "@/common/constants.ts";
 import { createLogger, OpId } from "@/common/logging/logger.ts";
 import { runWithOpContext } from "@/common/logging/opContext.ts";
 import type { Guild } from "discord.js";
-import { getGuild } from "@/discord/events/clientReady.ts";
+import { getGuild } from "@/discord/events/clientReady/index.ts";
 
 const log = createLogger("Reset");
 

@@ -1,10 +1,10 @@
 import { Collection } from "discord.js";
-import timezoneCommand from "./commands/timezone.ts";
+import timezoneCommand from "./events/interactionCreate/timezone.ts";
 import type { Command } from "../common/types.ts";
-import submit from "./commands/submit.ts";
-import admin from "./commands/admin.ts";
-import scoreboard from "./commands/scoreboard.ts";
-import user from "./commands/user.ts";
+import submit from "./events/interactionCreate/submit/index.ts";
+import admin from "./events/interactionCreate/admin/index.ts";
+import scoreboard from "./events/interactionCreate/scoreboard/index.ts";
+import user from "./events/interactionCreate/user.ts";
 
 export const commands = new Collection<string, Command>();
 

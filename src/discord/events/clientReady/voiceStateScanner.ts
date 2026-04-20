@@ -6,14 +6,14 @@
  */
 
 import { BaseGuildVoiceChannel, ChannelType, Collection, type Guild } from "discord.js";
-import { closeVoiceSessionUntracked, endVoiceSession } from "@/discord/utils/voiceUtils.ts";
+import { closeVoiceSessionUntracked, endVoiceSession } from "@/discord/events/voiceStateUpdate/voice.ts";
 import { db, ensureUserExists } from "@/db/db.ts";
 import { voiceSessionTable } from "@/db/schema.ts";
 import { isNull } from "drizzle-orm";
 import { createLogger } from "@/common/logging/logger.ts";
-import { getGuild } from "@/discord/events/clientReady.ts";
+import { getGuild } from "@/discord/events/clientReady/index.ts";
 import { MAX_SESSION_AGE_MS } from "@/common/constants.ts";
-import { join } from "@/discord/events/voiceStateUpdate.ts";
+import { join } from "@/discord/events/voiceStateUpdate/index.ts";
 
 const log = createLogger("VoiceScan");
 

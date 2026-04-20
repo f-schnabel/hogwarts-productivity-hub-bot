@@ -6,7 +6,7 @@ import type { House } from "@/common/types.ts";
 import { HOUSE_COLORS, HOUSE_CREST_EMOJI_IDS } from "@/common/constants.ts";
 import { client } from "@/discord/client.ts";
 import { createLogger } from "@/common/logging/logger.ts";
-import { getGuild } from "@/discord/events/clientReady.ts";
+import { getGuild } from "@/discord/events/clientReady/index.ts";
 
 const log = createLogger("Scoreboard");
 
@@ -68,22 +68,20 @@ export async function getHousepointMessages<T extends { house: House }>(
     result.push({
       ...scoreboard,
       message: {
-        embeds: [
-          {
-            color: HOUSE_COLORS[scoreboard.house],
-            title,
-            description,
-            footer: {
-              text: `Last updated • ${new Date().toLocaleString("en-US", {
-                month: "long",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: true,
-              })} UTC`,
-            },
+        embeds: [{
+          color: HOUSE_COLORS[scoreboard.house],
+          title,
+          description,
+          footer: {
+            text: `Last updated • ${new Date().toLocaleString("en-US", {
+              month: "long",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })} UTC`,
           },
-        ],
+        }],
       },
     });
   }

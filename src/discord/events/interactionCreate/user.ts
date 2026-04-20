@@ -3,14 +3,15 @@ import dayjs from "dayjs";
 import { db, getMonthStartDate } from "@/db/db.ts";
 import { submissionTable, userTable, voiceSessionTable } from "@/db/schema.ts";
 import { and, asc, eq, gte, isNull } from "drizzle-orm";
-import { calculatePoints } from "@/services/pointsService.ts";
-import { formatDuration, errorReply, inGuild, requireRole } from "@/discord/utils/interactionUtils.ts";
+import { formatDuration, errorReply, inGuild } from "@/discord/utils/interaction.ts";
 import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "@/common/constants.ts";
-import { getYearFromMonthlyVoiceTime } from "@/discord/utils/yearRoleUtils.ts";
+import { getYearFromMonthlyVoiceTime } from "@/discord/events/voiceStateUpdate/year.ts";
 import type { Command } from "@/common/types.ts";
 
 import { stripIndent } from "common-tags";
 import assert from "node:assert";
+import { requireRole } from "../../utils/role.ts";
+import { calculatePoints } from "@/discord/core/points.ts";
 
 export default {
   data: new SlashCommandBuilder()
