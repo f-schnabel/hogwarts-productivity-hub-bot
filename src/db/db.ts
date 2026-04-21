@@ -316,7 +316,7 @@ export async function getUnweightedHousePoints(db: DbOrTx): Promise<HousePoints[
 }
 
 export function getHouseFromMember(member: GuildMember | null): House | undefined {
-  if (!member) return undefined;
+  if (!member || !member.roles.cache) return undefined;
   const roles = member.roles.cache;
 
   const houses = HOUSE_ROLES.filter(([roleId]) => roles.has(roleId));
