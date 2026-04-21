@@ -10,7 +10,7 @@ export function requireRole(interaction: ChatInputCommandInteraction<"cached">, 
     if (roles & Role.OWNER) roleNames.push("OWNER");
     if (roles & Role.PREFECT) roleNames.push("PREFECT");
     if (roles & Role.PROFESSOR) roleNames.push("PROFESSOR");
-    void errorReply(interaction, "Insufficient Permissions", `Only ${roleNames.join(" or ")} can use this command.`);
+    void errorReply(interaction, "Insufficient Permissions", `Only ${roleNames.join(" or ")} can use this command.`).catch(() => undefined);
     return false;
   }
   return true;

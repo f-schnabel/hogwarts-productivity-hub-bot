@@ -41,6 +41,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName("admin")
     .setDescription("Admin commands")
+    .setDMPermission(false)
     .addSubcommand((subcommand) =>
       subcommand
         .setName("adjust-points")

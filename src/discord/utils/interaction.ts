@@ -26,7 +26,7 @@ export function inGuild(
   interaction: ChatInputCommandInteraction,
 ): interaction is ChatInputCommandInteraction<"cached"> {
   if (!interaction.inCachedGuild()) {
-    void errorReply(interaction, "Invalid Context", "This command can only be used in a server.");
+    void errorReply(interaction, "Invalid Context", "This command can only be used in a server.").catch(() => undefined);
     return false;
   }
   return true;
