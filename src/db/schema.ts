@@ -5,6 +5,7 @@ import {
   foreignKey,
   index,
   integer,
+  pgEnum,
   pgTable,
   serial,
   text,
@@ -14,6 +15,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { HOUSES } from "@/common/constants.ts";
 
+export const houseEnum = pgEnum("house", HOUSES);
+
 export const userTable = pgTable("user", {
   // Technical fields
   discordId: varchar({ length: 255 }).primaryKey().notNull(),
@@ -22,7 +25,7 @@ export const userTable = pgTable("user", {
   username: varchar({ length: 255 }).notNull(),
 
   // User customization fields
-  house: varchar({ length: 50, enum: HOUSES }),
+  house: houseEnum(),
   timezone: varchar({ length: 50 }).default("UTC").notNull(),
   lastDailyReset: timestamp().defaultNow().notNull(),
 
@@ -63,6 +66,9 @@ export const voiceSessionTable = pgTable(
   (table) => [index("voice_session_discord_id_left_at_idx").on(table.discordId, table.leftAt)],
 );
 
+export const submissionTypeEnum = pgEnum("submission_type", ["NEW", "COMPLETED"]);
+export const submissionStatusEnum = pgEnum("submission_status", ["PENDING", "APPROVED", "REJECTED", "CANCELED"]);
+
 // Holds submission data so approvals/rejections persist bot restarts
 export const submissionTable = pgTable(
   "submission",
@@ -79,12 +85,12 @@ export const submissionTable = pgTable(
     channelId: varchar({ length: 255 }),
 
     // Submission fields
-    house: varchar({ length: 50, enum: HOUSES }).notNull(),
+    house: houseEnum().notNull(),
     houseId: integer().notNull(),
     screenshotUrl: varchar({ length: 1000 }).notNull(),
     points: integer().notNull(),
-    submissionType: varchar({ length: 50, enum: ["NEW", "COMPLETED"] }),
-    status: varchar({ length: 50, enum: ["PENDING", "APPROVED", "REJECTED", "CANCELED"] }).default("PENDING").notNull(),
+    submissionType: submissionTypeEnum(),
+    status: submissionStatusEnum().default("PENDING").notNull(),
     // Self-reference to link finish submission to its start submission
     linkedSubmissionId: integer(),
   },
@@ -98,7 +104,7 @@ export const submissionTable = pgTable(
 // Holds message ids to be updated for house scoreboards
 export const houseScoreboardTable = pgTable("house_scoreboard", {
   id: serial().primaryKey(),
-  house: varchar({ length: 50, enum: HOUSES }).notNull(),
+  house: houseEnum().notNull(),
   channelId: text().notNull(),
   messageId: text().notNull(),
   updatedAt: timestamp().defaultNow().notNull(),
@@ -115,7 +121,7 @@ export const settingsTable = pgTable("settings", {
 export const houseCupMonthTable = pgTable("house_cup_month", {
   id: serial().primaryKey(),
   month: varchar({ length: 7 }).notNull().unique(), // "2026-03" format
-  winner: varchar({ length: 50, enum: HOUSES }).notNull(),
+  winner: houseEnum().notNull(),
   createdAt: timestamp().notNull().defaultNow(),
 });
 
@@ -125,7 +131,7 @@ export const houseCupEntryTable = pgTable(
   {
     id: serial().primaryKey(),
     monthId: integer().notNull().references(() => houseCupMonthTable.id, { onDelete: "cascade" }),
-    house: varchar({ length: 50, enum: HOUSES }).notNull(),
+    house: houseEnum().notNull(),
     weightedPoints: integer().notNull(),
     rawPoints: integer().notNull(),
     memberCount: integer().notNull(),
