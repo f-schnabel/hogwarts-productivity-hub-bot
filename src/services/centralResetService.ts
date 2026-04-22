@@ -76,7 +76,9 @@ async function processDailyResets() {
       });
 
       try {
-        await Promise.all(usersInVoiceSessions.map((session) => endVoiceSession(session, db)));
+        for (const session of usersInVoiceSessions) {
+          await endVoiceSession(session, db);
+        }
 
         const boosterIds = getBoosterIds(guild, usersNeedingReset);
         if (boosterIds.length > 0) {
@@ -106,7 +108,9 @@ async function processDailyResets() {
 
         return updatedUsers.length;
       } finally {
-        await Promise.all(usersInVoiceSessions.map((session) => startVoiceSession(session, db)));
+        for (const session of usersInVoiceSessions) {
+          await startVoiceSession(session, db);
+        }
       }
     });
   }, "Daily reset processing");
