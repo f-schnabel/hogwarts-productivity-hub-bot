@@ -16,7 +16,7 @@ const log = createLogger("Voice");
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
 // Start a voice session when user joins VC (timezone-aware)
-export async function startVoiceSession(session: VoiceSession, db: DbOrTx, joinedAt: Date = new Date()) {
+export async function startVoiceSession(session: VoiceSession, db: DbOrTx) {
   const { channelName, discordId, username, channelId } = session;
   const ctx = { discordId, username, channelName };
 
@@ -44,7 +44,7 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx, joine
       await closeVoiceSessionUntracked(session, db); // End existing session without tracking
     }
 
-    await db.insert(voiceSessionTable).values({ discordId, channelId, channelName, joinedAt });
+    await db.insert(voiceSessionTable).values({ discordId, channelId, channelName });
 
     log.info("Session started", ctx);
   });
@@ -84,7 +84,7 @@ export async function closeVoiceSessionUntracked(session: VoiceSession, db: DbOr
 
 /** End a voice session when user leaves VC
  */
-export async function endVoiceSession(session: VoiceSession, db: DbOrTx, leftAt: Date = new Date()) {
+export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
   const channelId = session.channelId;
   const ctx = { userId: session.discordId, user: session.username, channel: session.channelName };
 
@@ -118,6 +118,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, leftAt:
 
     const [sessionToClose] = existingVoiceSession;
     assert(sessionToClose !== undefined, "Expected exactly one voice session to end, but found none");
+    const leftAt = new Date();
 
     const creditedDuration = await calculateCreditedVoiceSeconds(db, channelId, sessionToClose.joinedAt, leftAt);
     const [voiceSessionWithDuration, ...extra] = await db
