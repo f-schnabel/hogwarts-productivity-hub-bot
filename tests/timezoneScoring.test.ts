@@ -49,7 +49,7 @@ describe("asOffsetQuery", () => {
 });
 
 describe("scoreTimezones offset matching", () => {
-  const values = (results: { value: string }[]) => results.map((r) => r.value);
+  const values = (results: { name: string }[]) => results.map((r) => r.name);
 
   describe("offset formats all match the same timezone", () => {
     // Asia/Kolkata is the canonical UTC+05:30 timezone
