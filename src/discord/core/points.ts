@@ -11,9 +11,9 @@ export async function awardPoints(db: DbOrTx, discordId: string, points: number)
   const house = await db
     .update(userTable)
     .set({
-      dailyPoints: sql`${userTable.dailyPoints} + ${points}`,
+      dailyPoints:   sql`${userTable.dailyPoints}   + ${points}`,
       monthlyPoints: sql`${userTable.monthlyPoints} + ${points}`,
-      totalPoints: sql`${userTable.totalPoints} + ${points}`,
+      totalPoints:   sql`${userTable.totalPoints}   + ${points}`,
     })
     .where(eq(userTable.discordId, discordId))
     .returning({ house: userTable.house })
@@ -46,30 +46,26 @@ export async function reverseSubmissionPoints(db: DbOrTx, discordId: string, poi
 }
 
 async function refreshHouseScoreboards(db: DbOrTx, house: House | null | undefined) {
-  if (house) {
-    const scoreboards = await db.select().from(houseScoreboardTable).where(eq(houseScoreboardTable.house, house));
-    if (scoreboards.length > 0) {
-      // fire-and-forget: don't block transaction on Discord API calls
-      void updateScoreboardMessages(await getHousepointMessages(db, scoreboards)).then(async (brokenIds) => {
-        if (brokenIds.length > 0) {
-          await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries for ${house}.`);
-          await globalDb.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
-        }
-      });
+  if (!house) return;
+
+  const scoreboards = await db.select().from(houseScoreboardTable).where(eq(houseScoreboardTable.house, house));
+  if (scoreboards.length == 0) return;
+
+  // fire-and-forget: don't block transaction on Discord API calls
+  void updateScoreboardMessages(await getHousepointMessages(db, scoreboards)).then(async (brokenIds) => {
+    if (brokenIds.length > 0) {
+      await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries for ${house}.`);
+      await globalDb.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
     }
-  }
+  });
 }
 
 export function calculatePointsHelper(voiceTime: number): number {
-  const ONE_HOUR = 60 * 60;
-  const FIVE_MINUTES = 5 * 60;
+  // 5 minute grace period
+  voiceTime += 5 * 60;
+  voiceTime = Math.floor(voiceTime / 60 * 60);
 
-  voiceTime += FIVE_MINUTES;
-  voiceTime = Math.floor(voiceTime / ONE_HOUR);
-
-  if (voiceTime < 1) {
-    return 0;
-  }
+  if (voiceTime < 1) return 0;
 
   let points = FIRST_HOUR_POINTS;
 

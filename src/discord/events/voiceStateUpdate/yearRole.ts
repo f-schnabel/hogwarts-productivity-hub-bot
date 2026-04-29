@@ -38,15 +38,13 @@ export async function announceYearPromotion(
 
     await channel.send({
       content: `Congratulations ${member.toString()}!`,
-      embeds: [
-        {
-          title: "New Activity Rank Attained!",
-          description: YEAR_MESSAGES[user.house]
-            .replace("{ROLE}", roleMention(roleId))
-            .replace("{HOURS}", hours.toString() + (hours === 1 ? " hour" : " hours")),
-          color: HOUSE_COLORS[user.house],
-        },
-      ],
+      embeds: [{
+        title: "New Activity Rank Attained!",
+        description: YEAR_MESSAGES[user.house]
+          .replace("{ROLE}", roleMention(roleId))
+          .replace("{HOURS}", hours.toString() + (hours === 1 ? " hour" : " hours")),
+        color: HOUSE_COLORS[user.house],
+      }],
     });
 
     await db.update(userTable).set({ announcedYear: year }).where(eq(userTable.discordId, member.id));
@@ -89,10 +87,8 @@ export async function refreshAllYearRoles(guild: Guild): Promise<number> {
     try {
       const member = guild.members.cache.get(user.discordId);
       if (!member) continue;
-      updates.push({
-        member,
-        roleUpdates: calculateYearRoles(member, user),
-      });
+
+      updates.push({ member, roleUpdates: calculateYearRoles(member, user) });
       updated++;
     } catch {
       // Member not in guild, skip
@@ -100,11 +96,7 @@ export async function refreshAllYearRoles(guild: Guild): Promise<number> {
   }
   await Promise.all(
     updates.map(async ({ member, roleUpdates }) => {
-      await updateMember({
-        member,
-        reason: "Refreshing year roles",
-        roleUpdates,
-      });
+      await updateMember({ member, reason: "Refreshing year roles", roleUpdates });
     }),
   );
   return updated;

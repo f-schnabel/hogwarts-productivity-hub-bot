@@ -130,11 +130,7 @@ async function vcSwitch(oldVoiceSession: VoiceSession, newVoiceSession: VoiceSes
   const user = await endVoiceSession(oldVoiceSession, db);
 
   await Promise.all([
-    updateMember({
-      member,
-      reason: "User switched voice channel",
-      roleUpdates: calculateYearRoles(member, user),
-    }),
+    updateMember({ member, reason: "User switched voice channel", roleUpdates: calculateYearRoles(member, user) }),
     startVoiceSession(newVoiceSession, db),
     announceYearPromotion(member, user),
   ]);

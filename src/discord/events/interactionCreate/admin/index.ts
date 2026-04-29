@@ -207,7 +207,7 @@ export default {
 
 async function adjustPoints(interaction: ChatInputCommandInteraction<"cached">) {
   const amount = interaction.options.getInteger("amount", true);
-  const user = interaction.options.getUser("user", true);
+  const user   = interaction.options.getUser("user", true);
   const reason = interaction.options.getString("reason");
 
   await awardPoints(db, user.id, amount);
@@ -239,9 +239,9 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
         .where(not(isNull(userTable.house)))
         .orderBy(userTable.house, desc(userTable.monthlyPoints)),
     ]);
-    const weightedMap = new Map(weighted.map((h) => [h.house, h]));
+    const weightedMap   = new Map(weighted.map((h) => [h.house, h]));
     const unweightedMap = new Map(unweighted.map((h) => [h.house, h]));
-    const championMap = new Map(champions.map((c) => [c.house, c.discordId]));
+    const championMap   = new Map(champions.map((c) => [c.house, c.discordId]));
 
     const winner = weighted[0]?.house; // Already sorted desc by totalPoints
     assert(winner, "No house points found during monthly reset");
@@ -309,8 +309,10 @@ async function vcEmojiCommand(interaction: ChatInputCommandInteraction<"cached">
       await Promise.all(
         voiceMembers.map(async (member) => {
           if (!member.nickname?.includes(oldEmoji)) return;
+
           const newNickname = member.nickname.replaceAll(oldEmoji, emoji).trim();
           if (newNickname.length > 32 || newNickname === member.nickname) return;
+
           await updateMember({ member, reason: "Swapping VC emoji", nickname: newNickname });
         }),
       );

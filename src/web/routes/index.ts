@@ -40,32 +40,30 @@ export default function registerIndexRoute(app: Router) {
       getDailyUserPointEvents(db, monthStart),
     ]);
 
-    const unweightedMap = new Map(
-      unweightedHouseData.map((h) => [h.house, { unweightedPoints: h.totalPoints, totalMemberCount: h.memberCount }]),
+    const unweightedMap = new Map(unweightedHouseData.map((h) =>
+      [h.house, { unweightedPoints: h.totalPoints, totalMemberCount: h.memberCount }]),
     );
 
-    const weightedMap = new Map(
-      weightedHouseData.map((h) => [h.house, { totalPoints: h.totalPoints, memberCount: h.memberCount }]),
+    const weightedMap = new Map(weightedHouseData.map((h) =>
+      [h.house, { totalPoints: h.totalPoints, memberCount: h.memberCount }]),
     );
 
     const allHouses = Object.keys(HOUSE_COLORS) as House[];
 
-    let houses = allHouses
-      .map((house) => {
-        const weighted = weightedMap.get(house);
-        const unweighted = unweightedMap.get(house);
-        return {
-          name: house,
-          color: getHouseColor(house),
-          rawPoints: weighted?.totalPoints ?? 0,
-          points: weighted?.totalPoints ?? 0,
-          memberCount: weighted?.memberCount ?? 0,
-          unweightedPoints: unweighted?.unweightedPoints ?? 0,
-          totalMemberCount: unweighted?.totalMemberCount ?? 0,
-          rank: 1,
-        };
-      })
-      .sort((a, b) => b.rawPoints - a.rawPoints);
+    let houses = allHouses.map((house) => {
+      const weighted = weightedMap.get(house);
+      const unweighted = unweightedMap.get(house);
+      return {
+        name: house,
+        color: getHouseColor(house),
+        rawPoints:   weighted?.totalPoints ?? 0,
+        points:      weighted?.totalPoints ?? 0,
+        memberCount: weighted?.memberCount ?? 0,
+        unweightedPoints: unweighted?.unweightedPoints ?? 0,
+        totalMemberCount: unweighted?.totalMemberCount ?? 0,
+        rank: 1,
+      };
+    }).sort((a, b) => b.rawPoints - a.rawPoints);
 
     // Calculate ranks with ties (same points = same rank)
     houses.forEach((current, i) => {

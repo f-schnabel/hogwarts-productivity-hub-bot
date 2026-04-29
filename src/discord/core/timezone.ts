@@ -6,7 +6,7 @@ import { stripIndent } from "common-tags";
 import dayjs from "dayjs";
 import type { AutocompleteInteraction, ChatInputCommandInteraction } from "discord.js";
 import { eq } from "drizzle-orm";
-import { errorReply } from "../utils/interaction.ts";
+import { errorReply, reply } from "../utils/interaction.ts";
 import { rawTimeZones } from "@vvo/tzdb";
 
 const log = createLogger("Timezone");
@@ -53,12 +53,7 @@ export async function setTimezone(
   }
 
   // Update timezone in database
-  const result = await db
-    .update(userTable)
-    .set({
-      timezone: newTimezone,
-    })
-    .where(eq(userTable.discordId, discordId));
+  const result = await db.update(userTable).set({ timezone: newTimezone }).where(eq(userTable.discordId, discordId));
 
   if (result.rowCount === 0) {
     await errorReply(
@@ -69,7 +64,7 @@ export async function setTimezone(
     );
     return;
   }
-  const reply = {
+  await reply(interaction, {
     embeds: [{
       color: BOT_COLORS.SUCCESS,
       title: "Timezone Updated Successfully",
@@ -79,32 +74,17 @@ export async function setTimezone(
         inline: true,
       }],
     }],
-  };
-  if (opts?.deferred) {
-    await interaction.editReply(reply);
-  } else {
-    await interaction.reply(reply);
-  }
+  }, opts);
 }
 
 export async function autocompleteTimezone(interaction: AutocompleteInteraction) {
   const words = interaction.options.getFocused().toLowerCase().trim().split(/\s+/).filter(Boolean);
 
-  if (words.length === 0) {
-    await interaction.respond(
-      TIMEZONES.slice(0, 25).map(({ displayBaseName, name }) => ({
-        name: `${displayBaseName} (${dayjs().tz(name).format("HH:mm")})`,
-        value: name,
-      })),
-    );
-    return;
-  }
-
-  const scored = scoreTimezones(words);
+  const scored = words.length === 0 ? TIMEZONES : scoreTimezones(words);
   await interaction.respond(
-    scored.slice(0, 25).map(({ displayBaseName, value }) => ({
-      name: `${displayBaseName} (${dayjs().tz(value).format("HH:mm")})`,
-      value,
+    scored.slice(0, 25).map(({ displayBaseName, name }) => ({
+      name: `${displayBaseName} (${dayjs().tz(name).format("HH:mm")})`,
+      value: name,
     })),
   );
 }
@@ -117,12 +97,12 @@ export async function autocompleteTimezone(interaction: AutocompleteInteraction)
  * e.g. "5" → "+05:00", "5:30" → "+05:30", "+5:30" → "+05:30", "+05:30" → "+05:30"
  */
 export function normalizeOffset(s: string): string {
-  const hasSign = s.startsWith("+") || s.startsWith("-");
-  const sign = hasSign ? s.charAt(0) : "+";
-  const rest = hasSign ? s.slice(1) : s;
+  const hasSign  = s.startsWith("+") || s.startsWith("-");
+  const sign     = hasSign ? s.charAt(0) : "+";
+  const rest     = hasSign ? s.slice(1) : s;
   const colonIdx = rest.indexOf(":");
-  const h = colonIdx >= 0 ? rest.slice(0, colonIdx) : rest;
-  const m = colonIdx >= 0 ? rest.slice(colonIdx + 1) : "00";
+  const h        = colonIdx >= 0 ? rest.slice(0, colonIdx) : rest;
+  const m        = colonIdx >= 0 ? rest.slice(colonIdx + 1) : "00";
   return `${sign}${h.padStart(2, "0")}:${m}`;
 }
 
@@ -142,24 +122,25 @@ const TIMEZONES = rawTimeZones.map((tz) => ({
   offset: normalizeOffset((tz.rawFormat.split(" ")[0] ?? "").toLowerCase()),
 }));
 
-export function scoreTimezones(words: string[]): { score: number; displayBaseName: string; value: string }[] {
-  const scored: { score: number; displayBaseName: string; value: string }[] = [];
+export function scoreTimezones(words: string[]): { score: number; displayBaseName: string; name: string }[] {
+  const scored: { score: number; displayBaseName: string; name: string }[] = [];
 
   for (const tz of TIMEZONES) {
     let totalScore = 0;
     for (const word of words) {
       const offsetQuery = asOffsetQuery(word);
-      if (offsetQuery !== null && tz.offset.startsWith(offsetQuery)) totalScore += 6;
-      else if (tz.abbr === word) totalScore += 5;
-      else if (tz.tzName.includes(word)) totalScore += 4;
-      else if (tz.country.includes(word)) totalScore += 3;
+      if (offsetQuery !== null &&
+        tz.offset.startsWith(offsetQuery))     totalScore += 6;
+      else if (tz.abbr === word)               totalScore += 5;
+      else if (tz.tzName.includes(word))       totalScore += 4;
+      else if (tz.country.includes(word))      totalScore += 3;
       else if (tz.altAndCities.includes(word)) totalScore += 2;
-      else if (tz.aliases.includes(word)) totalScore += 1;
+      else if (tz.aliases.includes(word))      totalScore += 1;
     }
 
     if (totalScore === 0) continue;
 
-    scored.push({ score: totalScore, displayBaseName: tz.displayBaseName, value: tz.name });
+    scored.push({ score: totalScore, displayBaseName: tz.displayBaseName, name: tz.name });
   }
 
   scored.sort((a, b) => b.score - a.score);

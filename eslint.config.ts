@@ -50,6 +50,8 @@ export default defineConfig([
       "@stylistic/operator-linebreak": ["warn", "after", { overrides: { "?": "before", ":": "before" } }],
       "@stylistic/no-multiple-empty-lines": ["warn", { max: 2 }],
       "@stylistic/lines-between-class-members": "off",
+      "@stylistic/no-multi-spaces": "off",
+      "@stylistic/key-spacing": "off",
     },
   },
 ]);

@@ -25,6 +25,7 @@ import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_TYPES } from "@/common/cons
 import type { Command, SubmissionType } from "@/common/types.ts";
 import { alertOwner } from "../../../utils/alerting.ts";
 import { getSubmissionTypeLabel, submissionMessage } from "./submissionMessage.ts";
+import { oneLine, stripIndent } from "common-tags";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
 
@@ -63,7 +64,7 @@ export default {
       return;
     }
 
-    const screenshot = interaction.options.getAttachment("screenshot", true);
+    const screenshot     = interaction.options.getAttachment("screenshot", true);
     const submissionType = interaction.options.getString("type", true) as SubmissionType;
 
     const house = getHouseFromMember(interaction.member);
@@ -96,7 +97,11 @@ export default {
       await errorReply(
         interaction,
         "New List Already Submitted Today",
-        `You already have a ${bold(getSubmissionTypeLabel(firstSubmission.submissionType))} with status ${bold(firstSubmission.status.toLowerCase())} today, so you cannot submit another one.${blockingSubmissionUrl ? ` You can view the blocking submission [here](${blockingSubmissionUrl}).` : ""} If the blocking submission is still pending and incorrect, you can cancel it from the submission message.`,
+        oneLine`
+          You already have a ${bold(getSubmissionTypeLabel(firstSubmission.submissionType))} with status ${bold(firstSubmission.status.toLowerCase())} today,
+          so you cannot submit another one.
+          ${blockingSubmissionUrl ? ` You can view the blocking submission [here](${blockingSubmissionUrl}).` : ""}
+          If the blocking submission is still pending and incorrect, you can cancel it from the submission message.`,
       );
       return;
     }
@@ -110,7 +115,11 @@ export default {
       await errorReply(
         interaction,
         "Completed List Already Submitted Today",
-        `You already have a ${bold("Completed List")} with status ${bold(completedSubmission.status.toLowerCase())} today, so you cannot submit another one.${blockingSubmissionUrl ? ` You can view the blocking submission [here](${blockingSubmissionUrl}).` : ""} If the blocking submission is still pending and incorrect, you can cancel it from the submission message.`,
+        oneLine`
+          You already have a ${bold("Completed List")} with status ${bold(completedSubmission.status.toLowerCase())} today, 
+          so you cannot submit another one.
+          ${blockingSubmissionUrl ? ` You can view the blocking submission [here](${blockingSubmissionUrl}).` : ""}
+          If the blocking submission is still pending and incorrect, you can cancel it from the submission message.`,
       );
       return;
     }
@@ -127,9 +136,11 @@ export default {
         await errorReply(
           interaction,
           "Please wait before submitting again",
-          `${bold("There has to be at least an hour between submitting the new and the completed To-Do List")}. You already have submitted in the past hour.\n
-        If the previous submission was wrong you can cancel it by clicking on the button above.
-        ${waitMessage}`,
+          stripIndent`
+            ${bold("There has to be at least an hour between submitting the new and the completed To-Do List")}. You already have submitted in the past hour.
+
+            If the previous submission was wrong you can cancel it by clicking on the button above.
+            ${waitMessage}`,
         );
         return;
       }
@@ -166,13 +177,7 @@ export default {
     assert(reply, "Failed to get message from reply");
 
     // Update the submission with the message ID and channel ID
-    await db
-      .update(submissionTable)
-      .set({
-        messageId: reply.id,
-        channelId: reply.channelId,
-      })
-      .where(eq(submissionTable.id, submission.id));
+    await db.update(submissionTable).set({ messageId: reply.id, channelId: reply.channelId }).where(eq(submissionTable.id, submission.id));
 
     // If linked to a previous submission, update that message with cross-reference
     if (linkedSubmission?.channelId && linkedSubmission.messageId) {
@@ -229,20 +234,16 @@ export default {
       await interaction.showModal({
         title: "Reject Submission",
         customId: `rejectModal-${submissionId}`,
-        components: [
-          {
-            type: ComponentType.ActionRow,
-            components: [
-              {
-                type: ComponentType.TextInput,
-                style: TextInputStyle.Short,
-                customId: "reasonInput",
-                label: "Please provide a reason for rejection:",
-                required: true,
-              },
-            ],
-          },
-        ],
+        components: [{
+          type: ComponentType.ActionRow,
+          components: [{
+            type: ComponentType.TextInput,
+            style: TextInputStyle.Short,
+            customId: "reasonInput",
+            label: "Please provide a reason for rejection:",
+            required: true,
+          }],
+        }],
       });
 
       try {

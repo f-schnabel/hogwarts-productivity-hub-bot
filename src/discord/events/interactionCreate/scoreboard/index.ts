@@ -18,10 +18,10 @@ export default {
         .setDescription("Choose a house to view its points")
         .setRequired(true)
         .addChoices(
-          { name: "Slytherin", value: "Slytherin" },
+          { name: "Slytherin",  value: "Slytherin" },
           { name: "Gryffindor", value: "Gryffindor" },
           { name: "Hufflepuff", value: "Hufflepuff" },
-          { name: "Ravenclaw", value: "Ravenclaw" },
+          { name: "Ravenclaw",  value: "Ravenclaw" },
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {

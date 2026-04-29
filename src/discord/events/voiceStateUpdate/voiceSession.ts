@@ -131,9 +131,9 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
     const [user] = await db
       .update(userTable)
       .set({
-        dailyVoiceTime: sql`${userTable.dailyVoiceTime} + ${duration}`,
+        dailyVoiceTime:   sql`${userTable.dailyVoiceTime}   + ${duration}`,
         monthlyVoiceTime: sql`${userTable.monthlyVoiceTime} + ${duration}`,
-        totalVoiceTime: sql`${userTable.totalVoiceTime} + ${duration}`,
+        totalVoiceTime:   sql`${userTable.totalVoiceTime}   + ${duration}`,
       })
       .where(eq(userTable.discordId, session.discordId))
       .returning({

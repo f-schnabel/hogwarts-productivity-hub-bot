@@ -13,24 +13,20 @@ export default function registerLeaderboardRoute(app: Router) {
     const monthStart = await getMonthStartDate();
 
     const [todoPointsData, userData, vcEmoji] = await Promise.all([
-      db
-        .select({
-          discordId: submissionTable.discordId,
-          todoPoints: sql<number>`COALESCE(sum(${submissionTable.points}), 0)`,
-        })
-        .from(submissionTable)
+      db.select({
+        discordId: submissionTable.discordId,
+        todoPoints: sql<number>`COALESCE(sum(${submissionTable.points}), 0)`,
+      }).from(submissionTable)
         .where(and(gte(submissionTable.submittedAt, monthStart), eq(submissionTable.status, "APPROVED")))
         .groupBy(submissionTable.discordId),
-      db
-        .select({
-          username: userTable.username,
-          discordId: userTable.discordId,
-          house: userTable.house,
-          monthlyPoints: userTable.monthlyPoints,
-          monthlyVoiceTime: userTable.monthlyVoiceTime,
-          messageStreak: userTable.messageStreak,
-        })
-        .from(userTable)
+      db.select({
+        username: userTable.username,
+        discordId: userTable.discordId,
+        house: userTable.house,
+        monthlyPoints: userTable.monthlyPoints,
+        monthlyVoiceTime: userTable.monthlyVoiceTime,
+        messageStreak: userTable.messageStreak,
+      }).from(userTable)
         .where(gt(userTable.monthlyPoints, 0))
         .orderBy(desc(userTable.monthlyPoints)),
       getVCEmoji(),
@@ -60,8 +56,8 @@ export default function registerLeaderboardRoute(app: Router) {
     const houseColors = {
       Gryffindor: getHouseColor("Gryffindor"),
       Hufflepuff: getHouseColor("Hufflepuff"),
-      Ravenclaw: getHouseColor("Ravenclaw"),
-      Slytherin: getHouseColor("Slytherin"),
+      Ravenclaw:  getHouseColor("Ravenclaw"),
+      Slytherin:  getHouseColor("Slytherin"),
     };
 
     res.render("leaderboard", { title: "Leaderboard", users, houseColors, yearColors: YEAR_COLORS });

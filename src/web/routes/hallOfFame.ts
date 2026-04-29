@@ -41,9 +41,9 @@ export default function registerHallOfFameRoute(app: Router) {
       return {
         name: house,
         color: getHouseColor(house),
-        rawPoints: entry?.weightedPoints ?? 0,
-        points: entry?.weightedPoints ?? 0,
-        memberCount: entry?.qualifyingCount ?? 0,
+        rawPoints:        entry?.weightedPoints ?? 0,
+        points:           entry?.weightedPoints ?? 0,
+        memberCount:      entry?.qualifyingCount ?? 0,
         unweightedPoints: entry?.rawPoints ?? 0,
         totalMemberCount: entry?.memberCount ?? 0,
         rank: 1,
@@ -164,8 +164,8 @@ export default function registerHallOfFameRoute(app: Router) {
     const houseColors = {
       Gryffindor: getHouseColor("Gryffindor"),
       Hufflepuff: getHouseColor("Hufflepuff"),
-      Ravenclaw: getHouseColor("Ravenclaw"),
-      Slytherin: getHouseColor("Slytherin"),
+      Ravenclaw:  getHouseColor("Ravenclaw"),
+      Slytherin:  getHouseColor("Slytherin"),
     };
 
     // Chart data

@@ -1,4 +1,4 @@
-import type { ChatInputCommandInteraction } from "discord.js";
+import type { ChatInputCommandInteraction, InteractionEditReplyOptions, InteractionReplyOptions } from "discord.js";
 import { BOT_COLORS } from "../../common/constants.ts";
 import { createLogger } from "../../common/logging/logger.ts";
 
@@ -19,6 +19,13 @@ export async function errorReply(
   } else {
     await interaction.reply(payload);
   }
+}
+
+export function reply(interaction: ChatInputCommandInteraction, reply: InteractionReplyOptions & InteractionEditReplyOptions, opts?: { deferred?: boolean }) {
+  if (opts?.deferred) {
+    return interaction.editReply(reply);
+  }
+  return interaction.reply(reply);
 }
 
 /** Sync type guard for guild check. Fires error reply if not in guild. */

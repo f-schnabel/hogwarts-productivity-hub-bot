@@ -33,8 +33,10 @@ function updateNicknameStreak(
   fallbackName: string,
   newStreak: number,
 ): string {
-  let newNickname =
-    currentNickname?.replace(/⚡\d+(?=[^⚡]*$)/, newStreak === 0 ? "" : `⚡${newStreak}`).trim() ?? fallbackName;
+  let newNickname = currentNickname?.replace(
+    /⚡\d+(?=[^⚡]*$)/,
+    newStreak === 0 ? "" : `⚡${newStreak}`,
+  ).trim() ?? fallbackName;
 
   if (newStreak !== 0 && !/⚡\d+/.exec(newNickname)) {
     newNickname += ` ⚡${newStreak}`;

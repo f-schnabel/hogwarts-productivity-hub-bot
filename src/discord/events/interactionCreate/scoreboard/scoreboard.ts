@@ -54,9 +54,9 @@ export async function getHousepointMessages<T extends { house: House }>(
       const position = index + 1;
 
       const medals = ["🥇", "🥈", "🥉"];
-      const medal = medals[position - 1] ?? `${position}`;
+      const medal  = medals[position - 1] ?? `${position}`;
       const points = user.monthlyPoints.toString().padStart(6);
-      const name = user.username.substring(0, 32);
+      const name   = user.username.substring(0, 32);
 
       description += `${medal.padStart(medalPadding)} ${points}  ${name}\n`;
     });

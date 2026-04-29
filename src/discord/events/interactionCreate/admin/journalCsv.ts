@@ -28,14 +28,11 @@ export function parseJournalCsv(content: string): JournalCsvRow[] {
     skip_empty_lines: true,
   });
 
-  if (rows.length === 0) {
-    throw new Error("CSV is empty.");
-  }
+  if (rows.length === 0) throw new Error("CSV is empty.");
 
   const header = rows[0];
-  if (!header) {
-    throw new Error("CSV is empty.");
-  }
+  if (!header) throw new Error("CSV is empty.");
+
   const dataRows = rows.slice(1);
   const normalizedHeader = header.map((column, index) => (index === 0 ? column.replace(/^\uFEFF/, "") : column));
   if (normalizedHeader.length !== JOURNAL_CSV_HEADER.length) {
@@ -52,21 +49,15 @@ export function parseJournalCsv(content: string): JournalCsvRow[] {
 
   dataRows.forEach((row, index) => {
     const rowNumber = index + 2;
-    if (row.length === 1 && row[0] === "") {
-      return;
-    }
-    if (row.length !== JOURNAL_CSV_HEADER.length) {
-      throw new Error(`Row ${rowNumber} must contain exactly 2 columns.`);
-    }
+
+    if (row.length === 1 && row[0] === "") return;
+    if (row.length !== JOURNAL_CSV_HEADER.length) throw new Error(`Row ${rowNumber} must contain exactly 2 columns.`);
 
     const [date, prompt] = row as [string, string];
     const normalizedDate = validateJournalDate(date);
-    if (!normalizedDate) {
-      throw new Error(`Row ${rowNumber} has an invalid date: ${date}`);
-    }
-    if (prompt.trim().length === 0) {
-      throw new Error(`Row ${rowNumber} has an empty prompt.`);
-    }
+
+    if (!normalizedDate)            throw new Error(`Row ${rowNumber} has an invalid date: ${date}`);
+    if (prompt.trim().length === 0) throw new Error(`Row ${rowNumber} has an empty prompt.`);
 
     parsedRows.push({ date: normalizedDate, prompt });
   });

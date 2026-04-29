@@ -29,31 +29,25 @@ export async function submissionMessage({
 }: SubmissionMessageParams) {
   let components: InteractionReplyOptions["components"] = [];
   if (submission.status === "PENDING") {
-    components = [
-      {
-        type: ComponentType.ActionRow,
-        components: [
-          {
-            type: ComponentType.Button,
-            customId: `submit|approve|${submission.id}`,
-            label: `Approve ${submission.points} points`,
-            style: ButtonStyle.Success,
-          },
-          {
-            type: ComponentType.Button,
-            customId: `submit|reject|${submission.id}`,
-            label: "Reject",
-            style: ButtonStyle.Secondary,
-          },
-          {
-            type: ComponentType.Button,
-            customId: `submit|cancel|${submission.id}`,
-            label: "Cancel",
-            style: ButtonStyle.Secondary,
-          },
-        ],
-      },
-    ];
+    components = [{
+      type: ComponentType.ActionRow,
+      components: [{
+        type: ComponentType.Button,
+        customId: `submit|approve|${submission.id}`,
+        label: `Approve ${submission.points} points`,
+        style: ButtonStyle.Success,
+      }, {
+        type: ComponentType.Button,
+        customId: `submit|reject|${submission.id}`,
+        label: "Reject",
+        style: ButtonStyle.Secondary,
+      }, {
+        type: ComponentType.Button,
+        customId: `submit|cancel|${submission.id}`,
+        label: "Cancel",
+        style: ButtonStyle.Secondary,
+      }],
+    }];
   }
 
   userTimezone ??= await getUserTimezone(submission.discordId);
@@ -62,28 +56,23 @@ export async function submissionMessage({
   const embed = new EmbedBuilder({
     title: submission.house.toUpperCase(),
     color: SUBMISSION_COLORS[submission.status],
-    fields: [
-      {
-        name: "Submission ID",
-        value: `${submission.houseId}`,
-        inline: false,
-      },
-      {
-        name: "List Type",
-        value: getSubmissionTypeLabel(submission.submissionType),
-        inline: true,
-      },
-      {
-        name: "Score",
-        value: `${submission.points}`,
-        inline: true,
-      },
-      {
-        name: "Submitted by",
-        value: `${userMention(submission.discordId)} at ${formattedSubmittedAt}`,
-        inline: false,
-      },
-    ],
+    fields: [{
+      name: "Submission ID",
+      value: `${submission.houseId}`,
+      inline: false,
+    }, {
+      name: "List Type",
+      value: getSubmissionTypeLabel(submission.submissionType),
+      inline: true,
+    }, {
+      name: "Score",
+      value: `${submission.points}`,
+      inline: true,
+    }, {
+      name: "Submitted by",
+      value: `${userMention(submission.discordId)} at ${formattedSubmittedAt}`,
+      inline: false,
+    }],
     image: {
       url: submission.screenshotUrl,
     },
@@ -135,7 +124,7 @@ export async function submissionMessage({
 }
 
 export function getSubmissionTypeLabel(submissionType: SubmissionType | null | undefined): string {
-  if (submissionType === SUBMISSION_TYPES.NEW) return "New List";
+  if (submissionType === SUBMISSION_TYPES.NEW)       return "New List";
   if (submissionType === SUBMISSION_TYPES.COMPLETED) return "Completed List";
   return "Unknown";
 }
