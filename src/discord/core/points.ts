@@ -63,7 +63,7 @@ async function refreshHouseScoreboards(db: DbOrTx, house: House | null | undefin
 export function calculatePointsHelper(voiceTime: number): number {
   // 5 minute grace period
   voiceTime += 5 * 60;
-  voiceTime = Math.floor(voiceTime / 60 * 60);
+  voiceTime = Math.floor(voiceTime / (60 * 60));
 
   if (voiceTime < 1) return 0;
 
