@@ -15,6 +15,7 @@ import { MIN_USERS_FOR_SAFE_DELETION } from "@/common/constants.ts";
 import { updateMember } from "@/discord/utils/updateMember.ts";
 import { VCEmojiNeedsRemovalSync } from "@/discord/core/nicknameVC.ts";
 import { VCRoleNeedsRemovalSync } from "@/discord/core/roleVC.ts";
+import { restorePomodoroSessions } from "@/discord/utils/pomodoroUtils.ts";
 
 const log = createLogger("Startup");
 
@@ -34,6 +35,7 @@ export async function execute(c: Client<true>): Promise<void> {
     }
 
     await warmRecentSubmissionMessages(c);
+    await restorePomodoroSessions();
     await VoiceStateScanner.scanAndStartTracking();
     await resetNicknameStreaks(c);
     await resetVCEmojisAndRoles(c);

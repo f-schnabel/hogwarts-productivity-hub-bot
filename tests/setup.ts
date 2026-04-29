@@ -65,6 +65,10 @@ vi.mock("discord.js", () => ({
       DirectMessages: 64,
     },
   },
+  ChannelType: {
+    GuildVoice: 2,
+    GuildStageVoice: 13,
+  },
   SlashCommandBuilder: class MockSlashCommandBuilder {
     setName() {
       return this;
