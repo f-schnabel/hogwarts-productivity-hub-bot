@@ -62,6 +62,7 @@ export const voiceSessionTable = pgTable(
 
     // in seconds
     duration: integer().generatedAlwaysAs(sql`EXTRACT(EPOCH FROM (left_at - joined_at))`),
+    creditedDuration: integer(),
   },
   (table) => [index("voice_session_discord_id_left_at_idx").on(table.discordId, table.leftAt)],
 );

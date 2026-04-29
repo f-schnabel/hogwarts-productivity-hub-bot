@@ -12,6 +12,7 @@ import { stripIndent } from "common-tags";
 import assert from "node:assert";
 import { requireRole } from "../../utils/role.ts";
 import { calculatePoints } from "@/discord/core/points.ts";
+import { calculateCreditedVoiceSeconds } from "@/discord/utils/pomodoroCredit.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -115,6 +116,7 @@ async function points(interaction: ChatInputCommandInteraction) {
   const voiceSessions = await db
     .select({
       duration: voiceSessionTable.duration,
+      creditedDuration: voiceSessionTable.creditedDuration,
       channelName: voiceSessionTable.channelName,
       joinedAt: voiceSessionTable.joinedAt,
       leftAt: voiceSessionTable.leftAt,
@@ -133,6 +135,7 @@ async function points(interaction: ChatInputCommandInteraction) {
   // Get active (ongoing) voice session if any
   const [activeSession] = await db
     .select({
+      channelId: voiceSessionTable.channelId,
       channelName: voiceSessionTable.channelName,
       joinedAt: voiceSessionTable.joinedAt,
     })
@@ -149,12 +152,12 @@ async function points(interaction: ChatInputCommandInteraction) {
   let activeSessionDuration = 0;
   let activeSessionPoints = 0;
   if (activeSession) {
-    activeSessionDuration = Math.floor((Date.now() - activeSession.joinedAt.getTime()) / 1000);
+    activeSessionDuration = await calculateCreditedVoiceSeconds(db, activeSession.channelId, activeSession.joinedAt, new Date());
     activeSessionPoints = calculatePoints(userData.dailyVoiceTime, userData.dailyVoiceTime + activeSessionDuration);
   }
 
   const totalSubmissionPoints = submissions.reduce((sum, s) => sum + s.points, 0);
-  const totalVoiceSeconds = voiceSessions.reduce((sum, s) => sum + (s.duration ?? 0), 0);
+  const totalVoiceSeconds = voiceSessions.reduce((sum, s) => sum + (s.creditedDuration ?? s.duration ?? 0), 0);
 
   // Group by day in user's timezone
   const tz = userData.timezone;
@@ -166,7 +169,7 @@ async function points(interaction: ChatInputCommandInteraction) {
   for (const session of voiceSessions) {
     const day = dayjs(session.joinedAt).tz(tz).format("YYYY-MM-DD");
     const existing = dailyData.get(day) ?? { voiceSeconds: 0, voicePoints: 0, submissionPoints: 0, submissionCount: 0 };
-    existing.voiceSeconds += session.duration ?? 0;
+    existing.voiceSeconds += session.creditedDuration ?? session.duration ?? 0;
     existing.voicePoints += session.points ?? 0;
     dailyData.set(day, existing);
   }
@@ -343,6 +346,7 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction) {
   const voiceSessions = await db
     .select({
       duration: voiceSessionTable.duration,
+      creditedDuration: voiceSessionTable.creditedDuration,
       channelName: voiceSessionTable.channelName,
       joinedAt: voiceSessionTable.joinedAt,
       leftAt: voiceSessionTable.leftAt,
@@ -375,13 +379,13 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction) {
 
     if (shouldMerge) {
       last.leftAt = sessionLeftAt;
-      last.duration += session.duration ?? 0;
+      last.duration += session.creditedDuration ?? session.duration ?? 0;
     } else {
       mergedSessions.push({
         channelName: session.channelName,
         joinedAt: sessionJoinedAt,
         leftAt: sessionLeftAt,
-        duration: session.duration ?? 0,
+        duration: session.creditedDuration ?? session.duration ?? 0,
       });
     }
   }

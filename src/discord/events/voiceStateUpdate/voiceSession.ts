@@ -10,6 +10,7 @@ import { awardPoints, calculatePoints } from "@/discord/core/points.ts";
 import { oneLine } from "common-tags";
 import { BaseGuildVoiceChannel, ChannelType } from "discord.js";
 import { getGuild } from "@/discord/events/clientReady/index.ts";
+import { calculateCreditedVoiceSeconds } from "@/discord/utils/pomodoroCredit.ts";
 
 const log = createLogger("Voice");
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
@@ -93,7 +94,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, leftAt:
   }
   return await db.transaction(async (db) => {
     const existingVoiceSession = await db
-      .select({ id: voiceSessionTable.id })
+      .select({ id: voiceSessionTable.id, joinedAt: voiceSessionTable.joinedAt })
       .from(voiceSessionTable)
       .where(
         and(
@@ -115,27 +116,33 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, leftAt:
       return null;
     }
 
+    const [sessionToClose] = existingVoiceSession;
+    assert(sessionToClose !== undefined, "Expected exactly one voice session to end, but found none");
+
+    const creditedDuration = await calculateCreditedVoiceSeconds(db, channelId, sessionToClose.joinedAt, leftAt);
     const [voiceSessionWithDuration, ...extra] = await db
       .update(voiceSessionTable)
-      .set({ leftAt, isTracked: true })
+      .set({ leftAt, isTracked: true, creditedDuration })
       .where(inArray(voiceSessionTable.id, existingVoiceSession.map((s) => s.id)))
       .returning({
         id: voiceSessionTable.id,
         duration: voiceSessionTable.duration,
+        creditedDuration: voiceSessionTable.creditedDuration,
       });
 
     assert(voiceSessionWithDuration !== undefined, "Expected exactly one voice session to end, but found none");
     assert(extra.length === 0, `Expected exactly one voice session to end, but found ${extra.length} extra rows`);
 
     const duration = voiceSessionWithDuration.duration ?? 0;
+    const creditedSeconds = voiceSessionWithDuration.creditedDuration ?? duration;
 
     // Update user's voice time stats
     const [user] = await db
       .update(userTable)
       .set({
-        dailyVoiceTime:   sql`${userTable.dailyVoiceTime}   + ${duration}`,
-        monthlyVoiceTime: sql`${userTable.monthlyVoiceTime} + ${duration}`,
-        totalVoiceTime:   sql`${userTable.totalVoiceTime}   + ${duration}`,
+        dailyVoiceTime:   sql`${userTable.dailyVoiceTime}   + ${creditedSeconds}`,
+        monthlyVoiceTime: sql`${userTable.monthlyVoiceTime} + ${creditedSeconds}`,
+        totalVoiceTime:   sql`${userTable.totalVoiceTime}   + ${creditedSeconds}`,
       })
       .where(eq(userTable.discordId, session.discordId))
       .returning({
@@ -147,13 +154,14 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, leftAt:
     assert(user !== undefined, `User not found for Discord ID ${session.discordId}`);
 
     // Calculate and award points for this session
-    const oldDailyVoiceTime = user.dailyVoiceTime - duration;
+    const oldDailyVoiceTime = user.dailyVoiceTime - creditedSeconds;
     const newDailyVoiceTime = user.dailyVoiceTime;
     const pointsEarned = calculatePoints(oldDailyVoiceTime, newDailyVoiceTime);
 
     log.info("Session ended", {
       ...ctx,
       duration: formatDuration(duration),
+      credited: formatDuration(creditedSeconds),
       points: pointsEarned,
       oldDaily: formatDuration(oldDailyVoiceTime),
       newDaily: formatDuration(newDailyVoiceTime),
@@ -173,9 +181,14 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, leftAt:
 }
 
 export async function fetchVoiceChannel(channelId: string): Promise<BaseGuildVoiceChannel | null> {
-  const channel = getGuild().channels.cache.get(channelId) ?? (await getGuild().channels.fetch(channelId));
-  if (channel?.type !== ChannelType.GuildVoice) return null;
-  return channel;
+  try {
+    const channel = getGuild().channels.cache.get(channelId) ?? (await getGuild().channels.fetch(channelId));
+    if (channel?.type !== ChannelType.GuildVoice) return null;
+    return channel;
+  } catch (error) {
+    log.error("Failed to fetch voice channel", { channelId }, error);
+    return null;
+  }
 }
 
 export function getMembers(channel: BaseGuildVoiceChannel | null, excludeDiscordId?: string) {
