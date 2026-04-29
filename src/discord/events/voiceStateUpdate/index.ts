@@ -13,7 +13,7 @@ import {
   ensurePomodoroSessionForChannel,
   getActivePomodoroSession,
   maybeFinalizePomodoroSession,
-  upsertMessage,
+  safeUpsertMessage,
 } from "@/discord/utils/pomodoroUtils.ts";
 import { userTable } from "@/db/schema.ts";
 import { eq } from "drizzle-orm";
@@ -99,7 +99,7 @@ export async function join(newVoiceSession: VoiceSession, member: GuildMember) {
   const pomodoro = await ensurePomodoroSessionForChannel(member.voice.channel);
 
   const [, nickname, vcRole] = await Promise.all([
-    pomodoro?.stage !== "BREAK" ? startVoiceSession(newVoiceSession, db) : Promise.resolve(),
+    startVoiceSession(newVoiceSession, db),
     VCEmojiNeedsAdding(member),
     VCRoleNeedsAdding(member),
   ]);
@@ -116,9 +116,8 @@ export async function join(newVoiceSession: VoiceSession, member: GuildMember) {
 }
 
 async function leave(oldVoiceSession: VoiceSession, member: GuildMember) {
-  const pomodoro = await getActivePomodoroSession(oldVoiceSession.channelId);
   const [endedUser, nickname, vcRole] = await Promise.all([
-    pomodoro?.stage !== "BREAK" ? endVoiceSession(oldVoiceSession, db) : Promise.resolve(null),
+    endVoiceSession(oldVoiceSession, db),
     VCEmojiNeedsRemoval(member),
     VCRoleNeedsRemoval(member),
   ]);
@@ -141,18 +140,14 @@ async function leave(oldVoiceSession: VoiceSession, member: GuildMember) {
 }
 
 async function vcSwitch(oldVoiceSession: VoiceSession, newVoiceSession: VoiceSession, member: GuildMember) {
-  const [oldPomodoro, newPomodoro] = await Promise.all([
-    oldVoiceSession.channelId ? getActivePomodoroSession(oldVoiceSession.channelId) : Promise.resolve(null),
-    member.voice.channel ? ensurePomodoroSessionForChannel(member.voice.channel) : Promise.resolve(null),
-  ]);
+  const newPomodoro = member.voice.channel ? await ensurePomodoroSessionForChannel(member.voice.channel) : null;
 
-  const endedUser =
-    oldPomodoro === null || oldPomodoro.stage === "FOCUS" ? await endVoiceSession(oldVoiceSession, db) : null;
+  const endedUser = await endVoiceSession(oldVoiceSession, db);
   const user = endedUser ?? (await getVoiceStatsForMember(member.id));
 
   await Promise.all([
     updateMember({ member, reason: "User switched voice channel", roleUpdates: calculateYearRoles(member, user) }),
-    newPomodoro === null || newPomodoro.stage === "FOCUS" ? startVoiceSession(newVoiceSession, db) : Promise.resolve(),
+    startVoiceSession(newVoiceSession, db),
     announceYearPromotion(member, user),
     maybeFinalizePomodoroSession(oldVoiceSession.channelId, member.id),
     refreshPomodoroStatusMessage(newPomodoro?.channelId),
@@ -176,5 +171,5 @@ async function refreshPomodoroStatusMessage(channelId: string | undefined) {
   const [session, channel] = await Promise.all([getActivePomodoroSession(channelId), fetchVoiceChannel(channelId)]);
   if (!session || !channel) return session;
 
-  return await upsertMessage(session, channel);
+  return await safeUpsertMessage(session, channel);
 }

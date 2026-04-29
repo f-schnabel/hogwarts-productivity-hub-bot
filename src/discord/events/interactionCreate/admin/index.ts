@@ -359,6 +359,7 @@ async function computeExpectedValues() {
       discordId: voiceSessionTable.discordId,
       points: voiceSessionTable.points,
       duration: voiceSessionTable.duration,
+      creditedDuration: voiceSessionTable.creditedDuration,
       leftAt: voiceSessionTable.leftAt,
     })
     .from(voiceSessionTable)
@@ -415,12 +416,13 @@ async function computeExpectedValues() {
     }
 
     // Aggregate voice time
-    if (vs.duration !== null) {
+    const creditedDuration = vs.creditedDuration ?? vs.duration;
+    if (creditedDuration !== null) {
       const timeSums = voiceTimeMap.get(vs.discordId);
       if (timeSums) {
-        timeSums.total += vs.duration;
-        if (vs.leftAt && vs.leftAt >= monthStartDate) timeSums.monthly += vs.duration;
-        if (vs.leftAt && resetTime && vs.leftAt >= resetTime) timeSums.daily += vs.duration;
+        timeSums.total += creditedDuration;
+        if (vs.leftAt && vs.leftAt >= monthStartDate) timeSums.monthly += creditedDuration;
+        if (vs.leftAt && resetTime && vs.leftAt >= resetTime) timeSums.daily += creditedDuration;
       }
     }
   }

@@ -1,13 +1,14 @@
-import { db, ensureUserExists } from "@/db/db.ts";
-import { pomodoroSessionTable, userTable, voiceSessionTable } from "@/db/schema.ts";
+import { db } from "@/db/db.ts";
+import { pomodoroSessionTable } from "@/db/schema.ts";
 import { MAX_SESSION_AGE_MS } from "@/common/constants.ts";
-import type { PomodoroChannelConfig, PomodoroStage } from "@/common/types.ts";
 import { createLogger } from "@/common/logging/logger.ts";
-import { time, userMention, type BaseGuildVoiceChannel, type GuildMember, type MessageCreateOptions, type MessageEditOptions } from "discord.js";
-import { closeVoiceSessionUntracked, endVoiceSession, fetchVoiceChannel, getMembers, startVoiceSession } from "@/discord/events/voiceStateUpdate/voiceSession.ts";
-import dayjs from "dayjs";
+import { type BaseGuildVoiceChannel, type MessageCreateOptions, type MessageEditOptions } from "discord.js";
+import { fetchVoiceChannel, getMembers } from "@/discord/events/voiceStateUpdate/voiceSession.ts";
+import { parsePomodoroChannelName } from "@/discord/utils/pomodoroConfig.ts";
+import { getPomodoroPhase } from "@/discord/utils/pomodoroPhase.ts";
+import { buildPomodoroStatusContent } from "@/discord/utils/pomodoroMessages.ts";
 import assert from "node:assert/strict";
-import { and, count, eq, getTableColumns, isNull, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 
 const log = createLogger("Pomodoro");
 const timers = new Map<string, NodeJS.Timeout>();
@@ -21,21 +22,6 @@ export async function getActivePomodoroSession(channelId: string | null, dbOrTx 
     .from(pomodoroSessionTable)
     .where(and(eq(pomodoroSessionTable.channelId, channelId), isNull(pomodoroSessionTable.endedAt)))
     .then(([session]) => session ?? null);
-}
-
-function parsePomodoroChannelName(name: string | null): PomodoroChannelConfig | null {
-  if (!name) return null;
-  const match = /^⏰ Time Turner \((\d+)\/(\d+) Pomo\)/.exec(name);
-  if (!match) return null;
-
-  const focusMinutes = Number.parseInt(match[1] ?? "", 10);
-  const breakMinutes = Number.parseInt(match[2] ?? "", 10);
-
-  if (!Number.isInteger(focusMinutes) || !Number.isInteger(breakMinutes) || focusMinutes <= 0 || breakMinutes <= 0) {
-    return null;
-  }
-
-  return { focusMinutes, breakMinutes };
 }
 
 export async function ensurePomodoroSessionForChannel(channel: BaseGuildVoiceChannel | null): Promise<PomodoroSessionRow | null> {
@@ -57,7 +43,7 @@ export async function ensurePomodoroSessionForChannel(channel: BaseGuildVoiceCha
       breakMinutes: config.breakMinutes,
       stage: "FOCUS",
       stageStartedAt: now,
-      nextStageAt: dayjs(now).add(config.focusMinutes, "minute").toDate(),
+      nextStageAt: getPomodoroPhase(now, config.focusMinutes, config.breakMinutes, now).nextStageAt,
       startedAt: now,
     })
     .onConflictDoUpdate({
@@ -74,8 +60,8 @@ export async function ensurePomodoroSessionForChannel(channel: BaseGuildVoiceCha
   const { wasInserted, ...session } = row;
   if (!wasInserted) return session;
 
-  const sessionWithMessage = await upsertMessage(session, channel);
-  scheduleTimer(sessionWithMessage.channelId, sessionWithMessage.nextStageAt);
+  scheduleTimer(session.channelId, session.nextStageAt);
+  const sessionWithMessage = await safeUpsertMessage(session, channel);
   log.info("Pomodoro session started", {
     channelId: channel.id,
     channel: channel.name,
@@ -98,7 +84,7 @@ export async function maybeFinalizePomodoroSession(
     return await finalizePomodoroSession(session.channelId, session.id, channel);
   }
 
-  return await upsertMessage(session, channel);
+  return await safeUpsertMessage(session, channel);
 }
 
 export async function restorePomodoroSessions() {
@@ -108,29 +94,21 @@ export async function restorePomodoroSessions() {
     const now = new Date();
     const channel = await fetchVoiceChannel(session.channelId);
     const members = getMembers(channel);
-    const overdueMs = now.getTime() - session.nextStageAt.getTime();
-    const isOverdue = overdueMs >= 0;
-    const isStale = overdueMs > MAX_SESSION_AGE_MS;
+    const sessionAgeMs = now.getTime() - session.startedAt.getTime();
+    const isStale = sessionAgeMs > MAX_SESSION_AGE_MS;
 
     if (!channel || members.length === 0) {
-      if (isStale) {
-        await closeVoiceSessionsUntracked(session.channelId);
-      } else {
-        await closeVoiceSessions(session.channelId, now);
-      }
       await finalizePomodoroSession(session.channelId, session.id, channel);
       continue;
     }
 
     if (isStale) {
-      await closeVoiceSessionsUntracked(session.channelId);
       await finalizePomodoroSession(session.channelId, session.id, channel);
 
       const restartedSession = await ensurePomodoroSessionForChannel(channel);
       if (!restartedSession) continue;
 
-      await startVoiceSessions(members, now);
-      await upsertMessage(restartedSession, channel);
+      await safeUpsertMessage(restartedSession, channel);
       log.info("Stale pomodoro restarted", {
         channelId: channel.id,
         channel: channel.name,
@@ -139,24 +117,26 @@ export async function restorePomodoroSessions() {
       continue;
     }
 
-    if (!isOverdue) {
-      await syncVoiceSessionsForStage(session, channel, members, now);
-      await upsertMessage(session, channel);
-      scheduleTimer(session.channelId, session.nextStageAt);
-      log.info("Pomodoro session restored", {
-        channelId: session.channelId,
-        channel: session.channelName,
-        stage: session.stage,
-        participants: members.length,
-      });
-      continue;
-    }
+    const phase = getPomodoroPhase(session.startedAt, session.focusMinutes, session.breakMinutes, now);
+    const [updated] = await db
+      .update(pomodoroSessionTable)
+      .set({
+        channelName: channel.name,
+        stage: phase.stage,
+        stageStartedAt: phase.stageStartedAt,
+        nextStageAt: phase.nextStageAt,
+      })
+      .where(eq(pomodoroSessionTable.id, session.id))
+      .returning();
+    const current = updated ?? { ...session, ...phase, channelName: channel.name };
 
-    const current = await transitionPomodoroSession(session, channel, now);
-    log.info("Pomodoro session restored with single transition", {
+    scheduleTimer(current.channelId, current.nextStageAt);
+    await safeUpsertMessage(current, channel);
+    log.info("Pomodoro session restored", {
       channelId: session.channelId,
       channel: session.channelName,
       stage: current.stage,
+      elapsedCycles: phase.elapsedCycles,
       participants: members.length,
     });
   }
@@ -173,7 +153,7 @@ export async function finalizePomodoroSession(channelId: string, sessionId: numb
   assert(closed, `Failed to finalize pomodoro session for channel ${channelId}`);
 
   if (channel) {
-    await upsertMessage(closed, channel, true);
+    await safeUpsertMessage(closed, channel, true);
   }
 
   log.info("Pomodoro session ended", {
@@ -192,36 +172,6 @@ export function scheduleTimer(channelId: string, nextStageAt: Date) {
       void advancePomodoroSession(channelId);
     }, Math.max(0, nextStageAt.getTime() - Date.now())),
   );
-}
-
-export async function closeVoiceSessions(channelId: string, leftAt: Date) {
-  for (const session of await getOpenVoiceSessions(channelId)) {
-    await endVoiceSession(session, db, leftAt);
-  }
-}
-
-export async function startVoiceSessions(members: GuildMember[], joinedAt: Date) {
-  for (const member of members) {
-    const alreadyOpen = await db
-      .select({ count: count() })
-      .from(voiceSessionTable)
-      .where(and(eq(voiceSessionTable.discordId, member.id), isNull(voiceSessionTable.leftAt)))
-      .then(([rows]) => (rows?.count ?? 0) > 0);
-
-    if (alreadyOpen || !member.voice.channel) continue;
-
-    await ensureUserExists(member, member.id, member.user.username);
-    await startVoiceSession(
-      {
-        discordId: member.id,
-        username: member.user.username,
-        channelId: member.voice.channel.id,
-        channelName: member.voice.channel.name,
-      },
-      db,
-      joinedAt,
-    );
-  }
 }
 
 export async function upsertMessage(
@@ -262,6 +212,23 @@ export async function upsertMessage(
     .then(([updated]) => updated ?? { ...session, statusMessageId: message.id });
 }
 
+export async function safeUpsertMessage(
+  session: PomodoroSessionRow,
+  channel: BaseGuildVoiceChannel,
+  ended = false,
+): Promise<PomodoroSessionRow> {
+  try {
+    return await upsertMessage(session, channel, ended);
+  } catch (error) {
+    log.error("Pomodoro status message update failed", {
+      channelId: session.channelId,
+      channel: channel.name,
+      sessionId: session.id,
+    }, error);
+    return session;
+  }
+}
+
 async function advancePomodoroSession(channelId: string) {
   const session = await getActivePomodoroSession(channelId);
   if (!session) {
@@ -271,7 +238,6 @@ async function advancePomodoroSession(channelId: string) {
 
   const channel = await fetchVoiceChannel(channelId);
   if (!channel) {
-    await closeVoiceSessions(channelId, new Date());
     await finalizePomodoroSession(session.channelId, session.id, channel);
     return;
   }
@@ -280,77 +246,28 @@ async function advancePomodoroSession(channelId: string) {
 }
 
 async function transitionPomodoroSession(session: PomodoroSessionRow, channel: BaseGuildVoiceChannel, boundary: Date) {
-  const nextStage: PomodoroStage = session.stage === "FOCUS" ? "BREAK" : "FOCUS";
+  const phase = getPomodoroPhase(session.startedAt, session.focusMinutes, session.breakMinutes, boundary);
   const [updated] = await db
     .update(pomodoroSessionTable)
     .set({
       channelName: channel.name,
-      stage: nextStage,
-      stageStartedAt: boundary,
-      nextStageAt: dayjs(boundary).add(nextStage === "FOCUS" ? session.focusMinutes : session.breakMinutes, "minute").toDate(),
+      stage: phase.stage,
+      stageStartedAt: phase.stageStartedAt,
+      nextStageAt: phase.nextStageAt,
     })
     .where(eq(pomodoroSessionTable.id, session.id))
     .returning();
 
-  const current = updated ?? session;
-  if (nextStage === "BREAK") {
-    await closeVoiceSessions(channel.id, boundary);
-  } else {
-    await startVoiceSessions(getMembers(channel), boundary);
-  }
+  const current = updated ?? { ...session, ...phase, channelName: channel.name };
 
-  const sessionWithMessage = await upsertMessage(current, channel);
-  scheduleTimer(sessionWithMessage.channelId, sessionWithMessage.nextStageAt);
+  scheduleTimer(current.channelId, current.nextStageAt);
+  const sessionWithMessage = await safeUpsertMessage(current, channel);
   log.info("Pomodoro stage advanced", {
     channelId: channel.id,
     channel: channel.name,
-    stage: nextStage,
+    stage: phase.stage,
   });
   return sessionWithMessage;
-}
-
-async function syncVoiceSessionsForStage(
-  session: PomodoroSessionRow,
-  channel: BaseGuildVoiceChannel,
-  members: GuildMember[],
-  now: Date,
-) {
-  await closeVoiceSessionsForMissingMembers(channel, now);
-
-  if (session.stage === "FOCUS") {
-    await startVoiceSessions(members, session.stageStartedAt);
-    return;
-  }
-
-  await closeVoiceSessions(channel.id, now);
-}
-
-async function closeVoiceSessionsUntracked(channelId: string) {
-  for (const session of await getOpenVoiceSessions(channelId)) {
-    await closeVoiceSessionUntracked(session, db);
-  }
-}
-
-async function closeVoiceSessionsForMissingMembers(channel: BaseGuildVoiceChannel, leftAt: Date) {
-  const presentIds = new Set(getMembers(channel).map((member) => member.id));
-
-  for (const session of await getOpenVoiceSessions(channel.id)) {
-    if (presentIds.has(session.discordId)) continue;
-    await endVoiceSession(session, db, leftAt);
-  }
-}
-
-async function getOpenVoiceSessions(channelId: string) {
-  return await db
-    .select({
-      discordId: voiceSessionTable.discordId,
-      username: userTable.username,
-      channelId: voiceSessionTable.channelId,
-      channelName: voiceSessionTable.channelName,
-    })
-    .from(voiceSessionTable)
-    .innerJoin(userTable, eq(userTable.discordId, voiceSessionTable.discordId))
-    .where(and(eq(voiceSessionTable.channelId, channelId), isNull(voiceSessionTable.leftAt)));
 }
 
 function clearTimer(channelId: string) {
@@ -359,29 +276,4 @@ function clearTimer(channelId: string) {
 
   clearTimeout(timer);
   timers.delete(channelId);
-}
-
-function buildPomodoroStatusContent(
-  session: PomodoroSessionRow,
-  participantIds: string[],
-  options: { ended: boolean; channelName: string },
-): string {
-  const cycle = `Cycle: ${session.focusMinutes}/${session.breakMinutes} Pomo`;
-  const participants = participantIds.map((id) => userMention(id)).join(" ") || "_Nobody is in the voice channel._";
-
-  if (options.ended) {
-    return [
-      `## ⏰ Pomodoro ended${options.channelName ? ` in **${options.channelName}**` : ""}`,
-      cycle,
-      `Participants: ${participants}`,
-    ].join("\n");
-  }
-
-  const nextLabel = session.stage === "FOCUS" ? "Break starts" : "Focus resumes";
-  return [
-    `## ⏰ **${session.stage}**`,
-    cycle,
-    `${nextLabel} ${time(session.nextStageAt, "R")}`,
-    `Participants: ${participants}`,
-  ].join("\n");
 }
