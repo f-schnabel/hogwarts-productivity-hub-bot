@@ -21,6 +21,7 @@ dayjs.tz.setDefault("UTC");
 process.env.NODE_ENV = "test";
 process.env.DB_NAME = "discord_bot_test";
 process.env.DISCORD_TOKEN = "test-token";
+process.env.PREFECT_ROLE_IDS = "prefect-a,prefect-b";
 process.env.SUBMISSION_CHANNEL_IDS = "";
 process.env.JOURNAL_CHANNEL_ID = "journal-channel-id";
 process.env.YEAR_ROLE_IDS = "";

@@ -1,5 +1,5 @@
 import type { GuildMember } from "discord.js";
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { Role } from "@/common/constants.ts";
 import { hasAnyRole } from "@/discord/utils/role.ts";
 
@@ -13,12 +13,6 @@ function mockMember(roleIds: string[]): GuildMember {
 }
 
 describe("hasAnyRole", () => {
-  beforeEach(() => {
-    process.env.OWNER_ID = "owner-id";
-    process.env.PREFECT_ROLE_IDS = "prefect-a,prefect-b";
-    process.env.PROFESSOR_ROLE_ID = "professor-id";
-  });
-
   it("counts a member as prefect when they have any configured prefect role", () => {
     expect(hasAnyRole(mockMember(["prefect-b"]), Role.PREFECT)).toBe(true);
   });
