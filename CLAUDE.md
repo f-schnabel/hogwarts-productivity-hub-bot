@@ -168,7 +168,8 @@ Required in `.env` (see `.env.example`):
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` - PostgreSQL credentials
 - `OWNER_ID` - Discord user ID for error alerts
 - `GRYFFINDOR_ROLE_ID`, `SLYTHERIN_ROLE_ID`, `HUFFLEPUFF_ROLE_ID`, `RAVENCLAW_ROLE_ID` - House roles
-- `PREFECT_ROLE_ID`, `PROFESSOR_ROLE_ID` - Staff roles
+- `PREFECT_ROLE_IDS` - Comma-separated prefect role IDs
+- `PROFESSOR_ROLE_ID` - Professor role
 - `VC_ROLE_ID` - Voice channel role
 - `YEAR_ROLE_IDS` - Comma-separated Year 1-7 role IDs
 - `YEAR_ANNOUNCEMENT_CHANNEL_ID` - Channel for year promotions

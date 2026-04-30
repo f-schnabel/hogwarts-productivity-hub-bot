@@ -15,7 +15,7 @@ export declare global {
       EXCLUDE_VOICE_CHANNEL_IDS?: string;
       CLIENT_ID: string;
       GUILD_ID: string;
-      PREFECT_ROLE_ID: string;
+      PREFECT_ROLE_IDS: string;
       PROFESSOR_ROLE_ID: string;
       VC_ROLE_ID: string;
       SUBMISSION_CHANNEL_IDS: string;
