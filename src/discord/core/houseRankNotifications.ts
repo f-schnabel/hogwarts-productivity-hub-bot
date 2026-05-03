@@ -3,6 +3,7 @@ import type { House, HousePoints, RankedHousePoints } from "@/common/types.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import { client } from "@/discord/client.ts";
 import { bold } from "discord.js";
+import { getWeightedHousePointsForHouse, type DbOrTx, type getWeightedHousePoints } from "@/db/db.ts";
 
 const log = createLogger("HouseRankNotifications");
 const YEAR_ANNOUNCEMENT_CHANNEL_ID = process.env.YEAR_ANNOUNCEMENT_CHANNEL_ID;
@@ -14,34 +15,57 @@ export interface HouseRankChangeNotification {
   description: string;
 }
 
-export function getHouseRankChangeNotification(
+export function getHouseRankChangeNotifications(
   before: RankedHousePoints[],
   changedHouseAfter: HousePoints | undefined,
-): HouseRankChangeNotification | null {
-  if (!changedHouseAfter) return null;
+): HouseRankChangeNotification[] {
+  if (!changedHouseAfter) return [];
 
-  const rankBefore = before.find((house) => house.house === changedHouseAfter.house)?.rank;
-  if (rankBefore === undefined) return null;
+  const beforeRanks = new Map(before.map((house) => [house.house, house.rank]));
+  const after = rankHouses([
+    ...before.filter((house) => house.house !== changedHouseAfter.house),
+    changedHouseAfter,
+  ]);
 
-  const rankAfter = getRankAfterPointChange(before, changedHouseAfter);
-  return rankAfter < rankBefore
-    ? { house: changedHouseAfter.house, description: formatRankChange(changedHouseAfter.house, rankAfter) }
-    : null;
+  return after
+    .filter((house) => {
+      const rankBefore = beforeRanks.get(house.house);
+      return rankBefore !== undefined && house.rank < rankBefore;
+    })
+    .map((house) => ({ house: house.house, description: formatRankChange(house.house, house.rank) }));
 }
 
-export async function announceHouseRankChanges(notification: HouseRankChangeNotification | null): Promise<void> {
-  if (!notification || !YEAR_ANNOUNCEMENT_CHANNEL_ID) return;
+export function rankHouses(houses: HousePoints[]): RankedHousePoints[] {
+  const sortedHouses = houses.toSorted((a, b) => b.totalPoints - a.totalPoints);
+
+  let rank = 0;
+  return sortedHouses.map((house, index) => {
+    const previousHouse = sortedHouses[index - 1];
+    if (previousHouse?.totalPoints !== house.totalPoints) rank = index + 1;
+    return { ...house, rank };
+  });
+}
+
+export async function announceHouseRankChanges(
+  db: DbOrTx,
+  houseRanksBefore: Awaited<ReturnType<typeof getWeightedHousePoints>>,
+  house: House | null | undefined,
+): Promise<void> {
+  if (!house) return;
+  const notifications = getHouseRankChangeNotifications(houseRanksBefore, await getWeightedHousePointsForHouse(db, house));
+
+  if (notifications.length === 0 || !YEAR_ANNOUNCEMENT_CHANNEL_ID) return;
 
   try {
     const channel = await client.channels.fetch(YEAR_ANNOUNCEMENT_CHANNEL_ID);
     if (!channel?.isSendable()) return;
 
     await channel.send({
-      embeds: [{
+      embeds: notifications.map((notification) => ({
         title: "Weighted House Standings Shift",
         description: notification.description,
         color: HOUSE_COLORS[notification.house],
-      }],
+      })),
     });
   } catch (error) {
     log.error("Failed to send house rank change notification", undefined, error);
@@ -53,10 +77,4 @@ function formatRankChange(house: House, rank: number): string {
   return rank === 1
     ? `${house} has taken ${bold(place)} in the house cup. Congratulations!`
     : `${house} took ${bold(place)} in the house cup.`;
-}
-
-function getRankAfterPointChange(before: RankedHousePoints[], changedHouseAfter: HousePoints): number {
-  return before.filter((house) =>
-    house.house !== changedHouseAfter.house && house.totalPoints > changedHouseAfter.totalPoints,
-  ).length + 1;
 }
