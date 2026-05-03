@@ -1,12 +1,23 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import { db as globalDb, getMonthStartDate, type DbOrTx } from "@/db/db.ts";
+import {
+  db as globalDb,
+  getMonthStartDate,
+  getWeightedHousePoints,
+  getWeightedHousePointsForHouse,
+  type DbOrTx,
+} from "@/db/db.ts";
 import { houseScoreboardTable, userTable } from "@/db/schema.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../events/interactionCreate/scoreboard/scoreboard.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
 import type { House } from "@/common/types.ts";
 import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "@/common/constants.ts";
+import { announceHouseRankChanges, getHouseRankChangeNotification } from "./houseRankNotifications.ts";
+import { isHouseStandingsMysteryMode } from "@/common/mysteryMode.ts";
 
 export async function awardPoints(db: DbOrTx, discordId: string, points: number) {
+  const shouldAnnounceRankChanges = !isHouseStandingsMysteryMode(await getMonthStartDate());
+  const houseRanksBefore = shouldAnnounceRankChanges ? await getWeightedHousePoints(db) : [];
+
   // Update user's total points
   const house = await db
     .update(userTable)
@@ -19,6 +30,9 @@ export async function awardPoints(db: DbOrTx, discordId: string, points: number)
     .returning({ house: userTable.house })
     .then(([row]) => row?.house);
 
+  if (shouldAnnounceRankChanges) {
+    await notifyHouseRankChanges(db, houseRanksBefore, house);
+  }
   await refreshHouseScoreboards(db, house);
 }
 
@@ -43,6 +57,16 @@ export async function reverseSubmissionPoints(db: DbOrTx, discordId: string, poi
     .then(([row]) => row?.house);
 
   await refreshHouseScoreboards(db, house);
+}
+
+async function notifyHouseRankChanges(
+  db: DbOrTx,
+  houseRanksBefore: Awaited<ReturnType<typeof getWeightedHousePoints>>,
+  house: House | null | undefined,
+) {
+  if (!house) return;
+  const notification = getHouseRankChangeNotification(houseRanksBefore, await getWeightedHousePointsForHouse(db, house));
+  void announceHouseRankChanges(notification);
 }
 
 async function refreshHouseScoreboards(db: DbOrTx, house: House | null | undefined) {

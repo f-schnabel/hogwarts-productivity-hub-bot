@@ -22,7 +22,7 @@ import type { PgTransaction } from "drizzle-orm/pg-core";
 import dayjs from "dayjs";
 import { MIN_MONTHLY_POINTS_FOR_WEIGHTED, SETTINGS_KEYS } from "../common/constants.ts";
 import assert from "node:assert/strict";
-import type { CountingState, House, HousePoints } from "@/common/types.ts";
+import type { CountingState, House, HousePoints, RankedHousePoints } from "@/common/types.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 
 type Schema = typeof schema;
@@ -201,12 +201,11 @@ const HOUSE_ROLES = [
 ] as const;
 
 /** Weighted house points: SUM(monthlyPoints) / COUNT(*) for users above threshold */
-export async function getWeightedHousePoints(db: DbOrTx): Promise<HousePoints[]> {
-  const totalPoints = sql<number>`${sum(schema.userTable.monthlyPoints)} / ${count()}`.as("total_points");
-  return await db
+export async function getWeightedHousePoints(db: DbOrTx): Promise<RankedHousePoints[]> {
+  const housePoints = db
     .select({
       house: schema.userTable.house,
-      totalPoints,
+      totalPoints: sql<number>`${sum(schema.userTable.monthlyPoints)} / ${count()}`.as("total_points"),
       memberCount: count().as("member_count"),
     })
     .from(schema.userTable)
@@ -214,8 +213,37 @@ export async function getWeightedHousePoints(db: DbOrTx): Promise<HousePoints[]>
       and(not(isNull(schema.userTable.house)), gt(schema.userTable.monthlyPoints, MIN_MONTHLY_POINTS_FOR_WEIGHTED)),
     )
     .groupBy(schema.userTable.house)
-    .orderBy(desc(totalPoints))
-    .then((rows) => rows.filter((r): r is HousePoints => r.house !== null));
+    .as("house_points");
+
+  return await db
+    .select({
+      house: housePoints.house,
+      totalPoints: housePoints.totalPoints,
+      memberCount: housePoints.memberCount,
+      rank: sql<number>`(rank() over (order by ${housePoints.totalPoints} desc))::int`.as("rank"),
+    })
+    .from(housePoints)
+    .orderBy(desc(housePoints.totalPoints))
+    .then((rows) => rows.filter((r): r is RankedHousePoints => r.house !== null));
+}
+
+export async function getWeightedHousePointsForHouse(db: DbOrTx, house: House): Promise<HousePoints | undefined> {
+  return await db
+    .select({
+      house: schema.userTable.house,
+      totalPoints: sql<number>`${sum(schema.userTable.monthlyPoints)} / ${count()}`.as("total_points"),
+      memberCount: count().as("member_count"),
+    })
+    .from(schema.userTable)
+    .where(
+      and(
+        eq(schema.userTable.house, house),
+        gt(schema.userTable.monthlyPoints, MIN_MONTHLY_POINTS_FOR_WEIGHTED),
+      ),
+    )
+    .groupBy(schema.userTable.house)
+    .limit(1)
+    .then((rows) => rows.find((r): r is HousePoints => r.house !== null));
 }
 
 /**

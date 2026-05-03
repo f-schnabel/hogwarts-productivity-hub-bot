@@ -38,6 +38,7 @@ globalThis.console = {
 
 // Mock Discord.js for testing
 vi.mock("discord.js", () => ({
+  bold: (text: string) => `**${text}**`,
   Client: class MockClient {
     commands = new Map();
     login = vi.fn();
