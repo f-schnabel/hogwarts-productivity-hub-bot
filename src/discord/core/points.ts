@@ -30,7 +30,7 @@ export async function awardPoints(db: DbOrTx, discordId: string, points: number)
     .then(([row]) => row?.house);
 
   if (shouldAnnounceRankChanges) {
-    void announceHouseRankChanges(db, houseRanksBefore, house);
+    await announceHouseRankChanges(db, houseRanksBefore, house);
   }
   await refreshHouseScoreboards(db, house);
 }
@@ -58,7 +58,7 @@ export async function reverseSubmissionPoints(db: DbOrTx, discordId: string, poi
     .then(([row]) => row?.house);
 
   if (shouldAnnounceRankChanges) {
-    void announceHouseRankChanges(db, houseRanksBefore, house);
+    await announceHouseRankChanges(db, houseRanksBefore, house);
   }
   await refreshHouseScoreboards(db, house);
 }
