@@ -37,6 +37,8 @@ export async function awardPoints(db: DbOrTx, discordId: string, points: number)
 
 export async function reverseSubmissionPoints(db: DbOrTx, discordId: string, points: number, reviewedAt: Date) {
   const monthStartDate = await getMonthStartDate();
+  const shouldAnnounceRankChanges = !isHouseStandingsMysteryMode(monthStartDate);
+  const houseRanksBefore = shouldAnnounceRankChanges ? await getWeightedHousePoints(db) : [];
 
   const house = await db
     .update(userTable)
@@ -55,6 +57,9 @@ export async function reverseSubmissionPoints(db: DbOrTx, discordId: string, poi
     .returning({ house: userTable.house })
     .then(([row]) => row?.house);
 
+  if (shouldAnnounceRankChanges) {
+    void announceHouseRankChanges(db, houseRanksBefore, house);
+  }
   await refreshHouseScoreboards(db, house);
 }
 
