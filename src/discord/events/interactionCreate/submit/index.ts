@@ -49,7 +49,8 @@ export default {
 
   /**
    * Submit a score for approval.
-   * Does not use deferReply as the initial processing is quick.
+   * Defers before validation that touches the database so Discord receives an
+   * acknowledgement before the interaction token can expire.
    */
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!inGuild(interaction)) return;
@@ -63,6 +64,8 @@ export default {
 
       return;
     }
+
+    await interaction.deferReply();
 
     const screenshot     = interaction.options.getAttachment("screenshot", true);
     const submissionType = interaction.options.getString("type", true) as SubmissionType;
@@ -102,6 +105,7 @@ export default {
           so you cannot submit another one.
           ${blockingSubmissionUrl ? ` You can view the blocking submission [here](${blockingSubmissionUrl}).` : ""}
           If the blocking submission is still pending and incorrect, you can cancel it from the submission message.`,
+        { deferred: true },
       );
       return;
     }
@@ -120,6 +124,7 @@ export default {
           so you cannot submit another one.
           ${blockingSubmissionUrl ? ` You can view the blocking submission [here](${blockingSubmissionUrl}).` : ""}
           If the blocking submission is still pending and incorrect, you can cancel it from the submission message.`,
+        { deferred: true },
       );
       return;
     }
@@ -141,6 +146,7 @@ export default {
 
             If the previous submission was wrong you can cancel it by clicking on the button above.
             ${waitMessage}`,
+          { deferred: true },
         );
         return;
       }
@@ -169,12 +175,7 @@ export default {
     assert(submission, "Failed to create submission");
 
     // Send the reply and capture message ID for future cross-referencing
-    const response = await interaction.reply({
-      ...(await submissionMessage({ submission, userTimezone, linkedSubmission })),
-      withResponse: true,
-    });
-    const reply = response.resource?.message;
-    assert(reply, "Failed to get message from reply");
+    const reply = await interaction.editReply(await submissionMessage({ submission, userTimezone, linkedSubmission }));
 
     // Update the submission with the message ID and channel ID
     await db.update(submissionTable).set({ messageId: reply.id, channelId: reply.channelId }).where(eq(submissionTable.id, submission.id));

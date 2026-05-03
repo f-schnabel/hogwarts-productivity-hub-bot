@@ -33,6 +33,7 @@ export async function execute(interaction: Interaction): Promise<void> {
     cmd: interaction.commandName,
     sub: subcommand,
     channel: channelName,
+    createdTimestamp: interaction.createdTimestamp,
   };
 
   if (interaction.isAutocomplete()) {
