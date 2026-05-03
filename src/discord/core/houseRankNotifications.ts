@@ -62,7 +62,7 @@ export async function announceHouseRankChanges(
 
     await channel.send({
       embeds: notifications.map((notification) => ({
-        title: "Weighted House Standings Shift",
+        title: "Updates to the leaderboard",
         description: notification.description,
         color: HOUSE_COLORS[notification.house],
       })),
