@@ -37,7 +37,7 @@ export default defineConfig([
         {
           args: "all",
           argsIgnorePattern: "^_",
-        }
+        },
       ],
       "@typescript-eslint/restrict-template-expressions": [
         "error",

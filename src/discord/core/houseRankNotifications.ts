@@ -2,7 +2,7 @@ import { HOUSE_COLORS } from "@/common/constants.ts";
 import type { House, HousePoints, RankedHousePoints } from "@/common/types.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import { client } from "@/discord/client.ts";
-import { bold, hyperlink, userMention } from "discord.js";
+import { bold } from "discord.js";
 import { getWeightedHousePointsForHouse, type DbOrTx, type getWeightedHousePoints } from "@/db/db.ts";
 import { oneLineCommaListsAnd } from "common-tags";
 
