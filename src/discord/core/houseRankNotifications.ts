@@ -26,7 +26,7 @@ export interface HouseRankChangeAttribution {
 export function getHouseRankChangeNotifications(
   before: RankedHousePoints[],
   changedHouseAfter: HousePoints | undefined,
-  attribution?: HouseRankChangeAttribution,
+  _attribution?: HouseRankChangeAttribution,
 ): HouseRankChangeNotification[] {
   if (!changedHouseAfter) return [];
 
@@ -114,6 +114,8 @@ function hasRankTie(other: RankedHousePoints, house: RankedHousePoints): boolean
   return other.house !== house.house && other.rank === house.rank;
 }
 
+
+/*
 function formatSource(attribution: HouseRankChangeAttribution | undefined): string {
   if (!attribution) return "";
   if (attribution.event === "submission") {
@@ -121,3 +123,4 @@ function formatSource(attribution: HouseRankChangeAttribution | undefined): stri
   }
   return `\nThanks to ${userMention(attribution.discordId)} for their${attribution.duration ? " " + attribution.duration : ""} study session.`;
 }
+*/

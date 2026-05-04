@@ -32,6 +32,13 @@ export default defineConfig([
       },
     },
     rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          args: "all",
+          argsIgnorePattern: "^_",
+        }
+      ],
       "@typescript-eslint/restrict-template-expressions": [
         "error",
         {
