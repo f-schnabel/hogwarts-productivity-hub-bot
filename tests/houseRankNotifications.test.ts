@@ -81,8 +81,8 @@ describe("House rank notifications", () => {
     );
 
     expect(notifications).toEqual([{
-      house: "Slytherin",
-      description: "Slytherin is now tied with Ravenclaw for **second place** in the house cup.",
+      house: "Ravenclaw",
+      description: "Ravenclaw is now tied with Slytherin for **second place** in the house cup.",
     }]);
   });
 

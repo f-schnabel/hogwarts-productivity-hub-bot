@@ -34,8 +34,8 @@ export function getHouseRankChangeNotifications(
       if (houseAfter.rank < houseBefore.rank) return true;
 
       return houseAfter.house === changedHouseAfter.house &&
-        before.some((other) => hasRankTie(other, houseBefore)) !==
-        after.some((other) => hasRankTie(other, houseAfter));
+        before.some((other) => hasRankTie(other, houseBefore)) &&
+        !after.some((other) => hasRankTie(other, houseAfter));
     })
     .map((house) => {
       const tiedHouses = after
@@ -99,3 +99,4 @@ function formatRankChange(house: House, rank: number, tiedHouses: House[]): stri
 function hasRankTie(other: RankedHousePoints, house: RankedHousePoints): boolean {
   return other.house !== house.house && other.rank === house.rank;
 }
+
