@@ -291,11 +291,11 @@ export default {
       await interaction.editReply(messageUpdate);
     }
 
+    const submissionLink = messageLink(interaction.channelId, interaction.message.id, process.env.GUILD_ID);
     if (event === "approve") {
-      await awardPoints(db, submission.discordId, submission.points);
+      await awardPoints(db, submission.discordId, submission.points, { event: "submission", link: submissionLink, discordId: submission.discordId });
     } else if (event === "reject") {
       assert(reason, "Rejection reason must be provided");
-      const submissionLink = messageLink(interaction.channelId, interaction.message.id, process.env.GUILD_ID);
       await interaction.followUp(
         `${userMention(submission.discordId)} Your [submission](${submissionLink}) was rejected. Reason: ${reason}`,
       );

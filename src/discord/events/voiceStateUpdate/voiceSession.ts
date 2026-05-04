@@ -159,7 +159,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
 
     if (pointsEarned > 0) {
       // Award points to user
-      await awardPoints(db, session.discordId, pointsEarned);
+      await awardPoints(db, session.discordId, pointsEarned, { event: "voice", discordId: session.discordId, duration: formatDuration(duration)});
     }
     await db
       .update(voiceSessionTable)
@@ -169,4 +169,3 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
     return user;
   });
 }
-

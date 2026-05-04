@@ -37,11 +37,29 @@ describe("House rank notifications", () => {
     const notifications = getHouseRankChangeNotifications(
       [rankedHouse("Hufflepuff", 50, 1), rankedHouse("Slytherin", 45, 2)],
       rankedHouse("Slytherin", 50, 1),
+      { discordId: "slytherin-user", event: "voice", duration: "2h 15min" },
     );
 
     expect(notifications).toEqual([{
       house: "Slytherin",
-      description: "Slytherin is now tied with Hufflepuff for **the lead** in the house cup.",
+      description: "Slytherin is now tied with Hufflepuff for **the lead** in the house cup.\nThanks to <@slytherin-user> for their 2h 15min study session.",
+    }]);
+  });
+
+  it("links the responsible submission for the changed house", () => {
+    const notifications = getHouseRankChangeNotifications(
+      [rankedHouse("Hufflepuff", 50, 1), rankedHouse("Slytherin", 45, 2)],
+      rankedHouse("Slytherin", 55, 1),
+      {
+        discordId: "slytherin-user",
+        event: "submission",
+        link: "https://discord.com/channels/guild/channel/message",
+      },
+    );
+
+    expect(notifications).toEqual([{
+      house: "Slytherin",
+      description: "Slytherin has taken **the lead** in the house cup. Congratulations!\nThanks to <@slytherin-user> [submission](https://discord.com/channels/guild/channel/message).",
     }]);
   });
 
@@ -94,6 +112,7 @@ describe("House rank notifications", () => {
         rankedHouse("Ravenclaw", 40, 3),
       ],
       rankedHouse("Slytherin", 35, 1),
+      { discordId: "slytherin-user", event: "submission" },
     );
 
     expect(notifications).toEqual([{

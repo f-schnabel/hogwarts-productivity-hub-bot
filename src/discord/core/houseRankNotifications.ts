@@ -2,7 +2,7 @@ import { HOUSE_COLORS } from "@/common/constants.ts";
 import type { House, HousePoints, RankedHousePoints } from "@/common/types.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import { client } from "@/discord/client.ts";
-import { bold } from "discord.js";
+import { bold, hyperlink, userMention } from "discord.js";
 import { getWeightedHousePointsForHouse, type DbOrTx, type getWeightedHousePoints } from "@/db/db.ts";
 import { oneLineCommaListsAnd } from "common-tags";
 
@@ -16,9 +16,17 @@ export interface HouseRankChangeNotification {
   description: string;
 }
 
+export interface HouseRankChangeAttribution {
+  discordId: string;
+  event: "submission" | "voice";
+  link?: string;
+  duration?: string;
+}
+
 export function getHouseRankChangeNotifications(
   before: RankedHousePoints[],
   changedHouseAfter: HousePoints | undefined,
+  attribution?: HouseRankChangeAttribution,
 ): HouseRankChangeNotification[] {
   if (!changedHouseAfter) return [];
 
@@ -41,10 +49,11 @@ export function getHouseRankChangeNotifications(
       const tiedHouses = after
         .filter((other) => hasRankTie(other, house))
         .map((other) => other.house);
+      const source = house.house === changedHouseAfter.house ? formatSource(attribution) : "";
 
       return {
         house: house.house,
-        description: formatRankChange(house.house, house.rank, tiedHouses),
+        description: formatRankChange(house.house, house.rank, tiedHouses) + source,
       };
     });
 }
@@ -64,9 +73,14 @@ export async function announceHouseRankChanges(
   db: DbOrTx,
   houseRanksBefore: Awaited<ReturnType<typeof getWeightedHousePoints>>,
   house: House | null | undefined,
+  attribution?: HouseRankChangeAttribution,
 ): Promise<void> {
   if (!house) return;
-  const notifications = getHouseRankChangeNotifications(houseRanksBefore, await getWeightedHousePointsForHouse(db, house));
+  const notifications = getHouseRankChangeNotifications(
+    houseRanksBefore,
+    await getWeightedHousePointsForHouse(db, house),
+    attribution,
+  );
 
   if (notifications.length === 0 || !YEAR_ANNOUNCEMENT_CHANNEL_ID) return;
 
@@ -100,3 +114,10 @@ function hasRankTie(other: RankedHousePoints, house: RankedHousePoints): boolean
   return other.house !== house.house && other.rank === house.rank;
 }
 
+function formatSource(attribution: HouseRankChangeAttribution | undefined): string {
+  if (!attribution) return "";
+  if (attribution.event === "submission") {
+    return `\nThanks to ${userMention(attribution.discordId)} ${attribution.link ? hyperlink("submission", attribution.link) : "submission"}.`;
+  }
+  return `\nThanks to ${userMention(attribution.discordId)} for their${attribution.duration ? " " + attribution.duration : ""} study session.`;
+}
