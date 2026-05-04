@@ -10,7 +10,6 @@ import dayjs from "dayjs";
 const ALL_HOUSES = Object.keys(HOUSE_COLORS) as House[];
 
 type CupMonth = typeof houseCupMonthTable.$inferSelect;
-type CupEntry = typeof houseCupEntryTable.$inferSelect;
 
 export default function registerHallOfFameRoute(app: Router) {
   // Cup detail page — historical month rendered like the index hourglass page
@@ -56,8 +55,6 @@ export default function registerHallOfFameRoute(app: Router) {
     });
 
     const monthStart = dayjs(cupMonth.month).startOf("month").toDate();
-    const dailyEvents = await getDailyUserPointEvents(db, monthStart);
-    const chartData = buildHousePaceChart(dailyEvents, monthStart);
 
     res.render("houses", {
       title: "House Cup Standings",
@@ -65,7 +62,7 @@ export default function registerHallOfFameRoute(app: Router) {
       houses,
       mysteryMode: false,
       includeChartJs: true,
-      chartData,
+      chartData: buildHousePaceChart(await getDailyUserPointEvents(db, monthStart), monthStart),
     });
   });
 
@@ -100,23 +97,15 @@ export default function registerHallOfFameRoute(app: Router) {
 
     // Fetch entries for all months
     const monthIds = cupMonths.map((m) => m.id);
-    const cupEntries: CupEntry[] =
-      monthIds.length > 0
-        ? await db.select().from(houseCupEntryTable).where(inArray(houseCupEntryTable.monthId, monthIds))
-        : [];
-    const entriesByMonth = Map.groupBy(cupEntries, (e) => e.monthId);
+    const entriesByMonth = Map.groupBy(monthIds.length > 0
+      ? await db.select().from(houseCupEntryTable).where(inArray(houseCupEntryTable.monthId, monthIds))
+      : [], (e) => e.monthId);
 
     // Count cups won per house
     const cupWins: Record<House, number> = { Gryffindor: 0, Hufflepuff: 0, Ravenclaw: 0, Slytherin: 0 };
     for (const cup of cupMonths) {
       cupWins[cup.winner]++;
     }
-
-    const cupWinCards = ALL_HOUSES.map((house) => ({
-      name: house,
-      color: getHouseColor(house),
-      wins: cupWins[house],
-    })).sort((a, b) => b.wins - a.wins);
 
     // Cup history timeline
     const timeline = cupMonths.map((cup) => {
@@ -151,26 +140,31 @@ export default function registerHallOfFameRoute(app: Router) {
       };
     });
 
-    // All-time house points
-    const allTimeHouses = ALL_HOUSES.map((house) => {
-      const data = allTimeHouseData.find((h) => h.house === house);
-      return {
+
+    res.render("hallOfFame", {
+      title: "Hall of Fame",
+      cupWinCards: ALL_HOUSES.map((house) => ({
         name: house,
         color: getHouseColor(house),
-        totalPoints: data?.totalPoints ?? 0,
-      };
-    }).sort((a, b) => b.totalPoints - a.totalPoints);
-
-    const houseColors = {
-      Gryffindor: getHouseColor("Gryffindor"),
-      Hufflepuff: getHouseColor("Hufflepuff"),
-      Ravenclaw:  getHouseColor("Ravenclaw"),
-      Slytherin:  getHouseColor("Slytherin"),
-    };
-
-    // Chart data
-    const chartCupMonths =
-      timeline.length > 0
+        wins: cupWins[house],
+      })).sort((a, b) => b.wins - a.wins),
+      timeline,
+      students,
+      allTimeHouses: ALL_HOUSES.map((house) => {
+        return {
+          name: house,
+          color: getHouseColor(house),
+          totalPoints: allTimeHouseData.find((h) => h.house === house)?.totalPoints ?? 0,
+        };
+      }).sort((a, b) => b.totalPoints - a.totalPoints),
+      houseColors: {
+        Gryffindor: getHouseColor("Gryffindor"),
+        Hufflepuff: getHouseColor("Hufflepuff"),
+        Ravenclaw:  getHouseColor("Ravenclaw"),
+        Slytherin:  getHouseColor("Slytherin"),
+      },
+      includeChartJs: true,
+      chartCupMonths: timeline.length > 0
         ? timeline.map((t) => ({
             month: t.month,
             houses: t.houses.map((h) => ({
@@ -179,23 +173,12 @@ export default function registerHallOfFameRoute(app: Router) {
               isWinner: h.isWinner,
             })),
           }))
-        : null;
-    const chartTop10 = students.slice(0, 10).map((s) => ({
-      label: s.displayName,
-      value: s.totalPoints,
-      color: s.houseColor,
-    }));
-
-    res.render("hallOfFame", {
-      title: "Hall of Fame",
-      cupWinCards,
-      timeline,
-      students,
-      allTimeHouses,
-      houseColors,
-      includeChartJs: true,
-      chartCupMonths,
-      chartTop10,
+        : null,
+      chartTop10: students.slice(0, 10).map((s) => ({
+        label: s.displayName,
+        value: s.totalPoints,
+        color: s.houseColor,
+      })),
     });
   });
 }
