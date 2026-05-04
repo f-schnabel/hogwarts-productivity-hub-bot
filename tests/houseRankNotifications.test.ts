@@ -42,7 +42,7 @@ describe("House rank notifications", () => {
 
     expect(notifications).toEqual([{
       house: "Slytherin",
-      description: "Slytherin is now tied with Hufflepuff for **the lead** in the house cup.\nThanks to <@slytherin-user> for their 2h 15min study session.",
+      description: "Slytherin is now tied with Hufflepuff for **the lead** in the house cup.",
     }]);
   });
 
@@ -59,7 +59,7 @@ describe("House rank notifications", () => {
 
     expect(notifications).toEqual([{
       house: "Slytherin",
-      description: "Slytherin has taken **the lead** in the house cup. Congratulations!\nThanks to <@slytherin-user> [submission](https://discord.com/channels/guild/channel/message).",
+      description: "Slytherin has taken **the lead** in the house cup. Congratulations!",
     }]);
   });
 

@@ -49,11 +49,11 @@ export function getHouseRankChangeNotifications(
       const tiedHouses = after
         .filter((other) => hasRankTie(other, house))
         .map((other) => other.house);
-      const source = house.house === changedHouseAfter.house ? formatSource(attribution) : "";
+      // const source = house.house === changedHouseAfter.house ? formatSource(attribution) : "";
 
       return {
         house: house.house,
-        description: formatRankChange(house.house, house.rank, tiedHouses) + source,
+        description: formatRankChange(house.house, house.rank, tiedHouses),
       };
     });
 }
