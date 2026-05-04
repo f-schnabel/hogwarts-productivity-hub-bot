@@ -41,7 +41,48 @@ describe("House rank notifications", () => {
 
     expect(notifications).toEqual([{
       house: "Slytherin",
+      description: "Slytherin is now tied with Hufflepuff for **the lead** in the house cup.",
+    }]);
+  });
+
+  it("mentions every house tied at the improved rank", () => {
+    const notifications = getHouseRankChangeNotifications(
+      [
+        rankedHouse("Hufflepuff", 60, 1),
+        rankedHouse("Gryffindor", 50, 2),
+        rankedHouse("Ravenclaw", 50, 2),
+        rankedHouse("Slytherin", 45, 4),
+      ],
+      rankedHouse("Slytherin", 50, 1),
+    );
+
+    expect(notifications).toEqual([{
+      house: "Slytherin",
+      description: "Slytherin is now tied with Gryffindor and Ravenclaw for **second place** in the house cup.",
+    }]);
+  });
+
+  it("notifies when a house breaks a tie without changing rank", () => {
+    const notifications = getHouseRankChangeNotifications(
+      [rankedHouse("Hufflepuff", 50, 1), rankedHouse("Slytherin", 50, 1)],
+      rankedHouse("Slytherin", 55, 1),
+    );
+
+    expect(notifications).toEqual([{
+      house: "Slytherin",
       description: "Slytherin has taken **the lead** in the house cup. Congratulations!",
+    }]);
+  });
+
+  it("notifies when a house drops into a tie", () => {
+    const notifications = getHouseRankChangeNotifications(
+      [rankedHouse("Hufflepuff", 60, 1), rankedHouse("Slytherin", 55, 2), rankedHouse("Ravenclaw", 50, 3)],
+      rankedHouse("Slytherin", 50, 1),
+    );
+
+    expect(notifications).toEqual([{
+      house: "Slytherin",
+      description: "Slytherin is now tied with Ravenclaw for **second place** in the house cup.",
     }]);
   });
 

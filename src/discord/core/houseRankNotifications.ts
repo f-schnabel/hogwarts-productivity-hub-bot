@@ -4,6 +4,7 @@ import { createLogger } from "@/common/logging/logger.ts";
 import { client } from "@/discord/client.ts";
 import { bold } from "discord.js";
 import { getWeightedHousePointsForHouse, type DbOrTx, type getWeightedHousePoints } from "@/db/db.ts";
+import { oneLineCommaListsAnd } from "common-tags";
 
 const log = createLogger("HouseRankNotifications");
 const YEAR_ANNOUNCEMENT_CHANNEL_ID = process.env.YEAR_ANNOUNCEMENT_CHANNEL_ID;
@@ -21,18 +22,31 @@ export function getHouseRankChangeNotifications(
 ): HouseRankChangeNotification[] {
   if (!changedHouseAfter) return [];
 
-  const beforeRanks = new Map(before.map((house) => [house.house, house.rank]));
   const after = rankHouses([
     ...before.filter((house) => house.house !== changedHouseAfter.house),
     changedHouseAfter,
   ]);
 
   return after
-    .filter((house) => {
-      const rankBefore = beforeRanks.get(house.house);
-      return rankBefore !== undefined && house.rank < rankBefore;
+    .filter((houseAfter) => {
+      const houseBefore = before.find((beforeHouse) => beforeHouse.house === houseAfter.house);
+      if (!houseBefore) return false;
+      if (houseAfter.rank < houseBefore.rank) return true;
+
+      return houseAfter.house === changedHouseAfter.house &&
+        before.some((other) => hasRankTie(other, houseBefore)) !==
+        after.some((other) => hasRankTie(other, houseAfter));
     })
-    .map((house) => ({ house: house.house, description: formatRankChange(house.house, house.rank) }));
+    .map((house) => {
+      const tiedHouses = after
+        .filter((other) => hasRankTie(other, house))
+        .map((other) => other.house);
+
+      return {
+        house: house.house,
+        description: formatRankChange(house.house, house.rank, tiedHouses),
+      };
+    });
 }
 
 export function rankHouses(houses: HousePoints[]): RankedHousePoints[] {
@@ -72,9 +86,16 @@ export async function announceHouseRankChanges(
   }
 }
 
-function formatRankChange(house: House, rank: number): string {
+function formatRankChange(house: House, rank: number, tiedHouses: House[]): string {
   const place = ORDINAL_PLACES[rank - 1] ?? `${rank}th place`;
+  if (tiedHouses.length > 0) {
+    return oneLineCommaListsAnd`${house} is now tied with ${tiedHouses} for ${bold(place)} in the house cup.`;
+  }
   return rank === 1
     ? `${house} has taken ${bold(place)} in the house cup. Congratulations!`
     : `${house} took ${bold(place)} in the house cup.`;
+}
+
+function hasRankTie(other: RankedHousePoints, house: RankedHousePoints): boolean {
+  return other.house !== house.house && other.rank === house.rank;
 }
