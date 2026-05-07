@@ -1,12 +1,27 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import { db as globalDb, getMonthStartDate, type DbOrTx } from "@/db/db.ts";
+import {
+  db as globalDb,
+  getMonthStartDate,
+  getWeightedHousePoints,
+  type DbOrTx,
+} from "@/db/db.ts";
 import { houseScoreboardTable, userTable } from "@/db/schema.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../events/interactionCreate/scoreboard/scoreboard.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
 import type { House } from "@/common/types.ts";
 import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "@/common/constants.ts";
+import { announceHouseRankChanges, type HouseRankChangeAttribution } from "./houseRankNotifications.ts";
+import { isHouseStandingsMysteryMode } from "@/common/mysteryMode.ts";
 
-export async function awardPoints(db: DbOrTx, discordId: string, points: number) {
+export async function awardPoints(
+  db: DbOrTx,
+  discordId: string,
+  points: number,
+  event?: HouseRankChangeAttribution,
+) {
+  const shouldAnnounceRankChanges = !isHouseStandingsMysteryMode(await getMonthStartDate());
+  const houseRanksBefore = shouldAnnounceRankChanges ? await getWeightedHousePoints(db) : [];
+
   // Update user's total points
   const house = await db
     .update(userTable)
@@ -19,11 +34,16 @@ export async function awardPoints(db: DbOrTx, discordId: string, points: number)
     .returning({ house: userTable.house })
     .then(([row]) => row?.house);
 
+  if (shouldAnnounceRankChanges) {
+    await announceHouseRankChanges(db, houseRanksBefore, house, event);
+  }
   await refreshHouseScoreboards(db, house);
 }
 
 export async function reverseSubmissionPoints(db: DbOrTx, discordId: string, points: number, reviewedAt: Date) {
   const monthStartDate = await getMonthStartDate();
+  const shouldAnnounceRankChanges = !isHouseStandingsMysteryMode(monthStartDate);
+  const houseRanksBefore = shouldAnnounceRankChanges ? await getWeightedHousePoints(db) : [];
 
   const house = await db
     .update(userTable)
@@ -42,6 +62,9 @@ export async function reverseSubmissionPoints(db: DbOrTx, discordId: string, poi
     .returning({ house: userTable.house })
     .then(([row]) => row?.house);
 
+  if (shouldAnnounceRankChanges) {
+    await announceHouseRankChanges(db, houseRanksBefore, house, { discordId, event: "submission" });
+  }
   await refreshHouseScoreboards(db, house);
 }
 

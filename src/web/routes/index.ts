@@ -7,27 +7,19 @@ import {
   db,
 } from "@/db/db.ts";
 import { buildHousePaceChart, getHouseColor } from "../utils.ts";
-import dayjs from "dayjs";
 import type { Router } from "express";
 import type { House } from "@/common/types.ts";
+import { isHouseStandingsMysteryMode } from "@/common/mysteryMode.ts";
 
 /**
  * Mystery mode: last 3 days of calendar month, but not within 2 days of reset
  * Can be bypassed with secret param, or forced with mystery=1 param
  */
-async function isMysteryMode(query: Record<string, unknown>): Promise<boolean> {
+function isMysteryMode(query: Record<string, unknown>, monthStart: Date): boolean {
   if (query["secret"] === process.env.MYSTERY_SECRET) return false;
   if (query["mystery"] === "1") return true;
 
-  const now = dayjs();
-  const isLastThreeDays = now.date() > now.daysInMonth() - 3;
-  if (!isLastThreeDays) return false;
-
-  const monthStart = await getMonthStartDate();
-  const daysSinceReset = now.diff(monthStart, "day");
-  if (daysSinceReset <= 1) return false;
-
-  return true;
+  return isHouseStandingsMysteryMode(monthStart);
 }
 
 // Home - House scoreboard
@@ -40,15 +32,12 @@ export default function registerIndexRoute(app: Router) {
       getDailyUserPointEvents(db, monthStart),
     ]);
 
-    const unweightedMap = new Map(unweightedHouseData.map((h) =>
-      [h.house, { unweightedPoints: h.totalPoints, totalMemberCount: h.memberCount }]),
-    );
+    const unweightedMap = new Map(unweightedHouseData.map((h) => [h.house, h]));
 
-    const weightedMap = new Map(weightedHouseData.map((h) =>
-      [h.house, { totalPoints: h.totalPoints, memberCount: h.memberCount }]),
-    );
+    const weightedMap = new Map(weightedHouseData.map((h) => [h.house, h]));
 
     const allHouses = Object.keys(HOUSE_COLORS) as House[];
+    const unrankedHouseRank = weightedHouseData.length + 1;
 
     let houses = allHouses.map((house) => {
       const weighted = weightedMap.get(house);
@@ -59,19 +48,13 @@ export default function registerIndexRoute(app: Router) {
         rawPoints:   weighted?.totalPoints ?? 0,
         points:      weighted?.totalPoints ?? 0,
         memberCount: weighted?.memberCount ?? 0,
-        unweightedPoints: unweighted?.unweightedPoints ?? 0,
-        totalMemberCount: unweighted?.totalMemberCount ?? 0,
-        rank: 1,
+        unweightedPoints: unweighted?.totalPoints ?? 0,
+        totalMemberCount: unweighted?.memberCount ?? 0,
+        rank: weighted?.rank ?? unrankedHouseRank,
       };
     }).sort((a, b) => b.rawPoints - a.rawPoints);
 
-    // Calculate ranks with ties (same points = same rank)
-    houses.forEach((current, i) => {
-      const prev = houses[i - 1];
-      current.rank = prev?.rawPoints === current.rawPoints ? prev.rank : i + 1;
-    });
-
-    const mysteryMode = await isMysteryMode(req.query);
+    const mysteryMode = isMysteryMode(req.query, monthStart);
     if (mysteryMode) {
       // Shuffle houses so order doesn't reveal ranking
       houses = houses.sort(() => Math.random() - 0.5);

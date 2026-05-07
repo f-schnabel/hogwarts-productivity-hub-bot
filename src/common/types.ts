@@ -54,6 +54,10 @@ export interface HousePoints {
   memberCount: number;
 }
 
+export interface RankedHousePoints extends HousePoints {
+  rank: number;
+}
+
 export interface CountingState {
   count: number;
   discordId?: string;
