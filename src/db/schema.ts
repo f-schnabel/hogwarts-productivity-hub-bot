@@ -9,8 +9,8 @@ import {
   pgTable,
   serial,
   text,
-  timestamp,
   uniqueIndex,
+  timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
 import { HOUSES } from "@/common/constants.ts";
@@ -62,8 +62,33 @@ export const voiceSessionTable = pgTable(
 
     // in seconds
     duration: integer().generatedAlwaysAs(sql`EXTRACT(EPOCH FROM (left_at - joined_at))`),
+    creditedDuration: integer(),
   },
   (table) => [index("voice_session_discord_id_left_at_idx").on(table.discordId, table.leftAt)],
+);
+
+export const pomodoroSessionTable = pgTable(
+  "pomodoro_session",
+  {
+    id: serial().primaryKey(),
+    channelId: varchar({ length: 255 }).notNull(),
+    channelName: varchar({ length: 255 }).notNull(),
+    focusMinutes: integer().notNull(),
+    breakMinutes: integer().notNull(),
+    stage: varchar({ length: 10, enum: ["FOCUS", "BREAK"] }).notNull(),
+    stageStartedAt: timestamp().notNull().defaultNow(),
+    nextStageAt: timestamp().notNull(),
+    startedAt: timestamp().notNull().defaultNow(),
+    endedAt: timestamp(),
+    statusMessageId: varchar({ length: 255 }),
+  },
+  (table) => [
+    index("pomodoro_session_channel_id_ended_at_idx").on(table.channelId, table.endedAt),
+    uniqueIndex("pomodoro_session_status_message_id_idx").on(table.statusMessageId),
+    uniqueIndex("pomodoro_session_active_channel_id_idx")
+      .on(table.channelId)
+      .where(sql`${table.endedAt} IS NULL`),
+  ],
 );
 
 export const submissionTypeEnum = pgEnum("submission_type", ["NEW", "COMPLETED"]);
