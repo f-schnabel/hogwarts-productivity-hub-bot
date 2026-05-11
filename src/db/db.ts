@@ -322,7 +322,7 @@ export function getHouseFromMember(member: GuildMember | null): House | null {
 
   const houses = HOUSE_ROLES.filter(([roleId]) => roles.has(roleId));
   if (houses.length > 1) {
-    // Temporary states (e.g. mid-resort) can leave a user with multiple house roles.
+    // Temporary states can leave a user with multiple house roles.
     // Treat the house as unknown rather than crashing the interaction.
     houseLog.warn("Member has multiple house roles", {
       userId: member.id,
