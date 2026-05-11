@@ -21,7 +21,6 @@ import { sql } from "drizzle-orm/sql/sql";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import dayjs from "dayjs";
 import { MIN_MONTHLY_POINTS_FOR_WEIGHTED, SETTINGS_KEYS } from "../common/constants.ts";
-import assert from "node:assert/strict";
 import type { CountingState, House, HousePoints } from "@/common/types.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 
@@ -315,14 +314,22 @@ export async function getUnweightedHousePoints(db: DbOrTx): Promise<HousePoints[
     .then((rows) => rows.filter((r): r is HousePoints => r.house !== null));
 }
 
-export function getHouseFromMember(member: GuildMember | null): House | undefined {
-  if (!member?.roles.cache) return undefined;
+const houseLog = createLogger("House");
+
+export function getHouseFromMember(member: GuildMember | null): House | null {
+  if (!member?.roles.cache) return null;
   const roles = member.roles.cache;
 
   const houses = HOUSE_ROLES.filter(([roleId]) => roles.has(roleId));
-  assert(
-    houses.length <= 1,
-    `Member ${member.user.tag} has multiple house roles: ${houses.map(([, name]) => name).join(", ")}`,
-  );
-  return houses[0]?.[1];
+  if (houses.length > 1) {
+    // Temporary states can leave a user with multiple house roles.
+    // Treat the house as unknown rather than crashing the interaction.
+    houseLog.warn("Member has multiple house roles", {
+      userId: member.id,
+      user: member.user.tag,
+      houses: houses.map(([, name]) => name).join(","),
+    });
+    return null;
+  }
+  return houses[0]?.[1] ?? null;
 }
