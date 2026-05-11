@@ -71,7 +71,15 @@ export default {
     const submissionType = interaction.options.getString("type", true) as SubmissionType;
 
     const house = getHouseFromMember(interaction.member);
-    assert(house, "User does not have a house role assigned");
+    if (!house) {
+      await errorReply(
+        interaction,
+        "No House Assigned",
+        "You do not have exactly one house role assigned. Please contact a Prefect to fix your house roles before submitting.",
+        { deferred: true },
+      );
+      return;
+    }
 
     // Fetch user's timezone for validation and display
     const userTimezone = await getUserTimezone(interaction.member.id);
