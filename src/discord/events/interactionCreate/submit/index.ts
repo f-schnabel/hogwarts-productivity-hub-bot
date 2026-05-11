@@ -74,8 +74,8 @@ export default {
     if (!house) {
       await errorReply(
         interaction,
-        "No House Assigned",
-        "You do not have exactly one house role assigned. Please contact a Prefect to fix your house roles before submitting.",
+        "Multiple Houses Assigned",
+        "You have more than one house role assigned. Please contact a Head Person to fix your house roles before submitting.",
         { deferred: true },
       );
       return;
