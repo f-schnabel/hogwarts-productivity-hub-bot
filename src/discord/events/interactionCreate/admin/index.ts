@@ -77,6 +77,17 @@ export default {
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("migrate")
+        .setDescription("Migrates submissions, voice sessions, and adjustments between users")
+        .addUserOption((option) =>
+          option.setName("old-user").setDescription("The user to migrate data from").setRequired(true),
+        )
+        .addUserOption((option) =>
+          option.setName("new-user").setDescription("The user to migrate data to").setRequired(true),
+        ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("journal-set")
         .setDescription("Creates or updates a journal entry for an exact date")
         .addStringOption((option) =>
@@ -166,6 +177,9 @@ export default {
         break;
       case "fix-integrity":
         await fixIntegrity(interaction);
+        break;
+      case "migrate":
+        await migrateUser(interaction);
         break;
       case "journal-set":
         await journalSet(interaction);
@@ -336,6 +350,57 @@ async function countingSet(interaction: ChatInputCommandInteraction<"cached">) {
 
   log.info("Counting value set", { count, userId: interaction.user.id });
   await interaction.editReply(`Current counting value set to ${count}.`);
+}
+
+async function migrateUser(interaction: ChatInputCommandInteraction<"cached">) {
+  const oldUser = interaction.options.getUser("old-user", true);
+  const newUser = interaction.options.getUser("new-user", true);
+
+  const [newDbUser] = await db.select().from(userTable).where(eq(userTable.discordId, newUser.id));
+
+  if (!newDbUser) {
+    await errorReply(interaction, "User Not Found", `${newUser.tag} does not exist in the bot database.`, { deferred: true });
+    return;
+  }
+
+  const [submissions, voiceSessions, adjustments] = await db.transaction(async (tx) => {
+    return await Promise.all([
+      tx
+        .update(submissionTable)
+        .set({ discordId: newUser.id })
+        .where(eq(submissionTable.discordId, oldUser.id)),
+      tx
+        .update(voiceSessionTable)
+        .set({ discordId: newUser.id })
+        .where(eq(voiceSessionTable.discordId, oldUser.id)),
+      tx
+        .update(pointAdjustmentTable)
+        .set({ discordId: newUser.id })
+        .where(eq(pointAdjustmentTable.discordId, oldUser.id)),
+    ]);
+  });
+
+  const { users, expectedMap } = await computeExpectedValues();
+  const fixed = await applyExpectedValues(
+    users.filter((user) => user.discordId === oldUser.id || user.discordId === newUser.id),
+    expectedMap,
+  );
+
+  await updateScoreboardMessages(await getHousepointMessages(db, await db.select().from(houseScoreboardTable)));
+
+  log.info("User data migrated", {
+    oldUser: oldUser.id,
+    newUser: newUser.id,
+    migratedSubmissions: submissions.rowCount,
+    migratedVoiceSessions: voiceSessions.rowCount,
+    migratedAdjustments: adjustments.rowCount,
+    usersFixed: fixed,
+    adjustedBy: interaction.user.id,
+  });
+
+  await interaction.editReply(
+    `Migrated ${oldUser.tag} to ${newUser.tag}: ${submissions.rowCount ?? 0} submission(s), ${voiceSessions.rowCount ?? 0} voice session(s), and ${adjustments.rowCount ?? 0} adjustment(s). Recalculated points and voice time for ${fixed} user(s).`,
+  );
 }
 
 interface ExpectedValues {
@@ -526,6 +591,24 @@ async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">
 async function fixIntegrity(interaction: ChatInputCommandInteraction<"cached">) {
   const { users, expectedMap } = await computeExpectedValues();
 
+  const fixed = await applyExpectedValues(users, expectedMap);
+
+  log.info("Integrity fix complete", { usersFixed: fixed });
+  await interaction.editReply(fixed === 0 ? "No discrepancies found." : `Fixed ${fixed} user(s).`);
+}
+
+async function applyExpectedValues(
+  users: {
+    discordId: string;
+    totalPoints: number;
+    monthlyPoints: number;
+    dailyPoints: number;
+    totalVoiceTime: number;
+    monthlyVoiceTime: number;
+    dailyVoiceTime: number;
+  }[],
+  expectedMap: Map<string, ExpectedValues>,
+) {
   let fixed = 0;
   for (const user of users) {
     const expected = expectedMap.get(user.discordId);
@@ -555,6 +638,5 @@ async function fixIntegrity(interaction: ChatInputCommandInteraction<"cached">) 
     }
   }
 
-  log.info("Integrity fix complete", { usersFixed: fixed });
-  await interaction.editReply(fixed === 0 ? "No discrepancies found." : `Fixed ${fixed} user(s).`);
+  return fixed;
 }
