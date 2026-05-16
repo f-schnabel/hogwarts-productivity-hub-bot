@@ -20,7 +20,7 @@ const BAR_COLORS: Record<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, BarColors> = {
 };
 
 function calculateYearProgress(monthlyVoiceTime: number): YearProgress {
-  const currentYear = (getYearFromMonthlyVoiceTime(monthlyVoiceTime) ?? 0) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  const currentYear = (getYearFromMonthlyVoiceTime(monthlyVoiceTime) ?? 0);
   const currentHours = monthlyVoiceTime / 3600;
   const colors = BAR_COLORS[currentYear];
 
