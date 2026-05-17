@@ -10,7 +10,11 @@ import {
   setCountingState,
 } from "@/db/db.ts";
 import { awardPoints } from "@/discord/core/points.ts";
-import { errorReply, inGuild } from "@/discord/utils/interaction.ts";
+import {
+  calculateVoiceSessionPointUpdatesForLocalDay,
+  parseVoiceSessionEndTime,
+} from "@/discord/core/voiceSessionCorrection.ts";
+import { errorReply, formatDuration, inGuild } from "@/discord/utils/interaction.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import {
   houseCupEntryTable,
@@ -27,7 +31,7 @@ import { createLogger } from "@/common/logging/logger.ts";
 import { updateMember } from "@/discord/utils/updateMember.ts";
 import type { Command, Sums } from "@/common/types.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../scoreboard/scoreboard.ts";
-import { desc, eq, isNull, not } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, not } from "drizzle-orm";
 import dayjs from "dayjs";
 import assert from "assert";
 import { journalDelete, journalExport, journalImport, journalList, journalSet, journalShow } from "./journal.ts";
@@ -74,6 +78,20 @@ export default {
     )
     .addSubcommand((subcommand) =>
       subcommand.setName("fix-integrity").setDescription("Overwrites stored points/voice time with expected values"),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("fix-voice-session")
+        .setDescription("Corrects a tracked voice session end time and recalculates points")
+        .addUserOption((option) =>
+          option.setName("user").setDescription("The user whose voice session should be corrected").setRequired(true),
+        )
+        .addIntegerOption((option) =>
+          option.setName("session-id").setDescription("The voice session ID from /user points-detailed").setRequired(true),
+        )
+        .addStringOption((option) =>
+          option.setName("end-time").setDescription("Corrected local end time, HH:mm").setRequired(true),
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -177,6 +195,9 @@ export default {
         break;
       case "fix-integrity":
         await fixIntegrity(interaction);
+        break;
+      case "fix-voice-session":
+        await fixVoiceSession(interaction);
         break;
       case "migrate":
         await migrateUser(interaction);
@@ -350,6 +371,123 @@ async function countingSet(interaction: ChatInputCommandInteraction<"cached">) {
 
   log.info("Counting value set", { count, userId: interaction.user.id });
   await interaction.editReply(`Current counting value set to ${count}.`);
+}
+
+async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached">) {
+  const user = interaction.options.getUser("user", true);
+  const sessionId = interaction.options.getInteger("session-id", true);
+  const endTimeInput = interaction.options.getString("end-time", true);
+
+  const [dbUser] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
+  if (!dbUser) {
+    await errorReply(interaction, "User Not Found", `${user.tag} does not exist in the bot database.`, { deferred: true });
+    return;
+  }
+
+  const [oldSession] = await db.select().from(voiceSessionTable).where(eq(voiceSessionTable.id, sessionId));
+  if (!oldSession) {
+    await errorReply(interaction, "Session Not Found", `Voice session #${sessionId} does not exist.`, { deferred: true });
+    return;
+  }
+  if (oldSession.discordId !== user.id) {
+    await errorReply(interaction, "Session User Mismatch", `Voice session #${sessionId} does not belong to ${user.tag}.`, { deferred: true });
+    return;
+  }
+  if (!oldSession.isTracked || oldSession.leftAt === null) {
+    await errorReply(interaction, "Invalid Session", "Only closed tracked voice sessions can be corrected.", { deferred: true });
+    return;
+  }
+
+  const oldLocalDay = dayjs(oldSession.leftAt).tz(dbUser.timezone).startOf("day");
+
+  const correctedEndTime = parseVoiceSessionEndTime(endTimeInput, oldLocalDay);
+  if (!correctedEndTime) {
+    await errorReply(interaction, "Invalid End Time", "Use a valid local time in `HH:mm` format.", { deferred: true });
+    return;
+  }
+  if (correctedEndTime <= oldSession.joinedAt) {
+    await errorReply(interaction, "Invalid End Time", "The corrected end time must be after the session start.", { deferred: true });
+    return;
+  }
+  if (correctedEndTime > new Date()) {
+    await errorReply(interaction, "Invalid End Time", "The corrected end time cannot be in the future.", { deferred: true });
+    return;
+  }
+
+  const result = await db.transaction(async (tx) => {
+    const [updatedSession] = await tx
+      .update(voiceSessionTable)
+      .set({ leftAt: correctedEndTime })
+      .where(eq(voiceSessionTable.id, sessionId))
+      .returning({
+        id: voiceSessionTable.id,
+        joinedAt: voiceSessionTable.joinedAt,
+        leftAt: voiceSessionTable.leftAt,
+        duration: voiceSessionTable.duration,
+      });
+    assert(updatedSession, `Voice session #${sessionId} was not updated`);
+
+    const userSessions = await tx
+      .select({
+        id: voiceSessionTable.id,
+        joinedAt: voiceSessionTable.joinedAt,
+        duration: voiceSessionTable.duration,
+        points: voiceSessionTable.points,
+      })
+      .from(voiceSessionTable)
+      .where(
+        and(
+          eq(voiceSessionTable.discordId, user.id),
+          eq(voiceSessionTable.isTracked, true),
+          not(isNull(voiceSessionTable.leftAt)),
+          gte(voiceSessionTable.leftAt, oldLocalDay.toDate()),
+          lt(voiceSessionTable.leftAt, oldLocalDay.add(1, "day").toDate()),
+        ),
+      )
+      .orderBy(asc(voiceSessionTable.joinedAt));
+
+    const pointUpdates = calculateVoiceSessionPointUpdatesForLocalDay(userSessions);
+
+    for (const pointUpdate of pointUpdates) {
+      await tx
+        .update(voiceSessionTable)
+        .set({ points: pointUpdate.points })
+        .where(eq(voiceSessionTable.id, pointUpdate.id));
+    }
+
+    return {
+      updatedSession,
+      newSessionPoints: pointUpdates.find((pointUpdate) => pointUpdate.id === sessionId)?.points ?? 0,
+    };
+  });
+
+  const { users, expectedMap } = await computeExpectedValues();
+  const fixed = await applyExpectedValues(users.filter((candidate) => candidate.discordId === user.id), expectedMap);
+  await updateScoreboardMessages(await getHousepointMessages(db, await db.select().from(houseScoreboardTable)));
+
+  const oldEnd = dayjs(oldSession.leftAt).tz(dbUser.timezone).format("HH:mm");
+  const newEnd = dayjs(result.updatedSession.leftAt).tz(dbUser.timezone).format("HH:mm");
+
+  log.info("Voice session corrected", {
+    sessionId,
+    user: user.id,
+    oldEnd,
+    newEnd,
+    oldDuration: oldSession.duration,
+    newDuration: result.updatedSession.duration,
+    oldPoints: oldSession.points,
+    newPoints: result.newSessionPoints,
+    aggregateUsersFixed: fixed,
+    adjustedBy: interaction.user.id,
+  });
+
+  await interaction.editReply(
+    `Corrected voice session #${sessionId} for ${user.tag} (${dbUser.timezone}).\n` +
+    `End: ${oldEnd} -> ${newEnd}\n` +
+    `Duration: ${formatDuration(oldSession.duration ?? 0)} -> ${formatDuration(result.updatedSession.duration ?? 0)}\n` +
+    `Session points: ${oldSession.points ?? 0} -> ${result.newSessionPoints}\n` +
+    `Aggregate totals ${fixed > 0 ? "were recalculated." : "were already correct."}`,
+  );
 }
 
 async function migrateUser(interaction: ChatInputCommandInteraction<"cached">) {

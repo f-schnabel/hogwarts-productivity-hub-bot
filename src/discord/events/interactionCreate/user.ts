@@ -36,7 +36,7 @@ export default {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("points-detailed")
-        .setDescription("View all individual sessions this month (OWNER/PREFECT only)")
+        .setDescription("View all individual sessions this month (OWNER/PREFECT/PROFESSOR only)")
         .addUserOption((option) =>
           option.setName("user").setDescription("The user to view sessions for").setRequired(true),
         ),
@@ -319,6 +319,7 @@ async function points(interaction: ChatInputCommandInteraction) {
 
 // Merge consecutive sessions (same channel, leftAt == joinedAt of next, not at midnight boundary)
 interface MergedSession {
+  ids: number[];
   channelName: string | null;
   joinedAt: Date;
   leftAt: Date | null;
@@ -326,7 +327,7 @@ interface MergedSession {
 }
 
 async function pointsDetailed(interaction: ChatInputCommandInteraction) {
-  if (!inGuild(interaction) || !requireRole(interaction, Role.OWNER | Role.PREFECT)) return;
+  if (!inGuild(interaction) || !requireRole(interaction, Role.OWNER | Role.PREFECT | Role.PROFESSOR)) return;
   await interaction.deferReply();
 
   const user = interaction.options.getUser("user", true);
@@ -342,6 +343,7 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction) {
   // Get tracked voice sessions this month, ordered by joinedAt for merging
   const voiceSessions = await db
     .select({
+      id: voiceSessionTable.id,
       duration: voiceSessionTable.duration,
       channelName: voiceSessionTable.channelName,
       joinedAt: voiceSessionTable.joinedAt,
@@ -374,10 +376,12 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction) {
       dayjs(last.leftAt).tz(tz).format("YYYY-MM-DD") === dayjs(sessionJoinedAt).tz(tz).format("YYYY-MM-DD");
 
     if (shouldMerge) {
+      last.ids.push(session.id);
       last.leftAt = sessionLeftAt;
       last.duration += session.duration ?? 0;
     } else {
       mergedSessions.push({
+        ids: [session.id],
         channelName: session.channelName,
         joinedAt: sessionJoinedAt,
         leftAt: sessionLeftAt,
@@ -394,7 +398,7 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction) {
             const joinStr = dayjs(s.joinedAt).tz(tz).format("D HH:mm");
             const leftStr = s.leftAt ? dayjs(s.leftAt).tz(tz).format("HH:mm") : "ongoing";
             const channel = s.channelName ?? "Unknown";
-            return `• ${joinStr}-${leftStr} **${channel.slice(0, 3)}** (${formatDuration(s.duration)})`;
+            return `• #${s.ids.join(", #")} ${joinStr}-${leftStr} **${channel.slice(0, 3)}** (${formatDuration(s.duration)})`;
           })
           .join("\n")
       : "No sessions";
