@@ -414,7 +414,7 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
     return;
   }
 
-  const result = await db.transaction(async (tx) => {
+  const updatedSession = await db.transaction(async (tx) => {
     const [updatedSession] = await tx
       .update(voiceSessionTable)
       .set({ leftAt: correctedEndTime })
@@ -424,6 +424,7 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
         joinedAt: voiceSessionTable.joinedAt,
         leftAt: voiceSessionTable.leftAt,
         duration: voiceSessionTable.duration,
+        points: voiceSessionTable.points,
       });
     assert(updatedSession, `Voice session #${sessionId} was not updated`);
 
@@ -453,12 +454,12 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
         .update(voiceSessionTable)
         .set({ points: pointUpdate.points })
         .where(eq(voiceSessionTable.id, pointUpdate.id));
+      if (pointUpdate.id === sessionId) {
+        updatedSession.points = pointUpdate.points;
+      }
     }
 
-    return {
-      updatedSession,
-      newSessionPoints: pointUpdates.find((pointUpdate) => pointUpdate.id === sessionId)?.points ?? 0,
-    };
+    return updatedSession;
   });
 
   const { users, expectedMap } = await computeExpectedValues();
@@ -466,7 +467,7 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
   await updateScoreboardMessages(await getHousepointMessages(db, await db.select().from(houseScoreboardTable)));
 
   const oldEnd = dayjs(oldSession.leftAt).tz(dbUser.timezone).format("HH:mm");
-  const newEnd = dayjs(result.updatedSession.leftAt).tz(dbUser.timezone).format("HH:mm");
+  const newEnd = dayjs(updatedSession.leftAt).tz(dbUser.timezone).format("HH:mm");
 
   log.info("Voice session corrected", {
     sessionId,
@@ -474,9 +475,9 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
     oldEnd,
     newEnd,
     oldDuration: oldSession.duration,
-    newDuration: result.updatedSession.duration,
+    newDuration: updatedSession.duration,
     oldPoints: oldSession.points,
-    newPoints: result.newSessionPoints,
+    newPoints: updatedSession.points,
     aggregateUsersFixed: fixed,
     adjustedBy: interaction.user.id,
   });
@@ -484,8 +485,8 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
   await interaction.editReply(
     `Corrected voice session #${sessionId} for ${user.tag} (${dbUser.timezone}).\n` +
     `End: ${oldEnd} -> ${newEnd}\n` +
-    `Duration: ${formatDuration(oldSession.duration ?? 0)} -> ${formatDuration(result.updatedSession.duration ?? 0)}\n` +
-    `Session points: ${oldSession.points ?? 0} -> ${result.newSessionPoints}\n` +
+    `Duration: ${formatDuration(oldSession.duration ?? 0)} -> ${formatDuration(updatedSession.duration ?? 0)}\n` +
+    `Session points: ${oldSession.points ?? 0} -> ${updatedSession.points ?? 0}\n` +
     `Aggregate totals ${fixed > 0 ? "were recalculated." : "were already correct."}`,
   );
 }
