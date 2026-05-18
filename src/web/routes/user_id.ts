@@ -82,7 +82,11 @@ export default function registerUserIdRoute(app: Router) {
 
     const [sessions, submissions] = await Promise.all([
       db
-        .select({ joinedAt: voiceSessionTable.joinedAt, duration: voiceSessionTable.duration })
+        .select({
+          joinedAt: voiceSessionTable.joinedAt,
+          duration: voiceSessionTable.duration,
+          creditedDuration: voiceSessionTable.creditedDuration,
+        })
         .from(voiceSessionTable)
         .where(
           and(
@@ -110,7 +114,7 @@ export default function registerUserIdRoute(app: Router) {
 
     for (const s of sessions) {
       const day = dayjs(s.joinedAt).tz(tz).format("YYYY-MM-DD");
-      dailyHours.set(day, (dailyHours.get(day) ?? 0) + (s.duration ?? 0) / 3600);
+      dailyHours.set(day, (dailyHours.get(day) ?? 0) + (s.creditedDuration ?? s.duration ?? 0) / 3600);
     }
     for (const s of submissions) {
       const day = dayjs(s.submittedAt).tz(tz).format("YYYY-MM-DD");

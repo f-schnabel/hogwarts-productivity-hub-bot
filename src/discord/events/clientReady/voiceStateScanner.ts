@@ -194,7 +194,6 @@ async function scanVoiceChannel(
 ) {
   const logCtx = { channel: channel.name };
   const now = Date.now();
-
   try {
     const members = channel.members;
 
