@@ -51,8 +51,8 @@
     "@types/node": "^25.9.1",
     "@types/pg": "^8.20.0",
     "@types/twig": "^1.12.17",
-    "@vitest/coverage-v8": "^4.1.6",
-    "@vitest/ui": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.7",
+    "@vitest/ui": "^4.1.7",
     "archunit": "^2.3.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^10.4.0",
@@ -61,6 +61,6 @@
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.4",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.7"
   }
 }
