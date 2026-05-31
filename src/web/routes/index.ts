@@ -72,23 +72,27 @@ export default function registerIndexRoute(app: Router) {
     });
 
     const mysteryMode = await isMysteryMode(req.query);
+
+    // In mystery mode, strip every standings-revealing field from the payload so the
+    // data is absent from the HTML source entirely, not merely hidden with CSS. Only
+    // the house colour is kept (it draws the hourglass but reveals no placing), and the
+    // order is shuffled so position can't hint at the ranking either.
+    let displayHouses: { color: string }[] | typeof houses = houses;
     if (mysteryMode) {
-      // Shuffle houses so order doesn't reveal ranking.
-      // Fisher-Yates yields a uniform permutation; sort(() => Math.random() - 0.5)
-      // is biased and barely changes the order, leaking the underlying ranking.
       const pool = [...houses];
-      houses.length = 0;
+      const shuffled: { color: string }[] = [];
       while (pool.length > 0) {
         const [picked] = pool.splice(Math.floor(Math.random() * pool.length), 1);
-        if (picked) houses.push(picked);
+        if (picked) shuffled.push({ color: picked.color });
       }
+      displayHouses = shuffled;
     }
 
     const chartData = mysteryMode ? null : buildHousePaceChart(dailyEvents, monthStart);
 
     res.render("houses", {
       title: "House Standings",
-      houses,
+      houses: displayHouses,
       mysteryMode,
       includeChartJs: !mysteryMode,
       chartData,
