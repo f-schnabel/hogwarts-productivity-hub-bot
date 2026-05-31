@@ -9,13 +9,9 @@
     --frame-highlight: #e8a84d;
   }
 
-  /* Mystery Mode - Last 3 days of month */
-  .mystery-mode .rank-badge,
-  .mystery-mode .house-points-overlay,
-  .mystery-mode .house-crest,
-  .mystery-mode .house-members {
-    display: none;
-  }
+  /* Mystery Mode - Last 3 days of month.
+     Note: ranking/points/member data is omitted from the payload server-side in
+     mystery mode (see routes/index.ts), so there is nothing to hide here. */
 
   /* Black out the sand completely */
   .mystery-mode .sand-fill,
@@ -827,16 +823,24 @@
 {% endif %}
 
 {% set maxPoints = 300 %}
-{% for h in houses %}
-  {% if h.points > maxPoints %}{% set maxPoints = h.points %}{% endif %}
-{% endfor %}
+{% if not mysteryMode %}
+  {% for h in houses %}
+    {% if h.points > maxPoints %}{% set maxPoints = h.points %}{% endif %}
+  {% endfor %}
+{% endif %}
 
 <div class="hourglasses-container">
   {% for house in houses %}
-    {% set rawLower = (house.points / maxPoints) * 100 %}
-    {% set lowerFillPercent = min(100, rawLower < 10 and house.points > 0 ? 10 : rawLower) %}
-    {% set overflowPoints = max(0, house.points - maxPoints) %}
-    {% set upperFillPercent = overflowPoints > 0 ? min(100, (overflowPoints / maxPoints) * 100) : 35 %}
+    {% if mysteryMode %}
+      {# No points are sent in mystery mode; use a uniform fill so nothing leaks. #}
+      {% set lowerFillPercent = 50 %}
+      {% set upperFillPercent = 35 %}
+    {% else %}
+      {% set rawLower = (house.points / maxPoints) * 100 %}
+      {% set lowerFillPercent = min(100, rawLower < 10 and house.points > 0 ? 10 : rawLower) %}
+      {% set overflowPoints = max(0, house.points - maxPoints) %}
+      {% set upperFillPercent = overflowPoints > 0 ? min(100, (overflowPoints / maxPoints) * 100) : 35 %}
+    {% endif %}
 
     <div class="hourglass-wrapper" style="
       --house-color: {{ house.color }};
@@ -844,7 +848,9 @@
       --house-color-dark: {{ house.color }}88;
       --house-color-fade: {{ house.color }}50;
     ">
+      {% if not mysteryMode %}
       <div class="rank-badge rank-{{ house.rank }}">{{ ordinals[house.rank - 1] }}</div>
+      {% endif %}
 
       <div class="hourglass-container">
         <div class="hourglass">
@@ -867,19 +873,24 @@
           </div>
         </div>
 
+        {% if not mysteryMode %}
         <div class="house-overlay">
           <img class="house-crest" src="{{ houseCrests[house.name] }}" alt="{{ house.name }}">
           <div class="house-points-overlay">{{ house.points|number_format }}</div>
         </div>
+        {% endif %}
       </div>
 
+      {% if not mysteryMode %}
       <div class="house-info">
         <div class="house-members">{{ house.memberCount }} qualifying</div>
       </div>
+      {% endif %}
     </div>
   {% endfor %}
 </div>
 
+{% if not mysteryMode %}
 <div class="unweighted-section">
   <p class="section-title">Total Points (Unweighted)</p>
 
@@ -896,6 +907,7 @@
     {% endfor %}
   </div>
 </div>
+{% endif %}
 
 {% if not mysteryMode and chartData %}
 <div class="pace-section">
