@@ -78,7 +78,9 @@ export default function registerIndexRoute(app: Router) {
       // is biased and barely changes the order, leaking the underlying ranking.
       for (let i = houses.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [houses[i], houses[j]] = [houses[j], houses[i]];
+        const tmp = houses[i]!;
+        houses[i] = houses[j]!;
+        houses[j] = tmp;
       }
     }
 
