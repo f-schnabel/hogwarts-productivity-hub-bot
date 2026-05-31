@@ -76,11 +76,11 @@ export default function registerIndexRoute(app: Router) {
       // Shuffle houses so order doesn't reveal ranking.
       // Fisher-Yates yields a uniform permutation; sort(() => Math.random() - 0.5)
       // is biased and barely changes the order, leaking the underlying ranking.
-      for (let i = houses.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const tmp = houses[i]!;
-        houses[i] = houses[j]!;
-        houses[j] = tmp;
+      const pool = [...houses];
+      houses.length = 0;
+      while (pool.length > 0) {
+        const [picked] = pool.splice(Math.floor(Math.random() * pool.length), 1);
+        if (picked) houses.push(picked);
       }
     }
 
