@@ -50,7 +50,7 @@ export default function registerIndexRoute(app: Router) {
 
     const allHouses = Object.keys(HOUSE_COLORS) as House[];
 
-    let houses = allHouses.map((house) => {
+    const houses = allHouses.map((house) => {
       const weighted = weightedMap.get(house);
       const unweighted = unweightedMap.get(house);
       return {
@@ -73,8 +73,13 @@ export default function registerIndexRoute(app: Router) {
 
     const mysteryMode = await isMysteryMode(req.query);
     if (mysteryMode) {
-      // Shuffle houses so order doesn't reveal ranking
-      houses = houses.sort(() => Math.random() - 0.5);
+      // Shuffle houses so order doesn't reveal ranking.
+      // Fisher-Yates yields a uniform permutation; sort(() => Math.random() - 0.5)
+      // is biased and barely changes the order, leaking the underlying ranking.
+      for (let i = houses.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [houses[i], houses[j]] = [houses[j], houses[i]];
+      }
     }
 
     const chartData = mysteryMode ? null : buildHousePaceChart(dailyEvents, monthStart);
