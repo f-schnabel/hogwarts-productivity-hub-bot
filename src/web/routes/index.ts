@@ -74,18 +74,13 @@ export default function registerIndexRoute(app: Router) {
     const mysteryMode = await isMysteryMode(req.query);
 
     // In mystery mode, strip every standings-revealing field from the payload so the
-    // data is absent from the HTML source entirely, not merely hidden with CSS. Only
-    // the house colour is kept (it draws the hourglass but reveals no placing), and the
-    // order is shuffled so position can't hint at the ranking either.
+    // data is absent from the HTML source entirely, not merely hidden with CSS. The
+    // house colour is dropped too — it would still outline which veil is which house —
+    // so all veils are rendered identically in a single neutral mystery hue.
+    const MYSTERY_VEIL_COLOR = "#8a6dc2";
     let displayHouses: { color: string }[] | typeof houses = houses;
     if (mysteryMode) {
-      const pool = [...houses];
-      const shuffled: { color: string }[] = [];
-      while (pool.length > 0) {
-        const [picked] = pool.splice(Math.floor(Math.random() * pool.length), 1);
-        if (picked) shuffled.push({ color: picked.color });
-      }
-      displayHouses = shuffled;
+      displayHouses = houses.map(() => ({ color: MYSTERY_VEIL_COLOR }));
     }
 
     const chartData = mysteryMode ? null : buildHousePaceChart(dailyEvents, monthStart);
