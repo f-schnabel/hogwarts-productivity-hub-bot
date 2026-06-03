@@ -23,7 +23,6 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@v5
         with:
-          version: 11
           cache: true
 
       - name: Install dependencies
