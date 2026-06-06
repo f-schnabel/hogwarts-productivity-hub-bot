@@ -28,6 +28,9 @@ export const userTable = pgTable("user", {
   house: houseEnum(),
   timezone: varchar({ length: 50 }).default("UTC").notNull(),
   lastDailyReset: timestamp().defaultNow().notNull(),
+  // Set when the member leaves the guild; used on rejoin to decide which stats
+  // are stale. Null while the member is present.
+  leftAt: timestamp(),
 
   // Score fields
   dailyPoints: integer().default(0).notNull(),

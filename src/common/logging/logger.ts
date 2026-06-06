@@ -11,6 +11,7 @@ export const OpId = {
   vc: () => genOpId("vc"),
   rst: () => genOpId("rst"),
   msg: () => genOpId("msg"),
+  mbr: () => genOpId("mbr"),
   vcscan: () => genOpId("vcscan"),
   start: () => genOpId("start"),
   shtdwn: () => genOpId("shtdwn"),
