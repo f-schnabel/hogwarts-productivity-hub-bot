@@ -1,4 +1,4 @@
-import { channelMention, ChannelType, GuildMember, userMention, type VoiceState } from "discord.js";
+import { ChannelType, GuildMember, userMention, type VoiceState } from "discord.js";
 import { db, ensureUserExists, getUserTimezone } from "@/db/db.ts";
 import { endVoiceSession, startVoiceSession } from "./voiceSession.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
@@ -13,7 +13,7 @@ import { VCRoleNeedsAdding, VCRoleNeedsRemoval } from "@/discord/core/roleVC.ts"
 const log = createLogger("Voice");
 
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
-const YEAR_ANNOUNCEMENT_CHANNEL_ID = process.env.YEAR_ANNOUNCEMENT_CHANNEL_ID;
+const GRINGOTTS_CHANNEL_ID = process.env.GRINGOTTS_CHANNEL_ID;
 
 export async function execute(oldState: VoiceState, newState: VoiceState) {
   const member = newState.member ?? oldState.member;
@@ -104,10 +104,10 @@ export async function join(newVoiceSession: VoiceSession, member: GuildMember) {
     },
   });
   if (userTimezone === "UTC") {
-    const channel = await member.guild.channels.fetch(YEAR_ANNOUNCEMENT_CHANNEL_ID);
+    const channel = await member.guild.channels.fetch(GRINGOTTS_CHANNEL_ID);
     if (channel?.isTextBased()) {
       await channel.send({
-        content: `${userMention(member.id)}\nYour timezone is not set yet. Please adjust it in ${channelMention(process.env.GRINGOTTS_CHANNEL_ID)} using command \`/timezone\`.`,
+        content: `${userMention(member.id)}\nYour timezone is not set yet. Please adjust it using command \`/timezone\`.`,
       });
     }
   }
