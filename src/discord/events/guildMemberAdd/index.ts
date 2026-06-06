@@ -44,22 +44,14 @@ export async function execute(member: GuildMember) {
     let newStreak = user.messageStreak;
 
     // Different local day → daily window is stale: start a fresh day and settle
-    // the streak the same way the daily-reset cron would have.
+    // the streak. The last active day still counts (+1) if it met the threshold
+    // and they return the very next day; otherwise the chain is broken (a
+    // fully-absent day, or a last day below threshold). No booster handling is
+    // needed: leaving the guild ends the boost, so a member is never boosting at
+    // the moment they rejoin.
     if (daysMissed >= 1) {
       const metThreshold = user.dailyMessages >= MIN_DAILY_MESSAGES_FOR_STREAK;
-      const isBooster = member.premiumSince !== null;
-
-      if (isBooster) {
-        // Boosters keep their streak on below-threshold days; their last active
-        // day still increments it when they met the threshold.
-        newStreak = metThreshold ? user.messageStreak + 1 : user.messageStreak;
-      } else if (daysMissed === 1 && metThreshold) {
-        // Left having met the threshold and back the very next day → it counts.
-        newStreak = user.messageStreak + 1;
-      } else {
-        // A fully-absent day (0 messages) breaks the streak.
-        newStreak = 0;
-      }
+      newStreak = daysMissed === 1 && metThreshold ? user.messageStreak + 1 : 0;
 
       updates.lastDailyReset = new Date();
       updates.dailyPoints = 0;
