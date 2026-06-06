@@ -1,7 +1,7 @@
 import type { GuildMember } from "discord.js";
 import dayjs from "dayjs";
 import { eq } from "drizzle-orm";
-import { db } from "@/db/db.ts";
+import { db, getMonthStartDate } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import { updateMessageStreakInNickname } from "@/discord/core/nicknameStreak.ts";
@@ -60,9 +60,13 @@ export async function execute(member: GuildMember) {
       updates.messageStreak = newStreak;
     }
 
-    // Different month → monthly window is stale: mirror what a monthly reset
-    // would have done to them had they been present.
-    if (!now.isSame(reference, "month")) {
+    // Monthly resets are a manual admin action recorded as a timestamp, not a
+    // calendar boundary. So compare the actual instants: if they left before the
+    // most recent monthly reset, that reset happened while they were away and
+    // their monthly stats are stale. (Instant comparison, so timezone / the
+    // window right before 00:00 UTC doesn't matter.)
+    const lastMonthlyReset = await getMonthStartDate();
+    if (reference.isBefore(lastMonthlyReset)) {
       updates.monthlyPoints = 0;
       updates.monthlyVoiceTime = 0;
       updates.announcedYear = 0;
