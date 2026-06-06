@@ -1,7 +1,7 @@
 import type { GuildMember } from "discord.js";
 import dayjs from "dayjs";
 import { eq } from "drizzle-orm";
-import { db, getMonthStartDate } from "@/db/db.ts";
+import { db } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import { updateMessageStreakInNickname } from "@/discord/core/nicknameStreak.ts";
@@ -10,11 +10,13 @@ import { createLogger } from "@/common/logging/logger.ts";
 
 const log = createLogger("Member");
 
-// When a member rejoins, their stored stats may be stale (a daily/monthly
+// When a member rejoins, their stored daily stats may be stale (a local-midnight
 // boundary could have passed while they were gone). Without this, the next
 // hourly reset tick would settle their streak/points at an arbitrary hour
 // instead of their real local midnight. We compare the moment they left against
-// now (in their timezone) and only reset the windows that actually rolled over.
+// now (in their timezone) and start a fresh day only if it actually rolled over.
+// Monthly stats are left alone — the monthly reset command zeroes every row,
+// including members who have left.
 export async function execute(member: GuildMember) {
   if (member.user.bot) return;
 
@@ -60,17 +62,9 @@ export async function execute(member: GuildMember) {
       updates.messageStreak = newStreak;
     }
 
-    // Monthly resets are a manual admin action recorded as a timestamp, not a
-    // calendar boundary. So compare the actual instants: if they left before the
-    // most recent monthly reset, that reset happened while they were away and
-    // their monthly stats are stale. (Instant comparison, so timezone / the
-    // window right before 00:00 UTC doesn't matter.)
-    const lastMonthlyReset = await getMonthStartDate();
-    if (reference.isBefore(lastMonthlyReset)) {
-      updates.monthlyPoints = 0;
-      updates.monthlyVoiceTime = 0;
-      updates.announcedYear = 0;
-    }
+    // Monthly stats are intentionally not touched here: the monthly reset
+    // command zeroes every user row (including members who have left), so an
+    // absent member's monthly stats are already correct on rejoin.
 
     await db.update(userTable).set(updates).where(eq(userTable.discordId, member.id));
 
@@ -78,12 +72,6 @@ export async function execute(member: GuildMember) {
       await updateMessageStreakInNickname(member, newStreak);
     }
 
-    log.info("Member rejoined", {
-      userId: member.id,
-      user: member.user.username,
-      daysMissed,
-      streak: newStreak,
-      resetMonthly: updates.monthlyPoints !== undefined,
-    });
+    log.info("Member rejoined", { userId: member.id, user: member.user.username, daysMissed, streak: newStreak });
   }, `Guild member add for ${member.user.username} (${member.id})`);
 }
