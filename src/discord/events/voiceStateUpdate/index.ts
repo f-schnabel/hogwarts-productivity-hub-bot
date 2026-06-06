@@ -1,5 +1,5 @@
-import { ChannelType, GuildMember, type VoiceState } from "discord.js";
-import { db, ensureUserExists } from "@/db/db.ts";
+import { channelMention, ChannelType, GuildMember, userMention, type VoiceState } from "discord.js";
+import { db, ensureUserExists, getUserTimezone } from "@/db/db.ts";
 import { endVoiceSession, startVoiceSession } from "./voiceSession.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import { voiceSessionExecutionTimer } from "@/common/logging/monitoring.ts";
@@ -13,6 +13,7 @@ import { VCRoleNeedsAdding, VCRoleNeedsRemoval } from "@/discord/core/roleVC.ts"
 const log = createLogger("Voice");
 
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
+const YEAR_ANNOUNCEMENT_CHANNEL_ID = process.env.YEAR_ANNOUNCEMENT_CHANNEL_ID;
 
 export async function execute(oldState: VoiceState, newState: VoiceState) {
   const member = newState.member ?? oldState.member;
@@ -88,10 +89,11 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
 }
 
 export async function join(newVoiceSession: VoiceSession, member: GuildMember) {
-  const [, nickname, vcRole] = await Promise.all([
+  const [, nickname, vcRole, userTimezone] = await Promise.all([
     startVoiceSession(newVoiceSession, db),
     VCEmojiNeedsAdding(member),
     VCRoleNeedsAdding(member),
+    getUserTimezone(newVoiceSession.discordId),
   ]);
   await updateMember({
     member,
@@ -101,6 +103,14 @@ export async function join(newVoiceSession: VoiceSession, member: GuildMember) {
       rolesToAdd: vcRole,
     },
   });
+  if (userTimezone === "UTC") {
+    const channel = await member.guild.channels.fetch(YEAR_ANNOUNCEMENT_CHANNEL_ID);
+    if (channel?.isTextBased()) {
+      await channel.send({
+        content: `${userMention(member.id)}\nYour timezone is not set yet. Please adjust it in ${channelMention(process.env.GRINGOTTS_CHANNEL_ID)} using command \`/timezone\`.`,
+      });
+    }
+  }
 }
 
 async function leave(oldVoiceSession: VoiceSession, member: GuildMember) {
