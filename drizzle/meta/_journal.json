@@ -232,6 +232,13 @@
       "when": 1776816371937,
       "tag": "0032_low_korg",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1780776799267,
+      "tag": "0033_add_user_left_at",
+      "breakpoints": true
     }
   ]
 }

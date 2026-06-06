@@ -25,6 +25,8 @@ import * as ClientReady from "@/discord/events/clientReady/index.ts";
 import * as InteractionCreate from "@/discord/events/interactionCreate/index.ts";
 import * as MessageCreate from "@/discord/events/messageCreate/index.ts";
 import * as MessageReactionAdd from "@/discord/events/messageReactionAdd/index.ts";
+import * as GuildMemberAdd from "@/discord/events/guildMemberAdd/index.ts";
+import * as GuildMemberRemove from "@/discord/events/guildMemberRemove/index.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
 import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTimer } from "@/common/logging/monitoring.ts";
 import { commands } from "@/discord/commands.ts";
@@ -58,6 +60,8 @@ function registerEvents(client: Client) {
   client.on(Events.VoiceStateUpdate, (a, b) => void runOpId(OpId.vc(), () => VoiceStateUpdate.execute(a, b)));
   client.on(Events.MessageCreate, (m) => void runOpId(OpId.msg(), () => MessageCreate.execute(m)));
   client.on(Events.MessageReactionAdd, (r, u) => void runOpId(OpId.msg(), async () => MessageReactionAdd.execute(r, u)));
+  client.on(Events.GuildMemberAdd, (m) => void runOpId(OpId.mbr(), () => GuildMemberAdd.execute(m)));
+  client.on(Events.GuildMemberRemove, (m) => void runOpId(OpId.mbr(), () => GuildMemberRemove.execute(m)));
   client.on(Events.Debug, (info) => log.debug(info));
   client.on(Events.Warn, (info) => log.warn(info));
   client.on(Events.Error, (error) => {
