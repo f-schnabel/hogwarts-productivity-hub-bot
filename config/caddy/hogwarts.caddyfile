@@ -11,3 +11,14 @@ grafana.schnabel.dev {
 		output file /var/log/caddy/access.log
 	}
 }
+
+# Drizzle Gateway (DB admin UI). MUST sit behind Cloudflare Access (Zero Trust);
+# MASTERPASS alone is not sufficient for a public hostname. The Gateway itself
+# listens on 0.0.0.0:4983 (no bind-host option), so port 4983 must stay blocked
+# at the firewall — only Caddy on 127.0.0.1 should reach it.
+gateway.schnabel.dev {
+	reverse_proxy 127.0.0.1:4983
+	log {
+		output file /var/log/caddy/access.log
+	}
+}
