@@ -78,11 +78,29 @@ ln -sf "$UNIT_SRC" "$UNIT_LINK"
 systemctl daemon-reload
 systemctl enable --now drizzle-gateway
 
-echo "==> 6. caddy (if present) — reload to pick up gateway.schnabel.dev"
-if command -v caddy >/dev/null 2>&1; then
+echo "==> 6. caddy site with Basic Auth -> gateway.schnabel.dev"
+CADDY_SITE="/etc/caddy/gateway.caddyfile"   # auto-imported by /etc/caddy/Caddyfile's `import *.caddyfile`
+CADDY_TEMPLATE="${SERVICE_DEFS_DIR}/caddy/gateway.caddyfile.template"
+if ! command -v caddy >/dev/null 2>&1; then
+    echo "    caddy not found on PATH; skipping site setup"
+elif [[ -f "$CADDY_SITE" ]]; then
+    echo "    $CADDY_SITE already exists; leaving it untouched"
     caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
 else
-    echo "    caddy not found on PATH; skipping"
+    read -rp "    Basic Auth username for gateway.schnabel.dev: " bauth_user
+    echo "    Set the Basic Auth password (input hidden; caddy hashes it with bcrypt):"
+    # caddy hash-password prompts on the tty and prints only the bcrypt hash.
+    bauth_hash="$(caddy hash-password)"
+    [[ -n "$bauth_user" && -n "$bauth_hash" ]] || { echo "    ERROR: empty user/hash" >&2; exit 1; }
+    # awk is safe for the bcrypt hash (contains $ . / but no & or backslash).
+    awk -v u="$bauth_user" -v h="$bauth_hash" \
+        '{gsub(/__BASICAUTH_USER__/,u); gsub(/__BASICAUTH_HASH__/,h); print}' \
+        "$CADDY_TEMPLATE" > "$CADDY_SITE"
+    chown root:root "$CADDY_SITE"
+    chmod 0644 "$CADDY_SITE"   # bcrypt hash only, no plaintext secret
+    caddy fmt --overwrite "$CADDY_SITE"
+    caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
+    echo "    wrote $CADDY_SITE (Basic Auth user '$bauth_user')"
 fi
 
 echo
