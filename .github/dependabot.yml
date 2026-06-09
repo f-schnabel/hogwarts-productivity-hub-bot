@@ -4,5 +4,7 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      default: "1 day"
     assignees:
       - "f-schnabel"
