@@ -25,6 +25,10 @@ sudo ln -sf "$REPO_DIR/prometheus/prometheus.yml" /etc/prometheus/prometheus.yml
 
 sudo ln -sf "$REPO_DIR/loki/loki.service" /etc/systemd/system/loki.service
 sudo ln -sf "$REPO_DIR/prometheus/prometheus.service" /etc/systemd/system/prometheus.service
+# Drizzle Gateway: link the unit only. The binary, secrets file and scoped DB
+# role are provisioned out-of-band by drizzle-gateway/deploy.sh, so this script
+# does not enable/restart it (it may not be installed yet on a fresh box).
+sudo ln -sf "$REPO_DIR/drizzle-gateway/drizzle-gateway.service" /etc/systemd/system/drizzle-gateway.service
 
 # Ensure systemd overrides for services with ProtectHome
 sudo mkdir -p /etc/systemd/system/grafana-server.service.d
