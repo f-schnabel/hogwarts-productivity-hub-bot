@@ -48,6 +48,20 @@ export async function submissionMessage({
         style: ButtonStyle.Secondary,
       }],
     }];
+  } else if (
+    submission.status === "APPROVED" &&
+    submission.submissionType === SUBMISSION_TYPES.NEW &&
+    submission.reminderAt === null
+  ) {
+    components = [{
+      type: ComponentType.ActionRow,
+      components: [{
+        type: ComponentType.Button,
+        customId: `submit|reminder|${submission.id}`,
+        label: "Set reminder",
+        style: ButtonStyle.Primary,
+      }],
+    }];
   }
 
   userTimezone ??= await getUserTimezone(submission.discordId);

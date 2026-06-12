@@ -82,6 +82,7 @@ export const submissionTable = pgTable(
     submittedAt: timestamp().notNull().defaultNow(),
     reviewedAt: timestamp(),
     reviewedBy: varchar({ length: 255 }),
+    reminderAt: timestamp(),
 
     // Discord message reference fields (for cross-linking)
     messageId: varchar({ length: 255 }).unique(),

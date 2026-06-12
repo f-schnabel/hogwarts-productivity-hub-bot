@@ -9,6 +9,7 @@ import {
   messageLink,
   ModalSubmitInteraction,
   SlashCommandBuilder,
+  StringSelectMenuInteraction,
   TextInputStyle,
   time,
   userMention,
@@ -20,11 +21,12 @@ import { errorReply, inGuild } from "@/discord/utils/interaction.ts";
 import assert from "node:assert";
 import { db, getHouseFromMember, getMonthStartDate, getUserTimezone } from "@/db/db.ts";
 import { submissionTable } from "@/db/schema.ts";
-import { and, eq, gte, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_TYPES } from "@/common/constants.ts";
 import type { Command, SubmissionType } from "@/common/types.ts";
 import { alertOwner } from "../../../utils/alerting.ts";
 import { getSubmissionTypeLabel, submissionMessage } from "./submissionMessage.ts";
+import { getReminderOptions, validateReminderValue } from "./reminders.ts";
 import { oneLine, stripIndent } from "common-tags";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
@@ -228,6 +230,11 @@ export default {
       return;
     }
 
+    if (event === "reminder") {
+      await showReminderSelect(Number.parseInt(submissionId), interaction);
+      return;
+    }
+
     if (!hasAnyRole(member, Role.PREFECT)) {
       await interaction.reply({
         content: "You do not have permission to perform this action.",
@@ -309,7 +316,155 @@ export default {
       );
     }
   },
+
 } as Command;
+
+async function showReminderSelect(submissionId: number, interaction: ButtonInteraction) {
+  const submission = await db.query.submissionTable.findFirst({
+    where: and(
+      eq(submissionTable.id, submissionId),
+      eq(submissionTable.status, "APPROVED"),
+      eq(submissionTable.submissionType, SUBMISSION_TYPES.NEW),
+    ),
+  });
+
+  if (!submission) {
+    await interaction.reply({
+      content: "This reminder can only be set on an approved New List submission.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  if (submission.discordId !== interaction.user.id) {
+    await interaction.reply({
+      content: "Only the submitter can set a reminder for this submission.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  if (submission.reminderAt !== null) {
+    await interaction.reply({
+      content: "This submission already has a reminder set.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const userTimezone = await getUserTimezone(interaction.user.id);
+  const options = getReminderOptions(userTimezone);
+
+  if (options.length === 0) {
+    await interaction.reply({
+      content: `There are no remaining reminder times today in your timezone (${userTimezone}).`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const response = await interaction.reply({
+    content: `Choose when you want to be reminded today (${userTimezone}).`,
+    components: [{
+      type: ComponentType.ActionRow,
+      components: [{
+        type: ComponentType.StringSelect,
+        customId: `submit|reminder-time|${submission.id}`,
+        placeholder: "Select reminder time",
+        options,
+      }],
+    }],
+    flags: MessageFlags.Ephemeral,
+  });
+
+  try {
+    const selectInteraction = await response.awaitMessageComponent({
+      componentType: ComponentType.StringSelect,
+      filter: (i) => i.customId === `submit|reminder-time|${submission.id}` && i.user.id === interaction.user.id,
+      time: 60000,
+    });
+
+    await saveReminderSelection(submission.id, selectInteraction);
+  } catch {
+    await interaction.editReply({
+      content: "Reminder selection timed out. Please use the Set reminder button again.",
+      components: [],
+    });
+  }
+}
+
+async function saveReminderSelection(submissionId: number, interaction: StringSelectMenuInteraction) {
+  const selectedValue = interaction.values[0];
+  assert(selectedValue, "Reminder selection missing value");
+
+  const userTimezone = await getUserTimezone(interaction.user.id);
+  const reminderAt = validateReminderValue(selectedValue, userTimezone);
+
+  if (!reminderAt) {
+    await interaction.update({
+      content: "That reminder time is no longer available. Please use the Set reminder button again.",
+      components: [],
+    });
+    return;
+  }
+
+  const [submission] = await db
+    .update(submissionTable)
+    .set({ reminderAt })
+    .where(
+      and(
+        eq(submissionTable.id, submissionId),
+        eq(submissionTable.discordId, interaction.user.id),
+        eq(submissionTable.status, "APPROVED"),
+        eq(submissionTable.submissionType, SUBMISSION_TYPES.NEW),
+        isNull(submissionTable.reminderAt),
+      ),
+    )
+    .returning();
+
+  if (!submission) {
+    await interaction.update({
+      content: "This reminder could not be set. It may already have a reminder or belong to another user.",
+      components: [],
+    });
+    return;
+  }
+
+  await refreshSubmissionMessage(submission, userTimezone, interaction.client);
+
+  await interaction.update({
+    content: `Reminder set for ${dayjs(reminderAt).tz(userTimezone).format("h:mm A (z)")} today.`,
+    components: [],
+  });
+}
+
+async function refreshSubmissionMessage(
+  submission: typeof submissionTable.$inferSelect,
+  userTimezone: string,
+  client: StringSelectMenuInteraction["client"],
+) {
+  if (!submission.channelId || !submission.messageId) return;
+
+  const linkedSubmission = await db.query.submissionTable.findFirst({
+    columns: { channelId: true, messageId: true },
+    where: or(
+      submission.linkedSubmissionId ? eq(submissionTable.id, submission.linkedSubmissionId) : undefined,
+      eq(submissionTable.linkedSubmissionId, submission.id),
+    ),
+  });
+
+  try {
+    const channel = await client.channels.fetch(submission.channelId);
+    if (!channel?.isTextBased()) return;
+
+    const message = await channel.messages.fetch(submission.messageId);
+    await message.edit(await submissionMessage({ submission, userTimezone, linkedSubmission }));
+  } catch (error) {
+    await alertOwner(
+      `Failed to refresh reminder button for submission ID ${submission.id} error: ${error instanceof Error ? error.message : "Unknown Error"}`,
+    );
+  }
+}
 
 async function cancelSubmission(submissionId: number, interaction: ButtonInteraction) {
   await interaction.deferUpdate();
