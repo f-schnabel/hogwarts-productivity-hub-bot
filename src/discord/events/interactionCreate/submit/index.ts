@@ -375,10 +375,13 @@ async function showReminderSelect(submissionId: number, interaction: ButtonInter
       }],
     }],
     flags: MessageFlags.Ephemeral,
+    withResponse: true,
   });
+  const responseMessage = response.resource?.message;
+  assert(responseMessage, "Reminder response message missing");
 
   try {
-    const selectInteraction = await response.awaitMessageComponent({
+    const selectInteraction = await responseMessage.awaitMessageComponent({
       componentType: ComponentType.StringSelect,
       filter: (i) => i.customId === `submit|reminder-time|${submission.id}` && i.user.id === interaction.user.id,
       time: 60000,
