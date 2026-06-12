@@ -3,7 +3,6 @@ import dayjs from "dayjs";
 export interface ReminderOption {
   label: string;
   value: string;
-  description: string;
 }
 
 export function getReminderOptions(timezone: string, now: dayjs.Dayjs = dayjs()): ReminderOption[] {
@@ -20,7 +19,6 @@ export function getReminderOptions(timezone: string, now: dayjs.Dayjs = dayjs())
     options.push({
       label: localTick.format("h:mm A (z)"),
       value: tick.toISOString(),
-      description: localTick.format("MMM D, YYYY"),
     });
 
     tick = tick.add(1, "hour");

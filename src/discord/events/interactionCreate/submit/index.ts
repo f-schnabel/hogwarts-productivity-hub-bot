@@ -436,7 +436,7 @@ async function saveReminderSelection(submissionId: number, interaction: StringSe
   await refreshSubmissionMessage(submission, userTimezone, interaction.client);
 
   await interaction.update({
-    content: `Reminder set for ${dayjs(reminderAt).tz(userTimezone).format("h:mm A (z)")} today.`,
+    content: `Reminder set for ${dayjs(reminderAt).tz(userTimezone).format("h:mm A")} today.`,
     components: [],
   });
 }
