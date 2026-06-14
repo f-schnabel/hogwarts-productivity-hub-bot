@@ -2,7 +2,7 @@ import cron from "node-cron";
 import dayjs from "dayjs";
 import { db, getOpenVoiceSessions } from "@/db/db.ts";
 import { submissionTable, userTable } from "@/db/schema.ts";
-import { and, asc, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import { endVoiceSession, startVoiceSession } from "@/discord/events/voiceStateUpdate/voiceSession.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import { resetExecutionTimer } from "@/common/logging/monitoring.ts";
@@ -132,8 +132,10 @@ async function processSubmissionReminders(guild: Guild, now: Date = new Date()):
       channelId: submissionTable.channelId,
       messageId: submissionTable.messageId,
       reminderAt: submissionTable.reminderAt,
+      timezone: userTable.timezone,
     })
     .from(submissionTable)
+    .innerJoin(userTable, eq(submissionTable.discordId, userTable.discordId))
     .where(
       and(
         eq(submissionTable.status, "APPROVED"),
@@ -150,7 +152,7 @@ async function processSubmissionReminders(guild: Guild, now: Date = new Date()):
 
   let sent = 0;
   for (const reminder of dueReminders) {
-    const delivered = await deliverSubmissionReminder(guild, reminder);
+    const delivered = await deliverSubmissionReminder(guild, reminder, now);
     if (delivered) sent++;
   }
 
@@ -165,8 +167,16 @@ async function deliverSubmissionReminder(
     channelId: string | null;
     messageId: string | null;
     reminderAt: Date | null;
+    timezone: string;
   },
+  now: Date,
 ): Promise<boolean> {
+  if (await hasCompletedSubmissionToday(reminder.discordId, reminder.timezone, now)) {
+    log.info("Clearing reminder because completed list already exists", { submissionId: reminder.id });
+    await clearSubmissionReminder(reminder.id);
+    return false;
+  }
+
   if (!reminder.channelId || !reminder.messageId) {
     log.warn("Clearing reminder without message reference", { submissionId: reminder.id });
     await clearSubmissionReminder(reminder.id);
@@ -204,6 +214,27 @@ async function deliverSubmissionReminder(
 
   await clearSubmissionReminder(reminder.id);
   return true;
+}
+
+async function hasCompletedSubmissionToday(discordId: string, timezone: string, now: Date): Promise<boolean> {
+  const dayStart = dayjs(now).tz(timezone).startOf("day");
+  const dayEnd = dayStart.add(1, "day");
+
+  const [completedSubmission] = await db
+    .select({ id: submissionTable.id })
+    .from(submissionTable)
+    .where(
+      and(
+        eq(submissionTable.discordId, discordId),
+        eq(submissionTable.submissionType, SUBMISSION_TYPES.COMPLETED),
+        inArray(submissionTable.status, ["PENDING", "APPROVED"]),
+        gte(submissionTable.submittedAt, dayStart.toDate()),
+        lt(submissionTable.submittedAt, dayEnd.toDate()),
+      ),
+    )
+    .limit(1);
+
+  return completedSubmission !== undefined;
 }
 
 async function clearSubmissionReminder(submissionId: number): Promise<void> {
