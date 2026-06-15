@@ -30,7 +30,7 @@
   "dependencies": {
     "@vvo/tzdb": "^6.198.0",
     "common-tags": "^1.8.2",
-    "csv-parse": "^6.2.1",
+    "csv-parse": "^7.0.0",
     "csv-stringify": "^6.7.0",
     "dayjs": "^1.11.21",
     "discord.js": "^14.26.4",
