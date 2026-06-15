@@ -30,8 +30,8 @@
   "dependencies": {
     "@vvo/tzdb": "^6.198.0",
     "common-tags": "^1.8.2",
-    "csv-parse": "^6.2.1",
-    "csv-stringify": "^6.7.0",
+    "csv-parse": "^7",
+    "csv-stringify": "^6.8.0",
     "dayjs": "^1.11.21",
     "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",
@@ -53,7 +53,7 @@
     "@types/twig": "^1.12.17",
     "archunit": "^2.3.0",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^10.4.1",
+    "eslint": "^10.5.0",
     "jiti": "^2.7.0",
     "knip": "^6.16.1",
     "tsx": "^4.22.4",
@@ -62,5 +62,5 @@
     "vite": "^8.0.16",
     "vitest": "^4.1.8"
   },
-  "packageManager": "pnpm@11.5.1+sha512.93f7b57422ea7068257235b4c16eb60762eb68e1dc23723199cc739043ea9be2c4143274a399d8c6defa2b1176226d9ca1c4b63482d6200c1a8fbaa78c1d1485"
+  "packageManager": "pnpm@11.7.0+sha512.19cc852c120c7125760f2443ee6be0ca5b40f9f50598de1a09a1f177503e010e57c23c77646e01e761de59bf874fb22a3398c33ab9691fc13eb946b6f0f4d620"
 }
