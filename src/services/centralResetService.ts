@@ -110,7 +110,7 @@ async function processDailyResets() {
         return updatedUsers.length;
       } finally {
         for (const session of usersInVoiceSessions) {
-          await startVoiceSession(session, db);
+          await startVoiceSession(session, db, "new");
         }
       }
     });

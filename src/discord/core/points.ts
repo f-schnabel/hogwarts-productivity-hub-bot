@@ -22,18 +22,18 @@ export async function awardPoints(db: DbOrTx, discordId: string, points: number)
   await refreshHouseScoreboards(db, house);
 }
 
-export async function reverseSubmissionPoints(db: DbOrTx, discordId: string, points: number, reviewedAt: Date) {
-  const monthStartDate = await getMonthStartDate();
+export async function reversePoints(db: DbOrTx, discordId: string, points: number, awardedAt: Date) {
+  const monthStartDate = await getMonthStartDate(db);
 
   const house = await db
     .update(userTable)
     .set({
       dailyPoints: sql`CASE
-        WHEN ${reviewedAt} >= ${userTable.lastDailyReset} THEN ${userTable.dailyPoints} - ${points}
+        WHEN ${awardedAt} >= ${userTable.lastDailyReset} THEN ${userTable.dailyPoints} - ${points}
         ELSE ${userTable.dailyPoints}
       END`,
       monthlyPoints: sql`CASE
-        WHEN ${reviewedAt} >= ${monthStartDate} THEN ${userTable.monthlyPoints} - ${points}
+        WHEN ${awardedAt} >= ${monthStartDate} THEN ${userTable.monthlyPoints} - ${points}
         ELSE ${userTable.monthlyPoints}
       END`,
       totalPoints: sql`${userTable.totalPoints} - ${points}`,

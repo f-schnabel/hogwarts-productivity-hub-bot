@@ -7,7 +7,7 @@ import { Role } from "@/common/constants.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import { hasAnyRole } from "@/discord/utils/role.ts";
 import { submissionMessage } from "@/discord/events/interactionCreate/submit/submissionMessage.ts";
-import { reverseSubmissionPoints } from "@/discord/core/points.ts";
+import { reversePoints } from "@/discord/core/points.ts";
 
 const log = createLogger("Reaction");
 
@@ -38,7 +38,7 @@ export async function execute(
 
     if (submission.status === "APPROVED") {
       assert(submission.reviewedAt, "Approved submissions must have a review timestamp");
-      await reverseSubmissionPoints(tx, submission.discordId, submission.points, submission.reviewedAt);
+      await reversePoints(tx, submission.discordId, submission.points, submission.reviewedAt);
     }
 
     return updatedSubmission;

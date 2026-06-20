@@ -43,6 +43,7 @@ export const MIN_DAILY_MESSAGES_FOR_STREAK = 3;
 export const FIRST_HOUR_POINTS = 5;
 export const REST_HOURS_POINTS = 2;
 export const MAX_HOURS_PER_DAY = 12;
+export const VOICE_SESSION_RESUME_WINDOW_MS = 30_000;
 
 export const SETTINGS_KEYS = {
   LAST_MONTHLY_RESET: "lastMonthlyReset",

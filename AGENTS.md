@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working with this repository.
 
 **Maintenance**: If you discover outdated or incorrect information in this file while working in the codebase, automatically update it to reflect current reality.
 
@@ -44,16 +44,17 @@ npx drizzle-kit generate   # Generate new migration from schema changes
 
 **Events**: Located in `src/discord/events/`:
 
-- `clientReady.ts` - Bot startup
-- `interactionCreate.ts` - Slash commands & button interactions
-- `messageCreate.ts` - Message tracking for streaks
-- `voiceStateUpdate.ts` - Voice channel join/leave/switch
+- `clientReady/` - Bot startup and voice-state reconciliation
+- `interactionCreate/` - Slash commands, autocomplete, and button interactions
+- `messageCreate/` - Message tracking for streaks
+- `voiceStateUpdate/` - Voice channel join, leave, switch, session persistence, and year roles
+- `guildMemberAdd/`, `guildMemberRemove/` - Member lifecycle handling
 
-**Commands**: Located in `src/discord/commands/`, registered in `src/discord/commands.ts`:
+**Commands**: Located under `src/discord/events/interactionCreate/` and registered by its `index.ts`:
 
-- `admin.ts` - Admin commands (adjust-points, reset-monthly-points, reset-total-points, refresh-ranks, vc-emoji)
-- `scoreboard.ts` - House/user scoreboards
-- `submit.ts` - Point submissions
+- `admin/` - Admin commands and journal management
+- `scoreboard/` - House/user scoreboards
+- `submit/` - Point submissions and reminders
 - `timezone.ts` - User timezone settings
 - `user.ts` - User profile/stats
 
@@ -66,22 +67,19 @@ Each command exports:
 
 **Services** (in `src/services/`):
 
-- `pointsService.ts` - Points awarding logic
-- `centralResetService.ts` - Timezone-based daily resets
+- `centralResetService.ts` - Timezone-based daily resets and submission reminders
 
 **Discord Utils** (in `src/discord/utils/`):
 
-- `scoreboardService.ts` - Scoreboard management
-- `voiceStateScanner.ts` - Voice state scanning on startup
-- `voiceUtils.ts` - Voice session tracking
-- `yearRoleUtils.ts` - Year role progression
 - `alerting.ts` - Error alerting to bot owner
+- `interaction.ts` - Shared interaction formatting and replies
+- `updateMember.ts` - Nickname and role updates
 
-**Common** (in `src/common/`):
+**Common** (in `src/common/` and `src/common/logging/`):
 
-- `logger.ts` - Structured logging
-- `console.ts` - Syslog-style console output
-- `monitoring.ts` - Prometheus metrics
+- `logging/logger.ts` - Structured logging
+- `logging/console.ts` - Syslog-style console output
+- `logging/monitoring.ts` - Prometheus metrics
 - `constants.ts` - Shared constants
 
 ### Database Schema
@@ -104,7 +102,7 @@ Each command exports:
 - Max 12 hours tracked per day
 - Points also awarded via submissions
 
-**Year Roles** (`src/discord/utils/yearRoleUtils.ts`):
+**Year Roles** (`src/discord/events/voiceStateUpdate/yearRole.ts`):
 
 - Users progress Year 1-7 based on monthly voice time
 - Thresholds: 1, 10, 20, 40, 80, 100, 120 hours
@@ -119,10 +117,12 @@ Each command exports:
 - Handles message streaks (resets to 0 if user didn't meet min messages)
 - Server boosters get automatic daily streak credit
 
-**Voice Session Tracking** (`src/discord/utils/voiceUtils.ts`):
+**Voice Session Tracking** (`src/discord/events/voiceStateUpdate/voiceSession.ts`):
 
 - Sessions tracked in DB with join/leave timestamps
-- Points awarded on session end (only if >= 1 min and user in DB)
+- Tracked channel switches update the open session's channel metadata without closing it
+- Reconnects under 30 seconds resume the previous session when no reset boundary was crossed
+- Points and voice time are awarded when a session ends
 - Sessions auto-closed during daily reset
 
 **Message Streaks**:
@@ -144,12 +144,12 @@ Each command exports:
 - Tracks interaction execution time, voice session duration, reset duration
 - Express server for metrics endpoint
 
-**Logging** (`src/common/logger.ts`):
+**Logging** (`src/common/logging/logger.ts`):
 
 - Structured logging with operation IDs for tracing
 - Format: `[Scope] [opId] key=value message`
 - OpId prefixes: cmd, vc, rst, msg, vcscan, start, shtdwn
-- Logs sent to stdout with syslog priority levels (via `src/common/console.ts`)
+- Logs sent to stdout with syslog priority levels (via `src/common/logging/console.ts`)
 - Use `createLogger(scope)` to create scoped loggers with debug/info/warn/error methods
 
 **Error Handling**:

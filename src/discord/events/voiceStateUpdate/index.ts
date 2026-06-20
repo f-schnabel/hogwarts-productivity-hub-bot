@@ -1,6 +1,11 @@
 import { ChannelType, GuildMember, userMention, type VoiceState } from "discord.js";
 import { db, ensureUserExists, getUserTimezone } from "@/db/db.ts";
-import { endVoiceSession, startVoiceSession } from "./voiceSession.ts";
+import {
+  endVoiceSession,
+  startVoiceSession,
+  updateVoiceSessionChannel,
+  type VoiceSessionStartMode,
+} from "./voiceSession.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import { voiceSessionExecutionTimer } from "@/common/logging/monitoring.ts";
 import { createLogger } from "@/common/logging/logger.ts";
@@ -72,7 +77,7 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
     // User joined a tracked voice channel (from excluded/none)
     if (oldChannelExcluded && !newChannelExcluded) {
       event = "join";
-      await join(newVoiceSession, member);
+      await join(newVoiceSession, member, oldChannel === null ? "resume-recent" : "new");
     } else if (!oldChannelExcluded && newChannelExcluded) {
       // User left a tracked voice channel (to excluded/none)
       event = "leave";
@@ -80,7 +85,7 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
     } else if (!oldChannelExcluded && !newChannelExcluded && oldVoiceSession.channelId !== newVoiceSession.channelId) {
       // User switched between tracked voice channels
       event = "switch";
-      await vcSwitch(oldVoiceSession, newVoiceSession, member);
+      await vcSwitch(oldVoiceSession, newVoiceSession);
     }
   }, `Voice state update for ${username} (${discordId})`);
 
@@ -88,9 +93,13 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
   end({ event });
 }
 
-export async function join(newVoiceSession: VoiceSession, member: GuildMember) {
+export async function join(
+  newVoiceSession: VoiceSession,
+  member: GuildMember,
+  startMode: VoiceSessionStartMode,
+) {
   const [, nickname, vcRole, userTimezone] = await Promise.all([
-    startVoiceSession(newVoiceSession, db),
+    startVoiceSession(newVoiceSession, db, startMode),
     VCEmojiNeedsAdding(member),
     VCRoleNeedsAdding(member),
     getUserTimezone(newVoiceSession.discordId),
@@ -136,12 +145,9 @@ async function leave(oldVoiceSession: VoiceSession, member: GuildMember) {
   ]);
 }
 
-async function vcSwitch(oldVoiceSession: VoiceSession, newVoiceSession: VoiceSession, member: GuildMember) {
-  const user = await endVoiceSession(oldVoiceSession, db);
-
-  await Promise.all([
-    updateMember({ member, reason: "User switched voice channel", roleUpdates: calculateYearRoles(member, user) }),
-    startVoiceSession(newVoiceSession, db),
-    announceYearPromotion(member, user),
-  ]);
+async function vcSwitch(oldVoiceSession: VoiceSession, newVoiceSession: VoiceSession) {
+  const updated = await updateVoiceSessionChannel(oldVoiceSession, newVoiceSession, db);
+  if (!updated) {
+    await startVoiceSession(newVoiceSession, db, "new");
+  }
 }

@@ -275,6 +275,7 @@ async function scanVoiceChannel(
             channelName: channel.name,
           },
           member,
+          "resume-recent",
         );
 
         ctx.results.trackingStarted++;

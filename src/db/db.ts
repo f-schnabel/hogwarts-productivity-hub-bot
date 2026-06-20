@@ -141,13 +141,13 @@ async function setSetting(key: SettingKey, value: string) {
   });
 }
 
-async function getSetting(key: SettingKey): Promise<string | null> {
-  const [setting] = await db.select().from(schema.settingsTable).where(eq(schema.settingsTable.key, key));
+async function getSetting(key: SettingKey, queryDb: DbOrTx = db): Promise<string | null> {
+  const [setting] = await queryDb.select().from(schema.settingsTable).where(eq(schema.settingsTable.key, key));
   return setting ? setting.value : null;
 }
 
-export async function getMonthStartDate(): Promise<Date> {
-  const setting = await getSetting(SETTINGS_KEYS.LAST_MONTHLY_RESET);
+export async function getMonthStartDate(queryDb: DbOrTx = db): Promise<Date> {
+  const setting = await getSetting(SETTINGS_KEYS.LAST_MONTHLY_RESET, queryDb);
   return setting ? new Date(setting) : dayjs().startOf("month").toDate();
 }
 

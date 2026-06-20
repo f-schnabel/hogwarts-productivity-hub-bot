@@ -1,19 +1,22 @@
-import { type DbOrTx } from "@/db/db.ts";
+import { getMonthStartDate, type DbOrTx } from "@/db/db.ts";
 import { userTable, voiceSessionTable } from "@/db/schema.ts";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNull, sql } from "drizzle-orm";
 import type { VoiceSession } from "@/common/types.ts";
 import assert from "node:assert/strict";
 import { createLogger } from "@/common/logging/logger.ts";
 import { formatDuration } from "@/discord/utils/interaction.ts";
 import { alertOwner } from "@/discord/utils/alerting.ts";
-import { awardPoints, calculatePoints } from "@/discord/core/points.ts";
+import { awardPoints, calculatePoints, reversePoints } from "@/discord/core/points.ts";
 import { oneLine } from "common-tags";
+import { VOICE_SESSION_RESUME_WINDOW_MS } from "@/common/constants.ts";
 
 const log = createLogger("Voice");
 const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split(",") ?? [];
 
+export type VoiceSessionStartMode = "new" | "resume-recent";
+
 // Start a voice session when user joins VC (timezone-aware)
-export async function startVoiceSession(session: VoiceSession, db: DbOrTx) {
+export async function startVoiceSession(session: VoiceSession, db: DbOrTx, mode: VoiceSessionStartMode) {
   const { channelName, discordId, username, channelId } = session;
   const ctx = { discordId, username, channelName };
 
@@ -38,12 +41,121 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx) {
         in channel ${channelName} (${channelId}).
         Closing existing session(s).`,
       );
-      await closeVoiceSessionUntracked(session, db); // End existing session without tracking
+      await db
+        .update(voiceSessionTable)
+        .set({ leftAt: new Date(), isTracked: false })
+        .where(inArray(voiceSessionTable.id, existingVoiceSessions.map((existing) => existing.id)));
+    }
+
+    if (existingVoiceSessions.length === 0 && mode === "resume-recent") {
+      const now = new Date();
+      const monthStart = await getMonthStartDate(db);
+      const [recentSession] = await db
+        .select({
+          id: voiceSessionTable.id,
+          leftAt: voiceSessionTable.leftAt,
+          duration: voiceSessionTable.duration,
+          points: voiceSessionTable.points,
+        })
+        .from(voiceSessionTable)
+        .innerJoin(userTable, eq(voiceSessionTable.discordId, userTable.discordId))
+        .where(
+          and(
+            eq(voiceSessionTable.discordId, discordId),
+            eq(voiceSessionTable.isTracked, true),
+            gt(voiceSessionTable.leftAt, new Date(now.getTime() - VOICE_SESSION_RESUME_WINDOW_MS)),
+            gte(voiceSessionTable.leftAt, userTable.lastDailyReset),
+            gte(voiceSessionTable.leftAt, monthStart),
+          ),
+        )
+        .orderBy(desc(voiceSessionTable.leftAt))
+        .limit(1)
+        .for("no key update");
+      if (recentSession?.leftAt) {
+        const duration = recentSession.duration ?? 0;
+        const points = recentSession.points ?? 0;
+
+        await db
+          .update(userTable)
+          .set({
+            dailyVoiceTime: sql`${userTable.dailyVoiceTime} - ${duration}`,
+            monthlyVoiceTime: sql`${userTable.monthlyVoiceTime} - ${duration}`,
+            totalVoiceTime: sql`${userTable.totalVoiceTime} - ${duration}`,
+          })
+          .where(eq(userTable.discordId, discordId));
+        if (points !== 0) {
+          await reversePoints(db, discordId, points, recentSession.leftAt);
+        }
+
+        await db
+          .update(voiceSessionTable)
+          .set({ channelId, channelName, leftAt: null, isTracked: false, points: null })
+          .where(eq(voiceSessionTable.id, recentSession.id));
+
+        log.info("Session resumed", { ...ctx, gapMs: now.getTime() - recentSession.leftAt.getTime() });
+        return;
+      }
     }
 
     await db.insert(voiceSessionTable).values({ discordId, channelId, channelName });
 
     log.info("Session started", ctx);
+  });
+}
+
+export async function updateVoiceSessionChannel(
+  oldSession: VoiceSession,
+  newSession: VoiceSession,
+  db: DbOrTx,
+): Promise<boolean> {
+  assert(newSession.channelId !== null, "New channel ID must be provided for a voice session switch");
+  assert(newSession.channelName !== null, "New channel name must be provided for a voice session switch");
+  const newChannelId = newSession.channelId;
+  const newChannelName = newSession.channelName;
+
+  return await db.transaction(async (db) => {
+    const existingVoiceSessions = await db
+      .select({ id: voiceSessionTable.id })
+      .from(voiceSessionTable)
+      .where(
+        and(
+          eq(voiceSessionTable.discordId, oldSession.discordId),
+          inArray(voiceSessionTable.channelId, [oldSession.channelId ?? "unknown", "unknown"]),
+          isNull(voiceSessionTable.leftAt),
+        ),
+      )
+      .for("no key update");
+
+    if (existingVoiceSessions.length !== 1) {
+      log.error("Unexpected session count during channel switch", {
+        userId: oldSession.discordId,
+        from: oldSession.channelName,
+        to: newSession.channelName,
+        found: existingVoiceSessions.length,
+        expected: 1,
+      });
+      await alertOwner(
+        oneLine`
+        Unexpected session count when switching voice channels
+        for user ${oldSession.username} (${oldSession.discordId}).
+        Found ${existingVoiceSessions.length}, expected 1.`,
+      );
+      return false;
+    }
+
+    const existingVoiceSession = existingVoiceSessions[0];
+    assert(existingVoiceSession !== undefined, "Expected one open voice session during channel switch");
+    await db
+      .update(voiceSessionTable)
+      .set({ channelId: newChannelId, channelName: newChannelName })
+      .where(eq(voiceSessionTable.id, existingVoiceSession.id));
+
+    log.info("Session channel updated", {
+      userId: oldSession.discordId,
+      from: oldSession.channelName,
+      to: newSession.channelName,
+    });
+    return true;
   });
 }
 
@@ -169,4 +281,3 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
     return user;
   });
 }
-
