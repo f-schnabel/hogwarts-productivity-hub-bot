@@ -39,8 +39,8 @@ importers:
         specifier: ^8.5.2
         version: 8.5.2(express@5.2.1)
       node-cron:
-        specifier: ^4.4.1
-        version: 4.4.1
+        specifier: ^4.5.0
+        version: 4.5.0
       pg:
         specifier: ^8.22.0
         version: 8.22.0
@@ -2037,8 +2037,8 @@ packages:
     resolution: {integrity: sha512-8Ofs/AUQh8MaEcrlq5xOX0CQ9ypTF5dl78mjlMNfOK08fzpgTHQRQPBxcPlEtIw0yRpws+Zo/3r+5WRby7u3Gg==}
     engines: {node: '>= 0.6'}
 
-  node-cron@4.4.1:
-    resolution: {integrity: sha512-1e4Gku1qeKx1ywNnMoA0o5hiZ8iA4klH84TIszTHZAME68xVIjLkiBo5KrtowbcOJn8MQqJG/yWHjC/dFdMWyQ==}
+  node-cron@4.5.0:
+    resolution: {integrity: sha512-4Trh+kjvbXokyJkwQumvD5YAgeJfgHLR/sKyu71uSmxfCR5QMO1hldpvmFZOICN5pLgNY+J5Y8+ar3XKo5/4tQ==}
     engines: {node: '>=20'}
 
   node-stream@1.7.0:
@@ -4214,7 +4214,7 @@ snapshots:
 
   negotiator@1.0.0: {}
 
-  node-cron@4.4.1: {}
+  node-cron@4.5.0: {}
 
   node-stream@1.7.0:
     dependencies:
