@@ -2,10 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildExplanationPrompt,
   buildYearAnnouncementPrompt,
-  DEFAULT_OPENROUTER_MODEL,
   generateExplanation,
+  OPENROUTER_FREE_MODELS,
   generateYearAnnouncement,
-  getOpenRouterModel,
   OpenRouterError,
   sanitizeAnnouncementContent,
   sanitizeExplanationContent,
@@ -64,10 +63,30 @@ describe("openRouterService", () => {
     expect(content).toHaveLength(900);
   });
 
-  it("defaults to a free OpenRouter model", () => {
-    vi.stubEnv("OPENROUTER_MODEL", "");
+  it("sends the inline free model fallback list to OpenRouter", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: "Inline model answer." } }],
+        }),
+    });
+    vi.stubGlobal("fetch", fetch);
 
-    expect(getOpenRouterModel()).toBe(DEFAULT_OPENROUTER_MODEL);
+    await expect(
+      generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
+    ).resolves.toEqual({
+      content: "Inline model answer.",
+      model: OPENROUTER_FREE_MODELS[0],
+    });
+
+    const request = fetch.mock.calls[0]?.[1] as RequestInit;
+    const requestBody = JSON.parse(request.body as string) as { model?: string; models?: string[] };
+
+    expect(requestBody.model).toBeUndefined();
+    expect(requestBody.models).toEqual(OPENROUTER_FREE_MODELS);
+    expect(requestBody.models).not.toContain("openrouter/free");
   });
 
   it("returns sanitized year announcement content from OpenRouter", async () => {
@@ -122,9 +141,8 @@ describe("openRouterService", () => {
     });
   });
 
-  it("falls back to the requested model when the response omits a model", async () => {
+  it("falls back to the first inline model label when the response omits a model", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
-    vi.stubEnv("OPENROUTER_MODEL", "custom/requested-model");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -146,7 +164,7 @@ describe("openRouterService", () => {
       generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
     ).resolves.toEqual({
       content: "Fallback model label.",
-      model: "custom/requested-model",
+      model: OPENROUTER_FREE_MODELS[0],
     });
   });
 

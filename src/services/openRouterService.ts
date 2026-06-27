@@ -1,6 +1,33 @@
 import type { House } from "@/common/types.ts";
 
-export const DEFAULT_OPENROUTER_MODEL = "openrouter/free";
+export const OPENROUTER_FREE_MODELS = [
+  // biggest / most capable first
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "qwen/qwen3-coder:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "openai/gpt-oss-120b:free",
+
+  // strong general / coding fallbacks
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "poolside/laguna-m.1:free",
+  "google/gemma-4-31b-it:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "cohere/north-mini-code:free",
+  "google/gemma-4-26b-a4b-it:free",
+
+  // medium/small but still usable
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+  "openai/gpt-oss-20b:free",
+  "nvidia/nemotron-nano-12b-v2-vl:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "poolside/laguna-xs.2:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
+  "liquid/lfm-2.5-1.2b-instruct:free",
+];
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_ANNOUNCEMENT_LENGTH = 900;
@@ -54,13 +81,6 @@ export interface GeneratedOpenRouterContent {
 
 export function isOpenRouterConfigured(): boolean {
   return Boolean(process.env["OPENROUTER_API_KEY"]);
-}
-
-export function getOpenRouterModel(): string {
-  const model = process.env["OPENROUTER_MODEL"]?.trim();
-  return model === undefined || model.length === 0
-    ? DEFAULT_OPENROUTER_MODEL
-    : model;
 }
 
 export function buildYearAnnouncementPrompt({
@@ -174,7 +194,7 @@ async function generateOpenRouterContent({
     method: "POST",
     headers,
     body: JSON.stringify({
-      model: getOpenRouterModel(),
+      models: OPENROUTER_FREE_MODELS,
       messages,
       temperature,
       max_tokens: maxTokens,
@@ -183,9 +203,7 @@ async function generateOpenRouterContent({
 
   const payload = (await response.json()) as OpenRouterChatResponse;
   if (!response.ok) {
-    const errorMessage =
-      payload.error?.message ??
-      `OpenRouter request failed with status ${response.status}`;
+    const errorMessage = payload.error?.message ?? `OpenRouter request failed with status ${response.status}`;
     throw new OpenRouterError(errorMessage, response.status);
   }
 
@@ -196,7 +214,7 @@ async function generateOpenRouterContent({
 
   return {
     content,
-    model: payload.model?.trim() ? payload.model.trim() : getOpenRouterModel(),
+    model: payload.model?.trim() ? payload.model.trim() : (OPENROUTER_FREE_MODELS[0] ?? "OpenRouter free model"),
   };
 }
 
