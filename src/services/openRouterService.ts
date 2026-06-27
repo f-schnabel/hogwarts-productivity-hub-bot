@@ -36,6 +36,7 @@ export class OpenRouterError extends Error {
 }
 
 export interface OpenRouterChatResponse {
+  model?: string;
   choices?: {
     message?: {
       content?: string | null;
@@ -44,6 +45,11 @@ export interface OpenRouterChatResponse {
   error?: {
     message?: string;
   };
+}
+
+export interface GeneratedOpenRouterContent {
+  content: string;
+  model: string;
 }
 
 export function isOpenRouterConfigured(): boolean {
@@ -151,7 +157,7 @@ async function generateOpenRouterContent({
   temperature: number;
   emptyResponseMessage: string;
   sanitizer: (content: string) => string;
-}): Promise<string> {
+}): Promise<GeneratedOpenRouterContent> {
   const apiKey = process.env["OPENROUTER_API_KEY"];
   if (!apiKey) {
     throw new Error("OpenRouter is not configured. Set OPENROUTER_API_KEY to enable AI responses.");
@@ -188,13 +194,16 @@ async function generateOpenRouterContent({
     throw new Error(emptyResponseMessage);
   }
 
-  return content;
+  return {
+    content,
+    model: payload.model?.trim() ? payload.model.trim() : getOpenRouterModel(),
+  };
 }
 
 export async function generateYearAnnouncement(
   request: YearAnnouncementRequest,
 ): Promise<string> {
-  return generateOpenRouterContent({
+  const result = await generateOpenRouterContent({
     messages: [
       {
         role: "system",
@@ -208,9 +217,11 @@ export async function generateYearAnnouncement(
     emptyResponseMessage: "OpenRouter returned an empty year announcement.",
     sanitizer: sanitizeAnnouncementContent,
   });
+
+  return result.content;
 }
 
-export async function generateExplanation(request: ExplanationRequest): Promise<string> {
+export async function generateExplanation(request: ExplanationRequest): Promise<GeneratedOpenRouterContent> {
   return generateOpenRouterContent({
     messages: [
       {
