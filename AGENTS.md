@@ -178,7 +178,7 @@ Required in `.env` (see `.env.example`):
 - `SUBMISSION_CHANNEL_IDS` - Channels for submissions
 - `MYSTERY_SECRET` - (optional) Secret to bypass mystery mode in analytics
 - `OPENROUTER_API_KEY` - (optional) Enables AI-generated year promotion announcements and `/explain` responses through OpenRouter
-- `OPENROUTER_MODEL` - (optional) OpenRouter model slug for AI features; defaults to `openai/gpt-oss-120b:free`
+- `OPENROUTER_MODEL` - (optional) OpenRouter model slug for AI features; defaults to `openrouter/free`
 - `OPENROUTER_SITE_URL` - (optional) Referer URL sent to OpenRouter
 
 ### Command Pattern
