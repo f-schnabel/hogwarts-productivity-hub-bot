@@ -1,6 +1,6 @@
 import type { House } from "@/common/types.ts";
 
-export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-oss-120b:free";
+export const DEFAULT_OPENROUTER_MODEL = "openrouter/free";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_ANNOUNCEMENT_LENGTH = 900;
