@@ -1,7 +1,13 @@
 import type { House } from "@/common/types.ts";
 
-export const DEFAULT_OPENROUTER_MODEL = "openrouter/free";
-
+export const OPENROUTER_FREE_MODELS = [
+  // Strong general-purpose explainer for concise, helpful answers.
+  "meta-llama/llama-3.3-70b-instruct:free",
+  // Balanced instruction-following fallback for educational explanations.
+  "google/gemma-4-31b-it:free",
+  // Small/simple fallback that should still answer when larger models are busy.
+  "liquid/lfm-2.5-1.2b-instruct:free",
+];
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_ANNOUNCEMENT_LENGTH = 900;
 const MAX_EXPLANATION_LENGTH = 4000;
@@ -17,7 +23,6 @@ export interface YearAnnouncementRequest {
 
 export interface ExplanationRequest {
   question: string;
-  username: string;
 }
 
 export interface OpenRouterMessage {
@@ -56,13 +61,6 @@ export function isOpenRouterConfigured(): boolean {
   return Boolean(process.env["OPENROUTER_API_KEY"]);
 }
 
-export function getOpenRouterModel(): string {
-  const model = process.env["OPENROUTER_MODEL"]?.trim();
-  return model === undefined || model.length === 0
-    ? DEFAULT_OPENROUTER_MODEL
-    : model;
-}
-
 export function buildYearAnnouncementPrompt({
   house,
   roleMention,
@@ -85,19 +83,21 @@ export function buildYearAnnouncementPrompt({
   ].join("\n");
 }
 
-export function buildExplanationPrompt({ question, username }: ExplanationRequest): string {
+export function buildExplanationPrompt({ question }: ExplanationRequest): string {
   return [
     "Explain a concept or answer a question for a Discord community member.",
-    `Member: ${username}`,
     `Question: ${question}`,
     "Requirements:",
+    "- Answer the question as written; do not infer hidden context from user names or unrelated terms.",
+    "- If the question is a short phrase or topic, define it directly and explain the core idea.",
+    "- If the wording is ambiguous, state the most likely interpretation and briefly mention other common meanings.",
+    "- Do not invent named entities, backstories, or examples that are not implied by the question.",
     "- Be accurate, practical, and easy to understand.",
     "- Use a direct, helpful tone without roleplay or themed flavor.",
     "- Do not use tables.",
     "- Do not repeat the question in the response.",
-    "- If the question is ambiguous, state the most likely interpretation and give a useful answer.",
     "- If you are not sure, say so and suggest how the member can verify it.",
-    "- Keep the response under 350 words.",
+    "- Keep the response under 250 words.",
     "- Use Discord-friendly Markdown with short paragraphs or bullets when helpful.",
   ].join("\n");
 }
@@ -174,7 +174,7 @@ async function generateOpenRouterContent({
     method: "POST",
     headers,
     body: JSON.stringify({
-      model: getOpenRouterModel(),
+      models: OPENROUTER_FREE_MODELS,
       messages,
       temperature,
       max_tokens: maxTokens,
@@ -183,9 +183,7 @@ async function generateOpenRouterContent({
 
   const payload = (await response.json()) as OpenRouterChatResponse;
   if (!response.ok) {
-    const errorMessage =
-      payload.error?.message ??
-      `OpenRouter request failed with status ${response.status}`;
+    const errorMessage = payload.error?.message ?? `OpenRouter request failed with status ${response.status}`;
     throw new OpenRouterError(errorMessage, response.status);
   }
 
@@ -196,7 +194,7 @@ async function generateOpenRouterContent({
 
   return {
     content,
-    model: payload.model?.trim() ? payload.model.trim() : getOpenRouterModel(),
+    model: payload.model?.trim() ? payload.model.trim() : (OPENROUTER_FREE_MODELS[0] ?? "OpenRouter free model"),
   };
 }
 
@@ -226,7 +224,7 @@ export async function generateExplanation(request: ExplanationRequest): Promise<
     messages: [
       {
         role: "system",
-        content: "You are a helpful tutor. Explain clearly and directly without roleplay or themed flavor.",
+        content: "You are a careful, concise tutor. Answer only the user's question and avoid inventing context.",
       },
       { role: "user", content: buildExplanationPrompt(request) },
     ],
