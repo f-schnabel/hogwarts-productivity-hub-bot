@@ -4,7 +4,8 @@ export const DEFAULT_OPENROUTER_MODEL = "openrouter/free";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_ANNOUNCEMENT_LENGTH = 900;
-const MAX_EXPLANATION_LENGTH = 1900;
+const MAX_EXPLANATION_LENGTH = 4000;
+const TRUNCATION_NOTICE = "\n\n… (response shortened to fit Discord)";
 
 export interface YearAnnouncementRequest {
   house: House;
@@ -22,6 +23,16 @@ export interface ExplanationRequest {
 export interface OpenRouterMessage {
   role: "system" | "user" | "assistant";
   content: string;
+}
+
+export class OpenRouterError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "OpenRouterError";
+  }
 }
 
 export interface OpenRouterChatResponse {
@@ -70,13 +81,14 @@ export function buildYearAnnouncementPrompt({
 
 export function buildExplanationPrompt({ question, username }: ExplanationRequest): string {
   return [
-    "Explain a concept or answer a question for a member of a Hogwarts-themed productivity Discord server.",
+    "Explain a concept or answer a question for a Discord community member.",
     `Member: ${username}`,
     `Question: ${question}`,
     "Requirements:",
     "- Be accurate, practical, and easy to understand.",
-    "- Use a light Hogwarts classroom flavor, such as lessons, libraries, spells, or houses, without heavy roleplay.",
-    "- Do not pretend to be a Harry Potter character or include roleplay dialogue.",
+    "- Use a direct, helpful tone without roleplay or themed flavor.",
+    "- Do not use tables.",
+    "- Do not repeat the question in the response.",
     "- If the question is ambiguous, state the most likely interpretation and give a useful answer.",
     "- If you are not sure, say so and suggest how the member can verify it.",
     "- Keep the response under 350 words.",
@@ -96,11 +108,35 @@ export function sanitizeExplanationContent(content: string): string {
 }
 
 function sanitizeOpenRouterContent(content: string, maxLength: number): string {
-  return content
+  const sanitized = content
     .replaceAll(/[ \t]+/g, " ")
     .replaceAll(/\n{3,}/g, "\n\n")
-    .trim()
-    .slice(0, maxLength);
+    .trim();
+
+  if (sanitized.length <= maxLength) {
+    return sanitized;
+  }
+
+  return truncateContent(sanitized, maxLength);
+}
+
+function truncateContent(content: string, maxLength: number): string {
+  const maxContentLength = maxLength - TRUNCATION_NOTICE.length;
+  const truncated = content.slice(0, maxContentLength).trimEnd();
+  const sentenceBreak = Math.max(
+    truncated.lastIndexOf(". "),
+    truncated.lastIndexOf("! "),
+    truncated.lastIndexOf("? "),
+    truncated.lastIndexOf(".\n"),
+    truncated.lastIndexOf("!\n"),
+    truncated.lastIndexOf("?\n"),
+  );
+
+  if (sentenceBreak > maxContentLength * 0.75) {
+    return `${truncated.slice(0, sentenceBreak + 1).trimEnd()}${TRUNCATION_NOTICE}`;
+  }
+
+  return `${truncated}${TRUNCATION_NOTICE}`;
 }
 
 async function generateOpenRouterContent({
@@ -144,7 +180,7 @@ async function generateOpenRouterContent({
     const errorMessage =
       payload.error?.message ??
       `OpenRouter request failed with status ${response.status}`;
-    throw new Error(errorMessage);
+    throw new OpenRouterError(errorMessage, response.status);
   }
 
   const content = sanitizer(payload.choices?.[0]?.message?.content ?? "");
@@ -179,13 +215,12 @@ export async function generateExplanation(request: ExplanationRequest): Promise<
     messages: [
       {
         role: "system",
-        content:
-          "You are a helpful tutor for a Hogwarts-themed productivity community. Explain clearly with a light magical-school style, but do not roleplay.",
+        content: "You are a helpful tutor. Explain clearly and directly without roleplay or themed flavor.",
       },
       { role: "user", content: buildExplanationPrompt(request) },
     ],
     temperature: 0.6,
-    maxTokens: 600,
+    maxTokens: 1000,
     emptyResponseMessage: "OpenRouter returned an empty explanation.",
     sanitizer: sanitizeExplanationContent,
   });

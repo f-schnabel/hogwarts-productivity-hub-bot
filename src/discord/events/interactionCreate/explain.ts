@@ -3,14 +3,18 @@ import type { Command } from "@/common/types.ts";
 import { BOT_COLORS } from "@/common/constants.ts";
 import { errorReply } from "@/discord/utils/interaction.ts";
 import { createLogger } from "@/common/logging/logger.ts";
-import { generateExplanation, isOpenRouterConfigured } from "@/services/openRouterService.ts";
+import {
+  generateExplanation,
+  isOpenRouterConfigured,
+  OpenRouterError,
+} from "@/services/openRouterService.ts";
 
 const log = createLogger("ExplainCommand");
 
 export default {
   data: new SlashCommandBuilder()
     .setName("explain")
-    .setDescription("Explain a concept or question with a light Hogwarts classroom style")
+    .setDescription("Explain a concept or question")
     .addStringOption((option) =>
       option
         .setName("question")
@@ -52,9 +56,8 @@ export default {
         embeds: [
           {
             color: BOT_COLORS.INFO,
-            title: "📚 Explanation from the Library",
+            title: "Explanation",
             description: explanation,
-            fields: [{ name: "Question", value: question.slice(0, 1024) }],
             footer: { text: "AI-generated via OpenRouter. Double-check important facts." },
           },
         ],
@@ -65,10 +68,20 @@ export default {
         user: interaction.user.tag,
         error: error instanceof Error ? error.message : String(error),
       });
+      if (error instanceof OpenRouterError && error.status === 429) {
+        await errorReply(
+          interaction,
+          "OpenRouter Rate Limited",
+          "OpenRouter is rate limiting AI explanation requests right now (HTTP 429). Please wait a bit before trying `/explain` again.",
+          { deferred: true },
+        );
+        return;
+      }
+
       await errorReply(
         interaction,
         "Explanation Failed",
-        "The library portraits could not fetch an answer right now. Please try again later.",
+        "OpenRouter could not fetch an answer right now. Please try again later.",
         { deferred: true },
       );
     }
