@@ -6,6 +6,7 @@ import {
   generateExplanation,
   generateYearAnnouncement,
   getOpenRouterModel,
+  OpenRouterError,
   sanitizeAnnouncementContent,
   sanitizeExplanationContent,
 } from "@/services/openRouterService.ts";
@@ -28,24 +29,30 @@ describe("openRouterService", () => {
     expect(prompt).toContain("warm Ravenclaw style");
   });
 
-  it("builds Hogwarts-style explanation prompts", () => {
+  it("builds direct explanation prompts", () => {
     const prompt = buildExplanationPrompt({
       question: "What is spaced repetition?",
       username: "Hermione",
     });
 
     expect(prompt).toContain("Question: What is spaced repetition?");
-    expect(prompt).toContain("light Hogwarts classroom flavor");
-    expect(prompt).toContain("Do not pretend to be a Harry Potter character");
+    expect(prompt).toContain("direct, helpful tone without roleplay or themed flavor");
+    expect(prompt).toContain("Do not use tables");
+    expect(prompt).toContain("Do not repeat the question in the response");
   });
 
   it("sanitizes explanation content while preserving paragraph breaks", () => {
-    const content = sanitizeExplanationContent(
-      `  First   paragraph.\n\n\nSecond\tparagraph. ${"x".repeat(2000)}`,
-    );
+    const content = sanitizeExplanationContent("  First   paragraph.\n\n\nSecond\tparagraph. ");
 
-    expect(content).toContain("First paragraph.\n\nSecond paragraph.");
-    expect(content).toHaveLength(1900);
+    expect(content).toBe("First paragraph.\n\nSecond paragraph.");
+  });
+
+  it("marks overlong explanation content as shortened instead of silently cutting off", () => {
+    const longContent = `First sentence. Second sentence. ${"x".repeat(5000)}`;
+    const content = sanitizeExplanationContent(longContent);
+
+    expect(content).toHaveLength(4000);
+    expect(content).toContain("response shortened to fit Discord");
   });
 
   it("sanitizes long, whitespace-heavy announcement content", () => {
@@ -98,7 +105,7 @@ describe("openRouterService", () => {
             choices: [
               {
                 message: {
-                  content: "  Think of it like a study spell.\n\nReview it again later. ",
+                  content: "  Review the idea once, then revisit it later.\n\nSpace reviews out over time. ",
                 },
               },
             ],
@@ -108,6 +115,29 @@ describe("openRouterService", () => {
 
     await expect(
       generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
-    ).resolves.toBe("Think of it like a study spell.\n\nReview it again later.");
+    ).resolves.toBe("Review the idea once, then revisit it later.\n\nSpace reviews out over time.");
+  });
+
+  it("throws OpenRouterError with status for failed OpenRouter responses", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        json: () =>
+          Promise.resolve({
+            error: { message: "Rate limit exceeded" },
+          }),
+      }),
+    );
+
+    await expect(
+      generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
+    ).rejects.toMatchObject({
+      name: "OpenRouterError",
+      message: "Rate limit exceeded",
+      status: 429,
+    } satisfies Partial<OpenRouterError>);
   });
 });
