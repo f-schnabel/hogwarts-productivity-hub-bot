@@ -57,8 +57,8 @@ export default {
           {
             color: BOT_COLORS.INFO,
             title: "Explanation",
-            description: explanation,
-            footer: { text: "AI-generated via OpenRouter. Double-check important facts." },
+            description: explanation.content,
+            footer: { text: `Model: ${explanation.model}. Double-check important facts.` },
           },
         ],
       });

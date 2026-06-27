@@ -102,6 +102,7 @@ describe("openRouterService", () => {
         ok: true,
         json: () =>
           Promise.resolve({
+            model: "test/free-model",
             choices: [
               {
                 message: {
@@ -115,7 +116,38 @@ describe("openRouterService", () => {
 
     await expect(
       generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
-    ).resolves.toBe("Review the idea once, then revisit it later.\n\nSpace reviews out over time.");
+    ).resolves.toEqual({
+      content: "Review the idea once, then revisit it later.\n\nSpace reviews out over time.",
+      model: "test/free-model",
+    });
+  });
+
+  it("falls back to the requested model when the response omits a model", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubEnv("OPENROUTER_MODEL", "custom/requested-model");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [
+              {
+                message: {
+                  content: "Fallback model label.",
+                },
+              },
+            ],
+          }),
+      }),
+    );
+
+    await expect(
+      generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
+    ).resolves.toEqual({
+      content: "Fallback model label.",
+      model: "custom/requested-model",
+    });
   });
 
   it("throws OpenRouterError with status for failed OpenRouter responses", async () => {
