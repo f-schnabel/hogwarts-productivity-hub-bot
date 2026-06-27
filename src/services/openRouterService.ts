@@ -1,6 +1,12 @@
 import type { House } from "@/common/types.ts";
 
-export const DEFAULT_OPENROUTER_MODEL = "openrouter/free";
+const OPENROUTER_MODELS = [
+  "qwen/qwen3-235b-a22b:free",
+  "deepseek/deepseek-chat-v3-0324:free",
+  "meta-llama/llama-4-maverick:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
+] as const;
+const DEFAULT_OPENROUTER_MODEL = OPENROUTER_MODELS[0];
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_ANNOUNCEMENT_LENGTH = 900;
@@ -54,13 +60,6 @@ export interface GeneratedOpenRouterContent {
 
 export function isOpenRouterConfigured(): boolean {
   return Boolean(process.env["OPENROUTER_API_KEY"]);
-}
-
-export function getOpenRouterModel(): string {
-  const model = process.env["OPENROUTER_MODEL"]?.trim();
-  return model === undefined || model.length === 0
-    ? DEFAULT_OPENROUTER_MODEL
-    : model;
 }
 
 export function buildYearAnnouncementPrompt({
@@ -174,7 +173,7 @@ async function generateOpenRouterContent({
     method: "POST",
     headers,
     body: JSON.stringify({
-      model: getOpenRouterModel(),
+      models: OPENROUTER_MODELS,
       messages,
       temperature,
       max_tokens: maxTokens,
@@ -183,9 +182,7 @@ async function generateOpenRouterContent({
 
   const payload = (await response.json()) as OpenRouterChatResponse;
   if (!response.ok) {
-    const errorMessage =
-      payload.error?.message ??
-      `OpenRouter request failed with status ${response.status}`;
+    const errorMessage = payload.error?.message ?? `OpenRouter request failed with status ${response.status}`;
     throw new OpenRouterError(errorMessage, response.status);
   }
 
@@ -196,7 +193,7 @@ async function generateOpenRouterContent({
 
   return {
     content,
-    model: payload.model?.trim() ? payload.model.trim() : getOpenRouterModel(),
+    model: payload.model?.trim() ? payload.model.trim() : DEFAULT_OPENROUTER_MODEL,
   };
 }
 
