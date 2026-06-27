@@ -23,7 +23,6 @@ export interface YearAnnouncementRequest {
 
 export interface ExplanationRequest {
   question: string;
-  username: string;
 }
 
 export interface OpenRouterMessage {
@@ -84,19 +83,21 @@ export function buildYearAnnouncementPrompt({
   ].join("\n");
 }
 
-export function buildExplanationPrompt({ question, username }: ExplanationRequest): string {
+export function buildExplanationPrompt({ question }: ExplanationRequest): string {
   return [
     "Explain a concept or answer a question for a Discord community member.",
-    `Member: ${username}`,
     `Question: ${question}`,
     "Requirements:",
+    "- Answer the question as written; do not infer hidden context from user names or unrelated terms.",
+    "- If the question is a short phrase or topic, define it directly and explain the core idea.",
+    "- If the wording is ambiguous, state the most likely interpretation and briefly mention other common meanings.",
+    "- Do not invent named entities, backstories, or examples that are not implied by the question.",
     "- Be accurate, practical, and easy to understand.",
     "- Use a direct, helpful tone without roleplay or themed flavor.",
     "- Do not use tables.",
     "- Do not repeat the question in the response.",
-    "- If the question is ambiguous, state the most likely interpretation and give a useful answer.",
     "- If you are not sure, say so and suggest how the member can verify it.",
-    "- Keep the response under 350 words.",
+    "- Keep the response under 250 words.",
     "- Use Discord-friendly Markdown with short paragraphs or bullets when helpful.",
   ].join("\n");
 }
@@ -223,7 +224,7 @@ export async function generateExplanation(request: ExplanationRequest): Promise<
     messages: [
       {
         role: "system",
-        content: "You are a helpful tutor. Explain clearly and directly without roleplay or themed flavor.",
+        content: "You are a careful, concise tutor. Answer only the user's question and avoid inventing context.",
       },
       { role: "user", content: buildExplanationPrompt(request) },
     ],

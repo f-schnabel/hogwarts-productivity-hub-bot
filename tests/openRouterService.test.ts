@@ -31,13 +31,14 @@ describe("openRouterService", () => {
   it("builds direct explanation prompts", () => {
     const prompt = buildExplanationPrompt({
       question: "What is spaced repetition?",
-      username: "Hermione",
     });
 
     expect(prompt).toContain("Question: What is spaced repetition?");
     expect(prompt).toContain("direct, helpful tone without roleplay or themed flavor");
     expect(prompt).toContain("Do not use tables");
     expect(prompt).toContain("Do not repeat the question in the response");
+    expect(prompt).toContain("If the question is a short phrase or topic, define it directly");
+    expect(prompt).not.toContain("Member:");
   });
 
   it("sanitizes explanation content while preserving paragraph breaks", () => {
@@ -75,7 +76,7 @@ describe("openRouterService", () => {
     vi.stubGlobal("fetch", fetch);
 
     await expect(
-      generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
+      generateExplanation({ question: "What is spaced repetition?" }),
     ).resolves.toEqual({
       content: "Inline model answer.",
       model: OPENROUTER_FREE_MODELS[0],
@@ -135,7 +136,7 @@ describe("openRouterService", () => {
     );
 
     await expect(
-      generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
+      generateExplanation({ question: "What is spaced repetition?" }),
     ).resolves.toEqual({
       content: "Review the idea once, then revisit it later.\n\nSpace reviews out over time.",
       model: "test/free-model",
@@ -162,7 +163,7 @@ describe("openRouterService", () => {
     );
 
     await expect(
-      generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
+      generateExplanation({ question: "What is spaced repetition?" }),
     ).resolves.toEqual({
       content: "Fallback model label.",
       model: OPENROUTER_FREE_MODELS[0],
@@ -184,7 +185,7 @@ describe("openRouterService", () => {
     );
 
     await expect(
-      generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
+      generateExplanation({ question: "What is spaced repetition?" }),
     ).rejects.toMatchObject({
       name: "OpenRouterError",
       message: "Rate limit exceeded",
