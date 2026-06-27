@@ -63,7 +63,7 @@ describe("openRouterService", () => {
     expect(content).toHaveLength(900);
   });
 
-  it("sends the inline free model fallback list to OpenRouter", async () => {
+  it("sends the three inline explanation model fallbacks to OpenRouter", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
     const fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -86,6 +86,7 @@ describe("openRouterService", () => {
 
     expect(requestBody.model).toBeUndefined();
     expect(requestBody.models).toEqual(OPENROUTER_FREE_MODELS);
+    expect(requestBody.models).toHaveLength(3);
     expect(requestBody.models).not.toContain("openrouter/free");
   });
 
