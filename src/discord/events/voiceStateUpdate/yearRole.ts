@@ -4,10 +4,18 @@ import { userTable } from "@/db/schema.ts";
 import { createLogger } from "../../../common/logging/logger.ts";
 import assert from "node:assert";
 import type { House, UpdateMemberParams } from "@/common/types.ts";
-import { HOUSE_COLORS, YEAR_MESSAGES, YEAR_THRESHOLDS_HOURS } from "../../../common/constants.ts";
+import {
+  HOUSE_COLORS,
+  YEAR_MESSAGES,
+  YEAR_THRESHOLDS_HOURS,
+} from "../../../common/constants.ts";
 import { getYearFromMonthlyVoiceTime } from "@/discord/core/year.ts";
 import { eq, isNotNull } from "drizzle-orm";
 import { updateMember } from "@/discord/utils/updateMember.ts";
+import {
+  generateYearAnnouncement,
+  isOpenRouterConfigured,
+} from "@/services/openRouterService.ts";
 
 const log = createLogger("YearRole");
 
@@ -16,7 +24,11 @@ const YEAR_ANNOUNCEMENT_CHANNEL_ID = process.env.YEAR_ANNOUNCEMENT_CHANNEL_ID;
 
 export async function announceYearPromotion(
   member: GuildMember,
-  user: { monthlyVoiceTime: number; house: House | null; announcedYear: number } | null,
+  user: {
+    monthlyVoiceTime: number;
+    house: House | null;
+    announcedYear: number;
+  } | null,
 ): Promise<void> {
   if (!user?.house) return;
   const year = getYearFromMonthlyVoiceTime(user.monthlyVoiceTime);
@@ -30,7 +42,9 @@ export async function announceYearPromotion(
   assert(hours, `No hours threshold configured for year ${year}`);
 
   try {
-    const channel = await member.guild.channels.fetch(YEAR_ANNOUNCEMENT_CHANNEL_ID);
+    const channel = await member.guild.channels.fetch(
+      YEAR_ANNOUNCEMENT_CHANNEL_ID,
+    );
     if (!channel?.isTextBased()) {
       log.error("Year announcement channel is not text-based", ctx);
       return;
@@ -38,19 +52,79 @@ export async function announceYearPromotion(
 
     await channel.send({
       content: `Congratulations ${member.toString()}!`,
-      embeds: [{
-        title: "New Activity Rank Attained!",
-        description: YEAR_MESSAGES[user.house]
-          .replace("{ROLE}", roleMention(roleId))
-          .replace("{HOURS}", hours.toString() + (hours === 1 ? " hour" : " hours")),
-        color: HOUSE_COLORS[user.house],
-      }],
+      embeds: [
+        {
+          title: "New Activity Rank Attained!",
+          description: await getYearAnnouncementDescription({
+            house: user.house,
+            roleId,
+            hours,
+            member,
+            year,
+            ctx,
+          }),
+          color: HOUSE_COLORS[user.house],
+        },
+      ],
     });
 
-    await db.update(userTable).set({ announcedYear: year }).where(eq(userTable.discordId, member.id));
+    await db
+      .update(userTable)
+      .set({ announcedYear: year })
+      .where(eq(userTable.discordId, member.id));
   } catch (error) {
     log.error("Failed to send year promotion announcement:", ctx, error);
   }
+}
+
+async function getYearAnnouncementDescription({
+  house,
+  roleId,
+  hours,
+  member,
+  year,
+  ctx,
+}: {
+  house: House;
+  roleId: string;
+  hours: number;
+  member: GuildMember;
+  year: number;
+  ctx: { userId: string; username: string };
+}): Promise<string> {
+  const role = roleMention(roleId);
+  const hourText = hours.toString() + (hours === 1 ? " hour" : " hours");
+
+  if (!isOpenRouterConfigured()) {
+    return formatFallbackYearMessage(house, role, hourText);
+  }
+
+  try {
+    return await generateYearAnnouncement({
+      house,
+      roleMention: role,
+      hours: hourText,
+      year,
+      username: member.displayName,
+    });
+  } catch (error) {
+    log.warn(
+      "Falling back to static year promotion announcement after OpenRouter failure",
+      {
+        ...ctx,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
+    return formatFallbackYearMessage(house, role, hourText);
+  }
+}
+
+function formatFallbackYearMessage(
+  house: House,
+  role: string,
+  hours: string,
+): string {
+  return YEAR_MESSAGES[house].replace("{ROLE}", role).replace("{HOURS}", hours);
 }
 
 export function calculateYearRoles(
@@ -66,7 +140,9 @@ export function calculateYearRoles(
   const roleId = year === null ? null : YEAR_ROLE_IDS[year - 1];
 
   // Remove all year roles except target
-  const rolesToRemove = YEAR_ROLE_IDS.filter((id) => id !== roleId && member.roles.cache.has(id));
+  const rolesToRemove = YEAR_ROLE_IDS.filter(
+    (id) => id !== roleId && member.roles.cache.has(id),
+  );
   const rolesToAdd = roleId && !member.roles.cache.has(roleId) ? [roleId] : [];
 
   return { rolesToRemove, rolesToAdd };
@@ -76,7 +152,11 @@ export async function refreshAllYearRoles(guild: Guild): Promise<number> {
   if (YEAR_ROLE_IDS.length !== 7) return 0;
 
   const users = await db
-    .select({ discordId: userTable.discordId, monthlyVoiceTime: userTable.monthlyVoiceTime, house: userTable.house })
+    .select({
+      discordId: userTable.discordId,
+      monthlyVoiceTime: userTable.monthlyVoiceTime,
+      house: userTable.house,
+    })
     .from(userTable)
     .where(isNotNull(userTable.house));
   let updated = 0;
@@ -96,7 +176,11 @@ export async function refreshAllYearRoles(guild: Guild): Promise<number> {
   }
   await Promise.all(
     updates.map(async ({ member, roleUpdates }) => {
-      await updateMember({ member, reason: "Refreshing year roles", roleUpdates });
+      await updateMember({
+        member,
+        reason: "Refreshing year roles",
+        roleUpdates,
+      });
     }),
   );
   return updated;
