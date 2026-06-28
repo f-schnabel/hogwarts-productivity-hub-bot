@@ -47,10 +47,7 @@ export default {
     await interaction.deferReply();
 
     try {
-      const explanation = await generateExplanation({
-        question,
-        username: interaction.user.displayName,
-      });
+      const explanation = await generateExplanation({ question });
 
       await interaction.editReply({
         embeds: [
