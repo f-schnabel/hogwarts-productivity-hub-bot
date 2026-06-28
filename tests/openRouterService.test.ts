@@ -3,7 +3,7 @@ import {
   buildExplanationPrompt,
   buildYearAnnouncementPrompt,
   generateExplanation,
-  OPENROUTER_FREE_MODELS,
+  OPENROUTER_MODELS,
   generateYearAnnouncement,
   OpenRouterError,
   sanitizeAnnouncementContent,
@@ -64,7 +64,7 @@ describe("openRouterService", () => {
     expect(content).toHaveLength(900);
   });
 
-  it("sends the three inline explanation model fallbacks to OpenRouter", async () => {
+  it("sends the inline explanation model fallbacks to OpenRouter", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
     const fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -79,15 +79,16 @@ describe("openRouterService", () => {
       generateExplanation({ question: "What is spaced repetition?" }),
     ).resolves.toEqual({
       content: "Inline model answer.",
-      model: OPENROUTER_FREE_MODELS[0],
+      model: OPENROUTER_MODELS[0],
     });
 
     const request = fetch.mock.calls[0]?.[1] as RequestInit;
     const requestBody = JSON.parse(request.body as string) as { model?: string; models?: string[] };
 
     expect(requestBody.model).toBeUndefined();
-    expect(requestBody.models).toEqual(OPENROUTER_FREE_MODELS);
+    expect(requestBody.models).toEqual(OPENROUTER_MODELS);
     expect(requestBody.models).toHaveLength(3);
+    expect(requestBody.models?.[0]).toBe("google/gemma-4-31b-it:free");
     expect(requestBody.models).not.toContain("openrouter/free");
   });
 
@@ -166,7 +167,7 @@ describe("openRouterService", () => {
       generateExplanation({ question: "What is spaced repetition?" }),
     ).resolves.toEqual({
       content: "Fallback model label.",
-      model: OPENROUTER_FREE_MODELS[0],
+      model: OPENROUTER_MODELS[0],
     });
   });
 

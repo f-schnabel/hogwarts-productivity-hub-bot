@@ -1,13 +1,14 @@
 import type { House } from "@/common/types.ts";
 
-export const OPENROUTER_FREE_MODELS = [
-  // Strong general-purpose explainer for concise, helpful answers.
-  "meta-llama/llama-3.3-70b-instruct:free",
-  // Balanced instruction-following fallback for educational explanations.
+export const OPENROUTER_MODELS = [
+  // Default: Gemma has produced the best concise explanations and announcements.
   "google/gemma-4-31b-it:free",
-  // Small/simple fallback that should still answer when larger models are busy.
-  "liquid/lfm-2.5-1.2b-instruct:free",
+  // Strong Google fallback when the default is rate limited.
+  "google/gemini-3.1-flash-lite",
+  // Capable open-weight fallback from a different provider.
+  "openai/gpt-oss-120b:free",
 ];
+
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_ANNOUNCEMENT_LENGTH = 900;
 const MAX_EXPLANATION_LENGTH = 4000;
@@ -174,7 +175,7 @@ async function generateOpenRouterContent({
     method: "POST",
     headers,
     body: JSON.stringify({
-      models: OPENROUTER_FREE_MODELS,
+      models: OPENROUTER_MODELS,
       messages,
       temperature,
       max_tokens: maxTokens,
@@ -194,7 +195,7 @@ async function generateOpenRouterContent({
 
   return {
     content,
-    model: payload.model?.trim() ? payload.model.trim() : (OPENROUTER_FREE_MODELS[0] ?? "OpenRouter free model"),
+    model: payload.model?.trim() ? payload.model.trim() : (OPENROUTER_MODELS[0] ?? "OpenRouter model"),
   };
 }
 
