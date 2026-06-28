@@ -1,12 +1,12 @@
 import type { House } from "@/common/types.ts";
 
 export const OPENROUTER_MODELS = [
-  // Default: Gemini has produced the best concise explanations and announcements.
-  "google/gemini-3.1-flash-lite",
-  // Google fallback with strong instruction following for educational explanations.
+  // Default: Gemma has produced the best concise explanations and announcements.
   "google/gemma-4-31b-it:free",
-  // Smaller/simple fallback for availability when the larger models are rate limited.
-  "openai/gpt-oss-20b:free",
+  // Strong Google fallback when the default is rate limited.
+  "google/gemini-3.1-flash-lite",
+  // Capable open-weight fallback from a different provider.
+  "openai/gpt-oss-120b:free",
 ];
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
