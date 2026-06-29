@@ -2,10 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildExplanationPrompt,
   buildYearAnnouncementPrompt,
-  DEFAULT_OPENROUTER_MODEL,
   generateExplanation,
+  OPENROUTER_MODELS,
   generateYearAnnouncement,
-  getOpenRouterModel,
   OpenRouterError,
   sanitizeAnnouncementContent,
   sanitizeExplanationContent,
@@ -32,13 +31,14 @@ describe("openRouterService", () => {
   it("builds direct explanation prompts", () => {
     const prompt = buildExplanationPrompt({
       question: "What is spaced repetition?",
-      username: "Hermione",
     });
 
     expect(prompt).toContain("Question: What is spaced repetition?");
     expect(prompt).toContain("direct, helpful tone without roleplay or themed flavor");
     expect(prompt).toContain("Do not use tables");
     expect(prompt).toContain("Do not repeat the question in the response");
+    expect(prompt).toContain("If the question is a short phrase or topic, define it directly");
+    expect(prompt).not.toContain("Member:");
   });
 
   it("sanitizes explanation content while preserving paragraph breaks", () => {
@@ -64,10 +64,32 @@ describe("openRouterService", () => {
     expect(content).toHaveLength(900);
   });
 
-  it("defaults to a free OpenRouter model", () => {
-    vi.stubEnv("OPENROUTER_MODEL", "");
+  it("sends the inline explanation model fallbacks to OpenRouter", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: "Inline model answer." } }],
+        }),
+    });
+    vi.stubGlobal("fetch", fetch);
 
-    expect(getOpenRouterModel()).toBe(DEFAULT_OPENROUTER_MODEL);
+    await expect(
+      generateExplanation({ question: "What is spaced repetition?" }),
+    ).resolves.toEqual({
+      content: "Inline model answer.",
+      model: OPENROUTER_MODELS[0],
+    });
+
+    const request = fetch.mock.calls[0]?.[1] as RequestInit;
+    const requestBody = JSON.parse(request.body as string) as { model?: string; models?: string[] };
+
+    expect(requestBody.model).toBeUndefined();
+    expect(requestBody.models).toEqual(OPENROUTER_MODELS);
+    expect(requestBody.models).toHaveLength(3);
+    expect(requestBody.models?.[0]).toBe("nvidia/nemotron-3-ultra-550b-a55b:free");
+    expect(requestBody.models).not.toContain("openrouter/free");
   });
 
   it("returns sanitized year announcement content from OpenRouter", async () => {
@@ -115,16 +137,15 @@ describe("openRouterService", () => {
     );
 
     await expect(
-      generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
+      generateExplanation({ question: "What is spaced repetition?" }),
     ).resolves.toEqual({
       content: "Review the idea once, then revisit it later.\n\nSpace reviews out over time.",
       model: "test/free-model",
     });
   });
 
-  it("falls back to the requested model when the response omits a model", async () => {
+  it("falls back to the first inline model label when the response omits a model", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
-    vi.stubEnv("OPENROUTER_MODEL", "custom/requested-model");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -143,10 +164,10 @@ describe("openRouterService", () => {
     );
 
     await expect(
-      generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
+      generateExplanation({ question: "What is spaced repetition?" }),
     ).resolves.toEqual({
       content: "Fallback model label.",
-      model: "custom/requested-model",
+      model: OPENROUTER_MODELS[0],
     });
   });
 
@@ -165,7 +186,7 @@ describe("openRouterService", () => {
     );
 
     await expect(
-      generateExplanation({ question: "What is spaced repetition?", username: "Luna" }),
+      generateExplanation({ question: "What is spaced repetition?" }),
     ).rejects.toMatchObject({
       name: "OpenRouterError",
       message: "Rate limit exceeded",
