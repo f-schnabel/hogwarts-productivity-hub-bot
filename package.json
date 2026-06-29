@@ -54,7 +54,7 @@
     "@vitest/coverage-v8": "4.1.9",
     "archunit": "^2.3.0",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^10.5.0",
+    "eslint": "^10.6.0",
     "jiti": "^2.7.0",
     "knip": "^6.17.1",
     "tsx": "^4.22.4",
