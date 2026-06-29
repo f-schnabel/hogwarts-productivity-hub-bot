@@ -88,7 +88,7 @@ describe("openRouterService", () => {
     expect(requestBody.model).toBeUndefined();
     expect(requestBody.models).toEqual(OPENROUTER_MODELS);
     expect(requestBody.models).toHaveLength(3);
-    expect(requestBody.models?.[0]).toBe("google/gemma-4-31b-it:free");
+    expect(requestBody.models?.[0]).toBe("nvidia/nemotron-3-ultra-550b-a55b:free");
     expect(requestBody.models).not.toContain("openrouter/free");
   });
 
