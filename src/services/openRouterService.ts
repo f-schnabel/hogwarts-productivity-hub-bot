@@ -1,11 +1,19 @@
 import type { House } from "@/common/types.ts";
 
 export const OPENROUTER_MODELS = [
-  // Default: strongest free model for concise explanations and announcements.
+  // Default: strongest free model for concise explanations.
   "nvidia/nemotron-3-ultra-550b-a55b:free",
   // Strong free Google fallback.
   "google/gemma-4-31b-it:free",
   // Capable free open-weight fallback from a different provider.
+  "openai/gpt-oss-120b:free",
+];
+
+export const OPENROUTER_YEAR_ANNOUNCEMENT_MODELS = [
+  // Prefer a non-reasoning model for short public announcements so the response budget is not spent on thinking.
+  "google/gemma-4-31b-it:free",
+  // Keep the site-wide default available as a fallback, but explicitly disable/exclude reasoning for this call.
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
   "openai/gpt-oss-120b:free",
 ];
 
@@ -46,6 +54,7 @@ export interface OpenRouterChatResponse {
   choices?: {
     message?: {
       content?: string | null;
+      reasoning?: string | null;
     };
   }[];
   error?: {
@@ -149,12 +158,19 @@ function truncateContent(content: string, maxLength: number): string {
 async function generateOpenRouterContent({
   messages,
   maxTokens,
+  models = OPENROUTER_MODELS,
+  reasoning,
   temperature,
   emptyResponseMessage,
   sanitizer,
 }: {
   messages: OpenRouterMessage[];
   maxTokens: number;
+  models?: string[];
+  reasoning?: {
+    effort?: "max" | "xhigh" | "high" | "medium" | "low" | "minimal" | "none";
+    exclude?: boolean;
+  };
   temperature: number;
   emptyResponseMessage: string;
   sanitizer: (content: string) => string;
@@ -175,10 +191,11 @@ async function generateOpenRouterContent({
     method: "POST",
     headers,
     body: JSON.stringify({
-      models: OPENROUTER_MODELS,
+      models,
       messages,
       temperature,
       max_tokens: maxTokens,
+      ...(reasoning ? { reasoning } : {}),
     }),
   });
 
@@ -195,7 +212,7 @@ async function generateOpenRouterContent({
 
   return {
     content,
-    model: payload.model?.trim() ? payload.model.trim() : (OPENROUTER_MODELS[0] ?? "OpenRouter model"),
+    model: payload.model?.trim() ? payload.model.trim() : (models[0] ?? "OpenRouter model"),
   };
 }
 
@@ -212,7 +229,9 @@ export async function generateYearAnnouncement(
       { role: "user", content: buildYearAnnouncementPrompt(request) },
     ],
     temperature: 0.8,
-    maxTokens: 140,
+    maxTokens: 260,
+    models: OPENROUTER_YEAR_ANNOUNCEMENT_MODELS,
+    reasoning: { effort: "none", exclude: true },
     emptyResponseMessage: "OpenRouter returned an empty year announcement.",
     sanitizer: sanitizeAnnouncementContent,
   });
