@@ -38,7 +38,7 @@ export const Role = {
 } as const;
 
 export const DEFAULT_SUBMISSION_POINTS = 5;
-export const MIN_MONTHLY_POINTS_FOR_WEIGHTED = 15;
+export const MIN_MONTHLY_POINTS_FOR_WEIGHTED = 30;
 export const MIN_DAILY_MESSAGES_FOR_STREAK = 3;
 export const FIRST_HOUR_POINTS = 5;
 export const REST_HOURS_POINTS = 2;
