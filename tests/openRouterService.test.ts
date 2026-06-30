@@ -4,6 +4,7 @@ import {
   buildYearAnnouncementPrompt,
   generateExplanation,
   OPENROUTER_MODELS,
+  OPENROUTER_YEAR_ANNOUNCEMENT_MODELS,
   generateYearAnnouncement,
   OpenRouterError,
   sanitizeAnnouncementContent,
@@ -92,28 +93,39 @@ describe("openRouterService", () => {
     expect(requestBody.models).not.toContain("openrouter/free");
   });
 
-  it("returns sanitized year announcement content from OpenRouter", async () => {
+  it("sends non-reasoning year announcement fallbacks to OpenRouter", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [
-              {
-                message: {
-                  content: "  Well done, Ravenclaw!\nYou earned it. ",
-                },
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [
+            {
+              message: {
+                content: "  Well done, Ravenclaw!\nYou earned it. ",
               },
-            ],
-          }),
-      }),
-    );
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal("fetch", fetch);
 
     await expect(generateYearAnnouncement(request)).resolves.toBe(
       "Well done, Ravenclaw! You earned it.",
     );
+
+    const openRouterRequest = fetch.mock.calls[0]?.[1] as RequestInit;
+    const requestBody = JSON.parse(openRouterRequest.body as string) as {
+      max_tokens?: number;
+      models?: string[];
+      reasoning?: { effort?: string; exclude?: boolean };
+    };
+
+    expect(requestBody.models).toEqual(OPENROUTER_YEAR_ANNOUNCEMENT_MODELS);
+    expect(requestBody.models?.[0]).toBe("google/gemma-4-31b-it:free");
+    expect(requestBody.models).toContain("nvidia/nemotron-3-ultra-550b-a55b:free");
+    expect(requestBody.max_tokens).toBe(260);
+    expect(requestBody.reasoning).toEqual({ effort: "none", exclude: true });
   });
 
   it("returns sanitized explanation content from OpenRouter", async () => {
