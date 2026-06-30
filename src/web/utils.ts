@@ -104,7 +104,7 @@ export function buildHousePaceChart(
       let qualifying = 0;
       for (const id of userIds) {
         const val = userCumulative.get(id)?.[i] ?? 0;
-        if (val > MIN_MONTHLY_POINTS_FOR_WEIGHTED) {
+        if (val >= MIN_MONTHLY_POINTS_FOR_WEIGHTED) {
           sum += val;
           qualifying++;
         }

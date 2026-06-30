@@ -210,7 +210,7 @@ export async function getWeightedHousePoints(db: DbOrTx): Promise<HousePoints[]>
     })
     .from(schema.userTable)
     .where(
-      and(not(isNull(schema.userTable.house)), gt(schema.userTable.monthlyPoints, MIN_MONTHLY_POINTS_FOR_WEIGHTED)),
+      and(not(isNull(schema.userTable.house)), gte(schema.userTable.monthlyPoints, MIN_MONTHLY_POINTS_FOR_WEIGHTED)),
     )
     .groupBy(schema.userTable.house)
     .orderBy(desc(totalPoints))
