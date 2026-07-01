@@ -177,7 +177,7 @@ Required in `.env` (see `.env.example`):
 - `EXCLUDE_VOICE_CHANNEL_IDS` - Voice channels to exclude from tracking
 - `SUBMISSION_CHANNEL_IDS` - Channels for submissions
 - `MYSTERY_SECRET` - (optional) Secret to bypass mystery mode in analytics
-- `OPENROUTER_API_KEY` - (optional) Enables AI-generated year promotion announcements and `/explain` responses through OpenRouter
+- `OPENROUTER_API_KEY` - (optional) Enables `/explain` responses through OpenRouter; year promotion announcements currently always use static fallback messages
 
 ### Command Pattern
 

@@ -12,9 +12,6 @@ import {
 import { getYearFromMonthlyVoiceTime } from "@/discord/core/year.ts";
 import { eq, isNotNull } from "drizzle-orm";
 import { updateMember } from "@/discord/utils/updateMember.ts";
-import {
-  generateYearAnnouncement,
-} from "@/services/openRouterService.ts";
 
 const log = createLogger("YearRole");
 
@@ -54,13 +51,10 @@ export async function announceYearPromotion(
       embeds: [
         {
           title: "New Activity Rank Attained!",
-          description: await getYearAnnouncementDescription({
+          description: getYearAnnouncementDescription({
             house: user.house,
             roleId,
             hours,
-            member,
-            year,
-            ctx,
           }),
           color: HOUSE_COLORS[user.house],
         },
@@ -76,54 +70,19 @@ export async function announceYearPromotion(
   }
 }
 
-async function getYearAnnouncementDescription({
+function getYearAnnouncementDescription({
   house,
   roleId,
   hours,
-  member,
-  year,
-  ctx,
 }: {
   house: House;
   roleId: string;
   hours: number;
-  member: GuildMember;
-  year: number;
-  ctx: { userId: string; username: string };
-}): Promise<string> {
+}): string {
   const role = roleMention(roleId);
   const hourText = hours.toString() + (hours === 1 ? " hour" : " hours");
 
-  if (!process.env.OPENROUTER_API_KEY) {
-    return formatFallbackYearMessage(house, role, hourText);
-  }
-
-  try {
-    const result = await generateYearAnnouncement({
-      house,
-      roleMention: role,
-      hours: hourText,
-      year,
-      username: member.displayName,
-    });
-    if (!result?.content.trim()) {
-      log.warn(
-        "OpenRouter returned an empty year promotion announcement",
-        { ...ctx, result },
-      );
-      return formatFallbackYearMessage(house, role, hourText);
-    }
-    return result.content;
-  } catch (error) {
-    log.error(
-      "Falling back to static year promotion announcement after OpenRouter failure",
-      {
-        ...ctx,
-        error: error instanceof Error ? error.message : String(error),
-      },
-    );
-    return formatFallbackYearMessage(house, role, hourText);
-  }
+  return formatFallbackYearMessage(house, role, hourText);
 }
 
 function formatFallbackYearMessage(
