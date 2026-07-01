@@ -5,9 +5,8 @@ import { errorReply } from "@/discord/utils/interaction.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import {
   generateExplanation,
-  isOpenRouterConfigured,
-  OpenRouterError,
 } from "@/services/openRouterService.ts";
+import { OpenRouterError } from "@openrouter/sdk/models/errors";
 
 const log = createLogger("ExplainCommand");
 
@@ -35,7 +34,7 @@ export default {
       return;
     }
 
-    if (!isOpenRouterConfigured()) {
+    if (!process.env.OPENROUTER_API_KEY) {
       await errorReply(
         interaction,
         "AI Explanations Unavailable",
@@ -47,15 +46,15 @@ export default {
     await interaction.deferReply();
 
     try {
-      const explanation = await generateExplanation({ question });
+      const explanation = await generateExplanation(question);
 
       await interaction.editReply({
         embeds: [
           {
             color: BOT_COLORS.INFO,
             title: "Explanation",
-            description: explanation.content,
-            footer: { text: `Model: ${explanation.model}. Double-check important facts.` },
+            description: explanation?.content ?? "OpenRouter returned an empty explanation.",
+            footer: { text: `Model: ${explanation?.model ?? "Unknown"}. Double-check important facts.` },
           },
         ],
       });
@@ -65,7 +64,7 @@ export default {
         user: interaction.user.tag,
         error: error instanceof Error ? error.message : String(error),
       });
-      if (error instanceof OpenRouterError && error.status === 429) {
+      if (error instanceof OpenRouterError && error.statusCode === 429) {
         await errorReply(
           interaction,
           "OpenRouter Rate Limited",

@@ -29,6 +29,7 @@ export declare global {
       JOURNAL_CHANNEL_ID: string;
       MYSTERY_SECRET: string;
       COUNTING_CHANNEL_ID: string;
+      OPENROUTER_API_KEY: string;
     }
   }
 }

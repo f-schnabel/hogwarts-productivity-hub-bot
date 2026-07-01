@@ -14,7 +14,6 @@ import { eq, isNotNull } from "drizzle-orm";
 import { updateMember } from "@/discord/utils/updateMember.ts";
 import {
   generateYearAnnouncement,
-  isOpenRouterConfigured,
 } from "@/services/openRouterService.ts";
 
 const log = createLogger("YearRole");
@@ -95,20 +94,28 @@ async function getYearAnnouncementDescription({
   const role = roleMention(roleId);
   const hourText = hours.toString() + (hours === 1 ? " hour" : " hours");
 
-  if (!isOpenRouterConfigured()) {
+  if (!process.env.OPENROUTER_API_KEY) {
     return formatFallbackYearMessage(house, role, hourText);
   }
 
   try {
-    return await generateYearAnnouncement({
+    const result = await generateYearAnnouncement({
       house,
       roleMention: role,
       hours: hourText,
       year,
       username: member.displayName,
     });
+    if (!result?.content.trim()) {
+      log.warn(
+        "OpenRouter returned an empty year promotion announcement",
+        { ...ctx, result },
+      );
+      return formatFallbackYearMessage(house, role, hourText);
+    }
+    return result.content;
   } catch (error) {
-    log.warn(
+    log.error(
       "Falling back to static year promotion announcement after OpenRouter failure",
       {
         ...ctx,

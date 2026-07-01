@@ -25,6 +25,7 @@ process.env.PREFECT_ROLE_IDS = "prefect-a,prefect-b";
 process.env.SUBMISSION_CHANNEL_IDS = "";
 process.env.JOURNAL_CHANNEL_ID = "journal-channel-id";
 process.env.YEAR_ROLE_IDS = "";
+process.env.OPENROUTER_API_KEY = "test-openrouter-api-key";
 
 // Mock console methods in tests to reduce noise
 globalThis.console = {

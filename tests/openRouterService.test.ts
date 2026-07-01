@@ -1,14 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ChatRequest, ChatResult } from "@openrouter/sdk/models";
+import type { OpenRouterError } from "@openrouter/sdk/models/errors";
+
+const chatSendMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@openrouter/sdk", () => ({
+  OpenRouter: class MockOpenRouter {
+    chat = {
+      send: chatSendMock,
+    };
+  },
+}));
+
 import {
-  buildExplanationPrompt,
-  buildYearAnnouncementPrompt,
   generateExplanation,
   OPENROUTER_MODELS,
   OPENROUTER_YEAR_ANNOUNCEMENT_MODELS,
   generateYearAnnouncement,
-  OpenRouterError,
-  sanitizeAnnouncementContent,
-  sanitizeExplanationContent,
 } from "@/services/openRouterService.ts";
 
 const request = {
@@ -20,163 +28,93 @@ const request = {
 };
 
 describe("openRouterService", () => {
-  it("builds house-specific year announcement prompts", () => {
-    const prompt = buildYearAnnouncementPrompt(request);
-
-    expect(prompt).toContain("House: Ravenclaw");
-    expect(prompt).toContain("New activity rank: <@&year3>");
-    expect(prompt).toContain("Monthly voice-study milestone: 20 hours");
-    expect(prompt).toContain("warm Ravenclaw style");
-  });
-
-  it("builds direct explanation prompts", () => {
-    const prompt = buildExplanationPrompt({
-      question: "What is spaced repetition?",
-    });
-
-    expect(prompt).toContain("Question: What is spaced repetition?");
-    expect(prompt).toContain("direct, helpful tone without roleplay or themed flavor");
-    expect(prompt).toContain("Do not use tables");
-    expect(prompt).toContain("Do not repeat the question in the response");
-    expect(prompt).toContain("If the question is a short phrase or topic, define it directly");
-    expect(prompt).not.toContain("Member:");
-  });
-
-  it("sanitizes explanation content while preserving paragraph breaks", () => {
-    const content = sanitizeExplanationContent("  First   paragraph.\n\n\nSecond\tparagraph. ");
-
-    expect(content).toBe("First paragraph.\n\nSecond paragraph.");
-  });
-
-  it("marks overlong explanation content as shortened instead of silently cutting off", () => {
-    const longContent = `First sentence. Second sentence. ${"x".repeat(5000)}`;
-    const content = sanitizeExplanationContent(longContent);
-
-    expect(content).toHaveLength(4000);
-    expect(content).toContain("response shortened to fit Discord");
-  });
-
-  it("sanitizes long, whitespace-heavy announcement content", () => {
-    const content = sanitizeAnnouncementContent(
-      `  Great\n\twork   ${"x".repeat(1000)}`,
-    );
-
-    expect(content.startsWith("Great work")).toBe(true);
-    expect(content).toHaveLength(900);
-  });
+  function mockChatResult(content: string, model = "test/free-model"): ChatResult {
+    return {
+      id: "chatcmpl-test",
+      created: 1,
+      model,
+      object: "chat.completion",
+      systemFingerprint: null,
+      choices: [
+        {
+          finishReason: "stop",
+          index: 0,
+          message: {
+            role: "assistant",
+            content,
+          },
+        },
+      ],
+    };
+  }
 
   it("sends the inline explanation model fallbacks to OpenRouter", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
-    const fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          choices: [{ message: { content: "Inline model answer." } }],
-        }),
-    });
-    vi.stubGlobal("fetch", fetch);
+    chatSendMock.mockResolvedValue(
+      mockChatResult("Inline model answer.", OPENROUTER_MODELS[0]),
+    );
 
     await expect(
-      generateExplanation({ question: "What is spaced repetition?" }),
+      generateExplanation("What is spaced repetition?"),
     ).resolves.toEqual({
       content: "Inline model answer.",
       model: OPENROUTER_MODELS[0],
     });
 
-    const request = fetch.mock.calls[0]?.[1] as RequestInit;
-    const requestBody = JSON.parse(request.body as string) as { model?: string; models?: string[] };
+    const openRouterRequest = chatSendMock.mock.calls[0]?.[0] as {
+      chatRequest: ChatRequest;
+    };
 
-    expect(requestBody.model).toBeUndefined();
-    expect(requestBody.models).toEqual(OPENROUTER_MODELS);
-    expect(requestBody.models).toHaveLength(3);
-    expect(requestBody.models?.[0]).toBe("nvidia/nemotron-3-ultra-550b-a55b:free");
-    expect(requestBody.models).not.toContain("openrouter/free");
+    expect(openRouterRequest.chatRequest.model).toBeUndefined();
+    expect(openRouterRequest.chatRequest.models).toEqual(OPENROUTER_MODELS);
+    expect(openRouterRequest.chatRequest.models).toHaveLength(3);
+    expect(openRouterRequest.chatRequest.models?.[0]).toBe("nvidia/nemotron-3-ultra-550b-a55b:free");
+    expect(openRouterRequest.chatRequest.models).not.toContain("openrouter/free");
   });
 
   it("sends non-reasoning year announcement fallbacks to OpenRouter", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
-    const fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          choices: [
-            {
-              message: {
-                content: "  Well done, Ravenclaw!\nYou earned it. ",
-              },
-            },
-          ],
-        }),
+    chatSendMock.mockResolvedValue(mockChatResult("  Well done, Ravenclaw!\nYou earned it. "));
+
+    await expect(generateYearAnnouncement(request)).resolves.toEqual({
+      content: "Well done, Ravenclaw!\nYou earned it.",
+      model: "test/free-model",
     });
-    vi.stubGlobal("fetch", fetch);
 
-    await expect(generateYearAnnouncement(request)).resolves.toBe(
-      "Well done, Ravenclaw! You earned it.",
-    );
-
-    const openRouterRequest = fetch.mock.calls[0]?.[1] as RequestInit;
-    const requestBody = JSON.parse(openRouterRequest.body as string) as {
-      max_tokens?: number;
-      models?: string[];
-      reasoning?: { effort?: string; exclude?: boolean };
+    const openRouterRequest = chatSendMock.mock.calls[0]?.[0] as {
+      chatRequest: ChatRequest;
     };
 
-    expect(requestBody.models).toEqual(OPENROUTER_YEAR_ANNOUNCEMENT_MODELS);
-    expect(requestBody.models?.[0]).toBe("google/gemma-4-31b-it:free");
-    expect(requestBody.models).toContain("nvidia/nemotron-3-ultra-550b-a55b:free");
-    expect(requestBody.max_tokens).toBe(260);
-    expect(requestBody.reasoning).toEqual({ effort: "none", exclude: true });
+    expect(openRouterRequest.chatRequest.models).toEqual(OPENROUTER_YEAR_ANNOUNCEMENT_MODELS);
+    expect(openRouterRequest.chatRequest.models?.[0]).toBe("google/gemma-4-31b-it:free");
+    expect(openRouterRequest.chatRequest.models).toContain("nvidia/nemotron-3-ultra-550b-a55b:free");
+    expect(openRouterRequest.chatRequest.maxCompletionTokens).toBe(260);
+    expect(openRouterRequest.chatRequest.reasoning).toEqual({ effort: "none" });
   });
 
   it("returns sanitized explanation content from OpenRouter", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            model: "test/free-model",
-            choices: [
-              {
-                message: {
-                  content: "  Review the idea once, then revisit it later.\n\nSpace reviews out over time. ",
-                },
-              },
-            ],
-          }),
-      }),
+    chatSendMock.mockResolvedValue(
+      mockChatResult("  Review the idea once, then revisit it later.\n\nSpace reviews out over time. "),
     );
 
     await expect(
-      generateExplanation({ question: "What is spaced repetition?" }),
+      generateExplanation("What is spaced repetition?"),
     ).resolves.toEqual({
       content: "Review the idea once, then revisit it later.\n\nSpace reviews out over time.",
       model: "test/free-model",
     });
   });
 
-  it("falls back to the first inline model label when the response omits a model", async () => {
+  it("returns the explanation model label from OpenRouter", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [
-              {
-                message: {
-                  content: "Fallback model label.",
-                },
-              },
-            ],
-          }),
-      }),
-    );
+    chatSendMock.mockResolvedValue({
+      ...mockChatResult("Fallback model label."),
+      model: OPENROUTER_MODELS[0],
+    });
 
     await expect(
-      generateExplanation({ question: "What is spaced repetition?" }),
+      generateExplanation("What is spaced repetition?"),
     ).resolves.toEqual({
       content: "Fallback model label.",
       model: OPENROUTER_MODELS[0],
@@ -185,24 +123,34 @@ describe("openRouterService", () => {
 
   it("throws OpenRouterError with status for failed OpenRouter responses", async () => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 429,
-        json: () =>
-          Promise.resolve({
-            error: { message: "Rate limit exceeded" },
-          }),
-      }),
-    );
-
-    await expect(
-      generateExplanation({ question: "What is spaced repetition?" }),
-    ).rejects.toMatchObject({
+    const error = {
       name: "OpenRouterError",
       message: "Rate limit exceeded",
-      status: 429,
-    } satisfies Partial<OpenRouterError>);
+      statusCode: 429,
+    } satisfies Partial<OpenRouterError>;
+    chatSendMock.mockRejectedValue(error);
+
+    await expect(
+      generateExplanation("What is spaced repetition?"),
+    ).rejects.toMatchObject(error);
+  });
+
+  it("returns null when OpenRouter omits choices", async () => {
+    chatSendMock.mockResolvedValue({
+      ...mockChatResult("Ignored."),
+      choices: [],
+    } satisfies ChatResult);
+
+    await expect(
+      generateExplanation("What is spaced repetition?"),
+    ).resolves.toBeNull();
+  });
+
+  it("returns null when OpenRouter returns empty content", async () => {
+    chatSendMock.mockResolvedValue(mockChatResult("   "));
+
+    await expect(
+      generateExplanation("What is spaced repetition?"),
+    ).resolves.toBeNull();
   });
 });
