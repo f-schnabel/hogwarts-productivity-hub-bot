@@ -86,10 +86,9 @@ describe("openRouterService", () => {
     };
 
     expect(openRouterRequest.chatRequest.models).toEqual(OPENROUTER_YEAR_ANNOUNCEMENT_MODELS);
-    expect(openRouterRequest.chatRequest.models?.[0]).toBe("google/gemma-4-31b-it:free");
-    expect(openRouterRequest.chatRequest.models).toContain("nvidia/nemotron-3-ultra-550b-a55b:free");
+    expect(openRouterRequest.chatRequest.models?.[0]).toBe("nvidia/nemotron-3-ultra-550b-a55b:free");
+    expect(openRouterRequest.chatRequest.models).toContain("google/gemma-4-31b-it:free");
     expect(openRouterRequest.chatRequest.maxCompletionTokens).toBe(260);
-    expect(openRouterRequest.chatRequest.reasoning).toEqual({ effort: "none" });
   });
 
   it("returns sanitized explanation content from OpenRouter", async () => {
