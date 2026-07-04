@@ -398,7 +398,7 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
     return;
   }
 
-  const oldLocalDay = dayjs(oldSession.leftAt).tz(dbUser.timezone).startOf("day");
+  const oldLocalDay = dayjs(oldSession.joinedAt).tz(dbUser.timezone).startOf("day");
 
   const correctedEndTime = parseVoiceSessionEndTime(endTimeInput, oldLocalDay);
   if (!correctedEndTime) {
