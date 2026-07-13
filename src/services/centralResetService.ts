@@ -16,9 +16,9 @@ import { getGuild } from "@/discord/events/clientReady/index.ts";
 const log = createLogger("Reset");
 
 export function start() {
-  // Schedule daily reset checks - run every hour to catch all timezones
+  // Run on every quarter-hour so midnight is handled exactly in UTC offsets such as +05:30 and +05:45.
   cron.schedule(
-    "0 * * * *",
+    "*/15 * * * *",
     () => {
       void runWithOpContext(OpId.rst(), async () => {
         await processDailyResets();

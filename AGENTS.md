@@ -111,7 +111,7 @@ Each command exports:
 
 **Timezone-Based Daily Resets** (`src/services/centralResetService.ts`):
 
-- Runs hourly cron job to check users needing reset
+- Runs every 15 minutes to check users needing reset, including timezones with half-hour and quarter-hour offsets
 - Per-user timezone handling (users reset at their local midnight)
 - Closes voice sessions before reset, reopens after
 - Resets dailyPoints, dailyVoiceTime, dailyMessages
