@@ -21,107 +21,126 @@ export function start() {
     "*/15 * * * *",
     () => {
       void runWithOpContext(OpId.rst(), async () => {
-        await processDailyResets();
+        await scheduler();
       });
     },
     {
       timezone: "UTC",
+      noOverlap: true,
     },
   );
 
   log.debug("CentralResetService started");
 }
 
-async function processDailyResets() {
+async function scheduler() {
+  const now = new Date();
   const end = resetExecutionTimer.startTimer();
   const guild = getGuild();
 
   log.debug("Daily reset start");
 
   const result = await wrapWithAlerting(async () => {
-    const remindersSent = await processSubmissionReminders(guild);
-    const usersReset = await db.transaction(async (db) => {
-      const usersNeedingPotentialReset = await db
-        .select({
-          discordId: userTable.discordId,
-          timezone: userTable.timezone,
-          lastDailyReset: userTable.lastDailyReset,
-        })
-        .from(userTable);
-
-      // Get guild members to filter out users who left
-      const guildMemberIds = new Set(guild.members.cache.keys());
-
-      // Filter to only include users who are still in guild and past their local midnight
-      const usersNeedingReset: string[] = [];
-      for (const user of usersNeedingPotentialReset) {
-        if (!guildMemberIds.has(user.discordId)) continue;
-
-        const userTime = dayjs().tz(user.timezone);
-        const lastReset = dayjs(user.lastDailyReset).tz(user.timezone);
-
-        if (!userTime.isSame(lastReset, "day")) {
-          usersNeedingReset.push(user.discordId);
-        }
-      }
-
-      if (usersNeedingReset.length === 0) {
-        log.debug("No users need reset");
-        return 0;
-      }
-
-      const usersInVoiceSessions = await getOpenVoiceSessions(db, usersNeedingReset);
-      log.info("Users identified", {
-        total: usersNeedingReset.length,
-        inVoice: usersInVoiceSessions.map((s) => s.discordId).join(", "),
-      });
-
-      try {
-        for (const session of usersInVoiceSessions) {
-          await endVoiceSession(session, db);
-        }
-
-        const boosterIds = getBoosterIds(guild, usersNeedingReset);
-        if (boosterIds.length > 0) {
-          log.debug("Boosters preserving streak", { count: boosterIds.length });
-        }
-
-        const updatedUsers = await db
-          .update(userTable)
-          .set({
-            dailyPoints: 0,
-            dailyVoiceTime: 0,
-            lastDailyReset: new Date(),
-            // Met threshold → increment, booster (below threshold) → preserve, otherwise → reset
-            messageStreak: sql`CASE
-                WHEN ${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK} 
-                  THEN ${userTable.messageStreak} + 1
-                WHEN ${inArray(userTable.discordId, boosterIds)}
-                  THEN ${userTable.messageStreak}
-                ELSE 0
-                END`,
-            dailyMessages: 0,
-          })
-          .where(inArray(userTable.discordId, usersNeedingReset))
-          .returning({ discordId: userTable.discordId, messageStreak: userTable.messageStreak });
-
-        await updateStreakNicknames(guild, updatedUsers);
-
-        return updatedUsers.length;
-      } finally {
-        for (const session of usersInVoiceSessions) {
-          await startVoiceSession(session, db, "new");
-        }
-      }
-    });
-
-    return { usersReset, remindersSent };
+    return { usersReset: await processDailyResets(guild, now), remindersSent: await processSubmissionReminders(guild, now) };
   }, "Daily reset processing");
+
   log.info("Daily reset complete", {
     usersReset: result.usersReset,
     remindersSent: result.remindersSent,
     ms: end({ action: "daily" }),
   });
+}
+
+async function processDailyResets(guild: Guild, now: Date): Promise<number> {
+  return await db.transaction(async (db) => {
+    const [usersNeedingReset, resetBoundaries] = await getUsersNeedingReset(guild, now);
+
+    if (usersNeedingReset.length === 0) {
+      log.debug("No users need reset");
+      return 0;
+    }
+
+    const usersInVoiceSessions = await getOpenVoiceSessions(db, usersNeedingReset);
+    const sessionsToSplit = usersInVoiceSessions.flatMap((session) => {
+      const boundary = resetBoundaries.get(session.discordId);
+      if (boundary === undefined || session.joinedAt >= boundary) return [];
+      return [{ session, boundary }];
+    });
+    log.info("Users identified", {
+      total: usersNeedingReset.length,
+      inVoice: usersInVoiceSessions.map((s) => s.discordId).join(", "),
+      split: sessionsToSplit.map(({ session }) => session.discordId).join(", "),
+    });
+
+    const successfullyEnded: typeof sessionsToSplit = [];
+    try {
+      for (const entry of sessionsToSplit) {
+        const ended = await endVoiceSession(entry.session, db, entry.boundary);
+        if (ended !== null) successfullyEnded.push(entry);
+      }
+
+      const boosterIds = getBoosterIds(guild, usersNeedingReset);
+      if (boosterIds.length > 0) {
+        log.debug("Boosters preserving streak", { count: boosterIds.length });
+      }
+
+      const updatedUsers = await db
+        .update(userTable)
+        .set({
+          dailyPoints: 0,
+          dailyVoiceTime: 0,
+          lastDailyReset: now,
+          // Met threshold → increment, booster (below threshold) → preserve, otherwise → reset
+          messageStreak: sql`CASE
+              WHEN ${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK}
+                THEN ${userTable.messageStreak} + 1
+              WHEN ${inArray(userTable.discordId, boosterIds)}
+                THEN ${userTable.messageStreak}
+              ELSE 0
+              END`,
+          dailyMessages: 0,
+        })
+        .where(inArray(userTable.discordId, usersNeedingReset))
+        .returning({ discordId: userTable.discordId, messageStreak: userTable.messageStreak });
+
+      await updateStreakNicknames(guild, updatedUsers);
+
+      return updatedUsers.length;
+    } finally {
+      for (const { session, boundary } of successfullyEnded) {
+        await startVoiceSession(session, db, "new", boundary);
+      }
+    }
+  });
+}
+
+async function getUsersNeedingReset(guild: Guild, now: Date) {
+  const usersNeedingPotentialReset = await db
+    .select({
+      discordId: userTable.discordId,
+      timezone: userTable.timezone,
+      lastDailyReset: userTable.lastDailyReset,
+    })
+    .from(userTable);
+
+  // Get guild members to filter out users who left
+  const guildMemberIds = new Set(guild.members.cache.keys());
+
+  // Filter to only include users who are still in guild and past their local midnight
+  const usersNeedingReset: string[] = [];
+  const resetBoundaries = new Map<string, Date>();
+  for (const user of usersNeedingPotentialReset) {
+    if (!guildMemberIds.has(user.discordId)) continue;
+
+    const userTime = dayjs(now).tz(user.timezone);
+    const lastReset = dayjs(user.lastDailyReset).tz(user.timezone);
+
+    if (!userTime.isSame(lastReset, "day")) {
+      usersNeedingReset.push(user.discordId);
+      resetBoundaries.set(user.discordId, dayjs(now).tz(user.timezone).startOf("day").toDate());
+    }
+  }
+  return [usersNeedingReset, resetBoundaries] as const;
 }
 
 async function processSubmissionReminders(guild: Guild, now: Date = new Date()): Promise<number> {

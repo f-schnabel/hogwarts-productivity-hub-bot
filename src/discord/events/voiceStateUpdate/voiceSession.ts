@@ -16,7 +16,12 @@ const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split("
 export type VoiceSessionStartMode = "new" | "resume-recent";
 
 // Start a voice session when user joins VC (timezone-aware)
-export async function startVoiceSession(session: VoiceSession, db: DbOrTx, mode: VoiceSessionStartMode) {
+export async function startVoiceSession(
+  session: VoiceSession,
+  db: DbOrTx,
+  mode: VoiceSessionStartMode,
+  startedAt: Date = new Date(),
+) {
   const { channelName, discordId, username, channelId } = session;
   const ctx = { discordId, username, channelName };
 
@@ -43,12 +48,12 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx, mode:
       );
       await db
         .update(voiceSessionTable)
-        .set({ leftAt: new Date(), isTracked: false })
+        .set({ leftAt: startedAt, isTracked: false })
         .where(inArray(voiceSessionTable.id, existingVoiceSessions.map((existing) => existing.id)));
     }
 
     if (existingVoiceSessions.length === 0 && mode === "resume-recent") {
-      const now = new Date();
+      const now = startedAt;
       const monthStart = await getMonthStartDate(db);
       const [recentSession] = await db
         .select({
@@ -97,7 +102,7 @@ export async function startVoiceSession(session: VoiceSession, db: DbOrTx, mode:
       }
     }
 
-    await db.insert(voiceSessionTable).values({ discordId, channelId, channelName });
+    await db.insert(voiceSessionTable).values({ discordId, channelId, channelName, joinedAt: startedAt });
 
     log.info("Session started", ctx);
   });
@@ -193,7 +198,7 @@ export async function closeVoiceSessionUntracked(session: VoiceSession, db: DbOr
 
 /** End a voice session when user leaves VC
  */
-export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
+export async function endVoiceSession(session: VoiceSession, db: DbOrTx, endedAt: Date = new Date()) {
   const channelId = session.channelId;
   const ctx = { userId: session.discordId, user: session.username, channel: session.channelName };
 
@@ -227,7 +232,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx) {
 
     const [voiceSessionWithDuration, ...extra] = await db
       .update(voiceSessionTable)
-      .set({ leftAt: new Date(), isTracked: true })
+      .set({ leftAt: endedAt, isTracked: true })
       .where(inArray(voiceSessionTable.id, existingVoiceSession.map((s) => s.id)))
       .returning({
         id: voiceSessionTable.id,

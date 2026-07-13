@@ -113,7 +113,7 @@ Each command exports:
 
 - Runs every 15 minutes to check users needing reset, including timezones with half-hour and quarter-hour offsets
 - Per-user timezone handling (users reset at their local midnight)
-- Closes voice sessions before reset, reopens after
+- Splits voice sessions at the user's exact local-midnight boundary before reset and reopens them at the same boundary
 - Resets dailyPoints, dailyVoiceTime, dailyMessages
 - Handles message streaks (resets to 0 if user didn't meet min messages)
 - Server boosters get automatic daily streak credit

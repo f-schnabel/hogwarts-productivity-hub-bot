@@ -121,6 +121,7 @@ export async function getOpenVoiceSessions(db: Tx, usersNeedingReset: string[] |
       username: schema.userTable.username,
       channelId: schema.voiceSessionTable.channelId,
       channelName: schema.voiceSessionTable.channelName,
+      joinedAt: schema.voiceSessionTable.joinedAt,
     })
     .from(schema.voiceSessionTable)
     .where(
