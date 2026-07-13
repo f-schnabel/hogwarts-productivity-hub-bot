@@ -37,6 +37,7 @@ import assert from "assert";
 import { journalDelete, journalExport, journalImport, journalList, journalSet, journalShow } from "./journal.ts";
 import { requireRole } from "@/discord/utils/role.ts";
 import { autocompleteTimezone, setTimezone } from "@/discord/core/timezone.ts";
+import { calculateVoiceIntegritySums, type IntegrityVoiceSession } from "@/discord/core/voiceSessionIntegrity.ts";
 
 const log = createLogger("Admin");
 const ALLOWED_PREFECT_COMMANDS = ["timezone"];
@@ -557,11 +558,11 @@ async function computeExpectedValues() {
   // Get all users with their stored points and voice time
   const users = await db.select().from(userTable);
 
-  // Get all voice sessions with timestamps (tracked ones for points, all closed for time)
+  // Get all tracked, closed voice sessions so their time and points can be recalculated.
   const voiceSessions = await db
     .select({
       discordId: voiceSessionTable.discordId,
-      points: voiceSessionTable.points,
+      joinedAt: voiceSessionTable.joinedAt,
       duration: voiceSessionTable.duration,
       leftAt: voiceSessionTable.leftAt,
     })
@@ -601,33 +602,28 @@ async function computeExpectedValues() {
     adjustmentMap.set(user.discordId, { total: 0, monthly: 0, daily: 0 });
   }
 
+  const voiceSessionsByUser = new Map<string, IntegrityVoiceSession[]>();
+  for (const vs of voiceSessions) {
+    const sessions = voiceSessionsByUser.get(vs.discordId) ?? [];
+    sessions.push(vs);
+    voiceSessionsByUser.set(vs.discordId, sessions);
+  }
+
+  // Recalculate voice time and points from session timestamps. Sessions crossing local midnight
+  // contribute independently to each local day, including a fresh first-hour point threshold.
+  for (const user of users) {
+    const voice = calculateVoiceIntegritySums(
+      voiceSessionsByUser.get(user.discordId) ?? [],
+      user.timezone,
+      monthStartDate,
+      user.lastDailyReset,
+    );
+    voicePointsMap.set(user.discordId, voice.points);
+    voiceTimeMap.set(user.discordId, voice.time);
+  }
+
   // Create lookup for user reset times
   const userResetMap = new Map(users.map((u) => [u.discordId, u.lastDailyReset]));
-
-  // Aggregate voice sessions (only tracked sessions count for both points and time)
-  for (const vs of voiceSessions) {
-    const resetTime = userResetMap.get(vs.discordId);
-
-    // Aggregate points
-    if (vs.points !== null) {
-      const pointSums = voicePointsMap.get(vs.discordId);
-      if (pointSums) {
-        pointSums.total += vs.points;
-        if (vs.leftAt && vs.leftAt >= monthStartDate) pointSums.monthly += vs.points;
-        if (vs.leftAt && resetTime && vs.leftAt >= resetTime) pointSums.daily += vs.points;
-      }
-    }
-
-    // Aggregate voice time
-    if (vs.duration !== null) {
-      const timeSums = voiceTimeMap.get(vs.discordId);
-      if (timeSums) {
-        timeSums.total += vs.duration;
-        if (vs.leftAt && vs.leftAt >= monthStartDate) timeSums.monthly += vs.duration;
-        if (vs.leftAt && resetTime && vs.leftAt >= resetTime) timeSums.daily += vs.duration;
-      }
-    }
-  }
 
   // Aggregate submissions
   for (const sub of submissions) {

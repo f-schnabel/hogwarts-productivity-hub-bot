@@ -24,14 +24,20 @@ export function parseVoiceSessionEndTime(value: string, localDay: dayjs.Dayjs): 
 export function calculateVoiceSessionPointUpdatesForLocalDay(
   sessions: VoiceSessionPointInput[],
 ): VoiceSessionPointUpdate[] {
+  const calculatedPoints = calculateVoiceSessionPointsForLocalDay(sessions);
+  const storedPoints = new Map(sessions.map((session) => [session.id, session.points]));
+  return calculatedPoints.filter((result) => storedPoints.get(result.id) !== result.points);
+}
+
+export function calculateVoiceSessionPointsForLocalDay(
+  sessions: Pick<VoiceSessionPointInput, "id" | "duration">[],
+): VoiceSessionPointUpdate[] {
   let dailyVoiceTime = 0;
   const result: VoiceSessionPointUpdate[] = [];
   for (const session of sessions) {
     const oldDailyVoiceTime = dailyVoiceTime;
     dailyVoiceTime += session.duration ?? 0;
     const points = calculatePoints(oldDailyVoiceTime, dailyVoiceTime);
-    if (session.points === points) continue;
-
     result.push({
       id: session.id,
       points,
