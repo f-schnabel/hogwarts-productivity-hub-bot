@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { db, getMonthStartDate } from "@/db/db.ts";
 import { submissionTable, userTable, voiceSessionTable } from "@/db/schema.ts";
 import { and, asc, eq, gte, isNull } from "drizzle-orm";
-import { formatDuration, errorReply, inGuild } from "@/discord/utils/interaction.ts";
+import { formatDuration, errorReply, inGuild, splitLinesByLength } from "@/discord/utils/interaction.ts";
 import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "@/common/constants.ts";
 import { getYearFromMonthlyVoiceTime } from "@/discord/core/year.ts";
 import type { Command } from "@/common/types.ts";
@@ -400,17 +400,20 @@ async function pointsDetailed(interaction: ChatInputCommandInteraction) {
             const channel = s.channelName ?? "Unknown";
             return `• #${s.ids.join(", #")} ${joinStr}-${leftStr} **${channel.slice(0, 3)}** (${formatDuration(s.duration)})`;
           })
-          .join("\n")
-      : "No sessions";
+      : ["No sessions"];
+  const pages = splitLinesByLength(sessionLines, 4096);
 
-  await interaction.editReply({
-    embeds: [
-      {
-        color: BOT_COLORS.INFO,
-        title: `${user.displayName}'s Detailed Sessions`,
-        description: sessionLines,
-        footer: { text: `Month: ${dayjs().format("MMMM YYYY")} | TZ: ${tz}` },
-      },
-    ],
-  });
+  const embeds = pages.map((description, index) => ({
+    color: BOT_COLORS.INFO,
+    title: `${user.displayName}'s Detailed Sessions${pages.length > 1 ? ` (${index + 1}/${pages.length})` : ""}`,
+    description,
+    footer: { text: `Month: ${dayjs().format("MMMM YYYY")} | TZ: ${tz}` },
+  }));
+  const firstEmbed = embeds[0];
+  assert(firstEmbed, "Detailed session pagination should produce at least one embed");
+
+  await interaction.editReply({ embeds: [firstEmbed] });
+  for (const embed of embeds.slice(1)) {
+    await interaction.followUp({ embeds: [embed] });
+  }
 }

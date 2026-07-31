@@ -50,3 +50,29 @@ export function formatDuration(seconds: number): string {
   if (secs > 0 || parts.length === 0) parts.push(`${secs}sec`);
   return parts.join(" ");
 }
+
+/** Split newline-delimited text without exceeding a Discord message component's character limit. */
+export function splitLinesByLength(lines: string[], maxLength: number): string[] {
+  if (maxLength < 1) throw new RangeError("maxLength must be at least 1");
+
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const line of lines) {
+    const lineParts = line.length > maxLength ? line.match(new RegExp(`.{1,${maxLength}}`, "gs")) ?? [""] : [line];
+
+    for (const linePart of lineParts) {
+      if (!current) {
+        current = linePart;
+      } else if (current.length + 1 + linePart.length <= maxLength) {
+        current += `\n${linePart}`;
+      } else {
+        chunks.push(current);
+        current = linePart;
+      }
+    }
+  }
+
+  if (current || chunks.length === 0) chunks.push(current);
+  return chunks;
+}
