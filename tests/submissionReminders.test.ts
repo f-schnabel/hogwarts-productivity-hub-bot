@@ -1,8 +1,25 @@
 import { describe, expect, it } from "vitest";
 import dayjs from "dayjs";
-import { getReminderOptions, validateReminderValue } from "@/discord/events/interactionCreate/submit/reminders.ts";
+import {
+  canSetSubmissionReminder,
+  getReminderOptions,
+  validateReminderValue,
+} from "@/discord/events/interactionCreate/submit/reminders.ts";
 
 describe("submission reminder options", () => {
+  it.each(["PENDING", "APPROVED"])("allows reminders for %s New List submissions", (status) => {
+    expect(canSetSubmissionReminder({ status, submissionType: "NEW", reminderAt: null })).toBe(true);
+  });
+
+  it.each([
+    { status: "REJECTED", submissionType: "NEW", reminderAt: null },
+    { status: "CANCELED", submissionType: "NEW", reminderAt: null },
+    { status: "PENDING", submissionType: "COMPLETED", reminderAt: null },
+    { status: "PENDING", submissionType: "NEW", reminderAt: new Date() },
+  ])("does not allow an ineligible reminder: $status/$submissionType/$reminderAt", (submission) => {
+    expect(canSetSubmissionReminder(submission)).toBe(false);
+  });
+
   it("shows future UTC reset ticks for the current local day", () => {
     const options = getReminderOptions("UTC", dayjs.utc("2026-06-12T11:20:00Z"));
     const first = options[0];

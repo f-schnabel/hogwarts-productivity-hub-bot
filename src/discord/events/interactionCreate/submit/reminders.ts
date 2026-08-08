@@ -1,4 +1,19 @@
 import dayjs from "dayjs";
+import { SUBMISSION_TYPES } from "@/common/constants.ts";
+
+export const REMINDER_ACTIVE_STATUSES = ["PENDING", "APPROVED"] as const;
+
+export function canSetSubmissionReminder(submission: {
+  status: string;
+  submissionType: string | null;
+  reminderAt: Date | null;
+}): boolean {
+  return (
+    REMINDER_ACTIVE_STATUSES.some((status) => status === submission.status) &&
+    submission.submissionType === SUBMISSION_TYPES.NEW &&
+    submission.reminderAt === null
+  );
+}
 
 export interface ReminderOption {
   label: string;

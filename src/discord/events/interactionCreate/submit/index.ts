@@ -26,7 +26,12 @@ import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_TYPES } from "@/common/cons
 import type { Command, SubmissionType } from "@/common/types.ts";
 import { alertOwner } from "../../../utils/alerting.ts";
 import { getSubmissionTypeLabel, submissionMessage } from "./submissionMessage.ts";
-import { getReminderOptions, validateReminderValue } from "./reminders.ts";
+import {
+  canSetSubmissionReminder,
+  getReminderOptions,
+  REMINDER_ACTIVE_STATUSES,
+  validateReminderValue,
+} from "./reminders.ts";
 import { oneLine, stripIndent } from "common-tags";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
@@ -276,9 +281,12 @@ export default {
       await interaction.deferUpdate();
     }
 
+    const review = event === "approve"
+      ? { status: "APPROVED" as const, reviewedAt: new Date(), reviewedBy: member.id }
+      : { status: "REJECTED" as const, reviewedAt: new Date(), reviewedBy: member.id, reminderAt: null };
     const [submission] = await db
       .update(submissionTable)
-      .set({ status: event === "approve" ? "APPROVED" : "REJECTED", reviewedAt: new Date(), reviewedBy: member.id })
+      .set(review)
       .where(and(eq(submissionTable.id, Number.parseInt(submissionId)), eq(submissionTable.status, "PENDING")))
       .returning();
 
@@ -323,14 +331,14 @@ async function showReminderSelect(submissionId: number, interaction: ButtonInter
   const submission = await db.query.submissionTable.findFirst({
     where: and(
       eq(submissionTable.id, submissionId),
-      eq(submissionTable.status, "APPROVED"),
+      inArray(submissionTable.status, REMINDER_ACTIVE_STATUSES),
       eq(submissionTable.submissionType, SUBMISSION_TYPES.NEW),
     ),
   });
 
   if (!submission) {
     await interaction.reply({
-      content: "This reminder can only be set on an approved New List submission.",
+      content: "This reminder can only be set on a pending or approved New List submission.",
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -344,7 +352,7 @@ async function showReminderSelect(submissionId: number, interaction: ButtonInter
     return;
   }
 
-  if (submission.reminderAt !== null) {
+  if (!canSetSubmissionReminder(submission)) {
     await interaction.reply({
       content: "This submission already has a reminder set.",
       flags: MessageFlags.Ephemeral,
@@ -418,7 +426,7 @@ async function saveReminderSelection(submissionId: number, interaction: StringSe
       and(
         eq(submissionTable.id, submissionId),
         eq(submissionTable.discordId, interaction.user.id),
-        eq(submissionTable.status, "APPROVED"),
+        inArray(submissionTable.status, REMINDER_ACTIVE_STATUSES),
         eq(submissionTable.submissionType, SUBMISSION_TYPES.NEW),
         isNull(submissionTable.reminderAt),
       ),
@@ -474,7 +482,7 @@ async function cancelSubmission(submissionId: number, interaction: ButtonInterac
 
   const [canceled] = await db
     .update(submissionTable)
-    .set({ status: "CANCELED", reviewedAt: new Date(), reviewedBy: interaction.user.id })
+    .set({ status: "CANCELED", reviewedAt: new Date(), reviewedBy: interaction.user.id, reminderAt: null })
     .where(
       and(
         eq(submissionTable.id, submissionId),

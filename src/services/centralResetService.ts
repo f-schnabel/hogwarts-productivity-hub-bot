@@ -2,7 +2,7 @@ import cron from "node-cron";
 import dayjs from "dayjs";
 import { db, getOpenVoiceSessions } from "@/db/db.ts";
 import { submissionTable, userTable } from "@/db/schema.ts";
-import { and, asc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
 import { endVoiceSession, startVoiceSession } from "@/discord/events/voiceStateUpdate/voiceSession.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
 import { resetExecutionTimer } from "@/common/logging/monitoring.ts";
@@ -12,6 +12,7 @@ import { createLogger, OpId } from "@/common/logging/logger.ts";
 import { runWithOpContext } from "@/common/logging/opContext.ts";
 import { userMention, type Guild } from "discord.js";
 import { getGuild } from "@/discord/events/clientReady/index.ts";
+import { REMINDER_ACTIVE_STATUSES } from "@/discord/events/interactionCreate/submit/reminders.ts";
 
 const log = createLogger("Reset");
 
@@ -157,7 +158,7 @@ async function processSubmissionReminders(guild: Guild, now: Date = new Date()):
     .innerJoin(userTable, eq(submissionTable.discordId, userTable.discordId))
     .where(
       and(
-        eq(submissionTable.status, "APPROVED"),
+        inArray(submissionTable.status, REMINDER_ACTIVE_STATUSES),
         eq(submissionTable.submissionType, SUBMISSION_TYPES.NEW),
         isNotNull(submissionTable.reminderAt),
         lte(submissionTable.reminderAt, now),
@@ -221,6 +222,12 @@ async function deliverSubmissionReminder(
     return false;
   }
 
+  const claimed = await claimSubmissionReminder(reminder.id, reminder.reminderAt, now);
+  if (!claimed) {
+    log.info("Skipping reminder no longer active", { submissionId: reminder.id });
+    return false;
+  }
+
   try {
     await message.reply({
       content: `${userMention(reminder.discordId)} Reminder to complete your submitted to-do list.`,
@@ -228,11 +235,46 @@ async function deliverSubmissionReminder(
     });
   } catch (error) {
     log.error("Failed to send submission reminder", { submissionId: reminder.id }, error);
+    await restoreSubmissionReminder(reminder.id, reminder.reminderAt);
     return false;
   }
 
-  await clearSubmissionReminder(reminder.id);
   return true;
+}
+
+async function claimSubmissionReminder(submissionId: number, reminderAt: Date | null, now: Date): Promise<boolean> {
+  if (!reminderAt) return false;
+
+  const [claimed] = await db
+    .update(submissionTable)
+    .set({ reminderAt: null })
+    .where(
+      and(
+        eq(submissionTable.id, submissionId),
+        inArray(submissionTable.status, REMINDER_ACTIVE_STATUSES),
+        eq(submissionTable.submissionType, SUBMISSION_TYPES.NEW),
+        eq(submissionTable.reminderAt, reminderAt),
+        lte(submissionTable.reminderAt, now),
+      ),
+    )
+    .returning({ id: submissionTable.id });
+
+  return claimed !== undefined;
+}
+
+async function restoreSubmissionReminder(submissionId: number, reminderAt: Date | null): Promise<void> {
+  if (!reminderAt) return;
+
+  await db
+    .update(submissionTable)
+    .set({ reminderAt })
+    .where(
+      and(
+        eq(submissionTable.id, submissionId),
+        inArray(submissionTable.status, REMINDER_ACTIVE_STATUSES),
+        isNull(submissionTable.reminderAt),
+      ),
+    );
 }
 
 async function hasCompletedSubmissionToday(discordId: string, timezone: string, now: Date): Promise<boolean> {

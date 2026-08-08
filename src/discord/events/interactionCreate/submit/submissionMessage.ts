@@ -1,5 +1,6 @@
 import {
   ButtonStyle,
+  ButtonBuilder,
   ComponentType,
   EmbedBuilder,
   messageLink,
@@ -13,6 +14,7 @@ import { getUserTimezone } from "@/db/db.ts";
 import { submissionTable } from "@/db/schema.ts";
 import { SUBMISSION_COLORS, SUBMISSION_TYPES } from "@/common/constants.ts";
 import type { SubmissionType } from "@/common/types.ts";
+import { canSetSubmissionReminder } from "./reminders.ts";
 
 interface SubmissionMessageParams {
   submission: typeof submissionTable.$inferSelect;
@@ -29,30 +31,34 @@ export async function submissionMessage({
 }: SubmissionMessageParams) {
   let components: InteractionReplyOptions["components"] = [];
   if (submission.status === "PENDING") {
+    const buttons = [
+      new ButtonBuilder()
+        .setCustomId(`submit|approve|${submission.id}`)
+        .setLabel(`Approve ${submission.points} points`)
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`submit|reject|${submission.id}`)
+        .setLabel("Reject")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`submit|cancel|${submission.id}`)
+        .setLabel("Cancel")
+        .setStyle(ButtonStyle.Secondary),
+    ];
+    if (canSetSubmissionReminder(submission)) {
+      buttons.push(
+        new ButtonBuilder()
+          .setCustomId(`submit|reminder|${submission.id}`)
+          .setLabel("Set reminder")
+          .setStyle(ButtonStyle.Primary),
+      );
+    }
+
     components = [{
       type: ComponentType.ActionRow,
-      components: [{
-        type: ComponentType.Button,
-        customId: `submit|approve|${submission.id}`,
-        label: `Approve ${submission.points} points`,
-        style: ButtonStyle.Success,
-      }, {
-        type: ComponentType.Button,
-        customId: `submit|reject|${submission.id}`,
-        label: "Reject",
-        style: ButtonStyle.Secondary,
-      }, {
-        type: ComponentType.Button,
-        customId: `submit|cancel|${submission.id}`,
-        label: "Cancel",
-        style: ButtonStyle.Secondary,
-      }],
+      components: buttons,
     }];
-  } else if (
-    submission.status === "APPROVED" &&
-    submission.submissionType === SUBMISSION_TYPES.NEW &&
-    submission.reminderAt === null
-  ) {
+  } else if (canSetSubmissionReminder(submission)) {
     components = [{
       type: ComponentType.ActionRow,
       components: [{
