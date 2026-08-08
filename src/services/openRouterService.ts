@@ -41,6 +41,7 @@ async function generateOpenRouterContent(
 
   const payload = await client.chat.send({ chatRequest, httpReferer: "https://schnabel.dev", appTitle: "Hogwarts Productivity Hub Bot" });
   log.debug("OpenRouter response", { payload });
+  assert("choices" in payload, "OpenRouter response is missing choices", { payload });
   const choice = payload.choices[0];
   if (!choice) {
     log.warn("OpenRouter returned no choices", { payload });

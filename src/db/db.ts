@@ -1,4 +1,4 @@
-import { drizzle, type NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
+import { drizzle, NodePgDatabase, type NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 import * as schema from "./schema.ts";
 import type { GuildMember } from "discord.js";
 import {
@@ -23,6 +23,7 @@ import dayjs from "dayjs";
 import { MIN_MONTHLY_POINTS_FOR_WEIGHTED, SETTINGS_KEYS } from "../common/constants.ts";
 import type { CountingState, House, HousePoints } from "@/common/types.ts";
 import { createLogger } from "@/common/logging/logger.ts";
+import type { Pool } from "pg";
 
 type Schema = typeof schema;
 
@@ -81,7 +82,9 @@ class MyLogger implements Logger {
   }
 }
 
-export const db = drizzle({
+export const db: NodePgDatabase<typeof schema> & {
+    $client: Pool;
+} = drizzle({
   connection: {
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
