@@ -52,6 +52,6 @@ describe("submission reminder button", () => {
 });
 
 function getButtonIds(components: unknown): string[] {
-  const rows = components as Array<{ components: Array<{ toJSON(): { custom_id: string } }> }>;
+  const rows = components as { components: { toJSON(): { custom_id: string } }[] }[];
   return rows[0]?.components.map((button) => button.toJSON().custom_id) ?? [];
 }

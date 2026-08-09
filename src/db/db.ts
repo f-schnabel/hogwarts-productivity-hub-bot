@@ -83,7 +83,7 @@ class MyLogger implements Logger {
 }
 
 export const db: NodePgDatabase<typeof schema> & {
-    $client: Pool;
+  $client: Pool;
 } = drizzle({
   connection: {
     database: process.env.DB_NAME,
