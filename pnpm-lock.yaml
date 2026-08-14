@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@openrouter/sdk':
-        specifier: ^1.2.17
-        version: 1.2.17
+        specifier: ^1.2.22
+        version: 1.2.22
       '@vvo/tzdb':
         specifier: ^6.198.0
         version: 6.198.0
@@ -716,8 +716,8 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@openrouter/sdk@1.2.17':
-    resolution: {integrity: sha512-aIeA/LKfXDDUFRJKFWR/h5O2JS6FchY7E5qPpW+UVien40rSegohvgoal+yXlg9rNDYW8+X+8Dc2VDWWnKfp2A==}
+  '@openrouter/sdk@1.2.22':
+    resolution: {integrity: sha512-G3zA8hVswmqa6wVaMLgY5pWMCj5nNmcqTIpyt23uNR12jVLzC8d0IxrM67avSutaLc3ERrFYhgtqzg0fbeoYwA==}
 
   '@opentelemetry/api@1.9.1':
     resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
@@ -3006,7 +3006,7 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
 
-  '@openrouter/sdk@1.2.17':
+  '@openrouter/sdk@1.2.22':
     dependencies:
       zod: 4.4.3
 
