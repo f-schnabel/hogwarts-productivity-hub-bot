@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import {
   calculateVoiceSessionPointUpdatesForLocalDay,
   parseVoiceSessionEndTime,
+  resolveVoiceSessionEndTime,
 } from "@/discord/core/voiceSessionCorrection.ts";
 
 describe("parseVoiceSessionEndTime", () => {
@@ -20,6 +21,20 @@ describe("parseVoiceSessionEndTime", () => {
     expect(parseVoiceSessionEndTime("7:30", localDay)).toBeNull();
     expect(parseVoiceSessionEndTime("24:00", localDay)).toBeNull();
     expect(parseVoiceSessionEndTime("23:60", localDay)).toBeNull();
+  });
+});
+
+describe("resolveVoiceSessionEndTime", () => {
+  it("uses the exact join timestamp when the end minute matches the start minute", () => {
+    const joinedAt = dayjs.tz("2026-05-17 10:42:37", "YYYY-MM-DD HH:mm:ss", "Europe/Berlin");
+
+    expect(resolveVoiceSessionEndTime("10:42", joinedAt)?.toISOString()).toBe(joinedAt.toISOString());
+  });
+
+  it("uses the start of the requested minute when it differs from the start minute", () => {
+    const joinedAt = dayjs.tz("2026-05-17 10:42:37", "YYYY-MM-DD HH:mm:ss", "Europe/Berlin");
+
+    expect(resolveVoiceSessionEndTime("10:43", joinedAt)?.toISOString()).toBe("2026-05-17T08:43:00.000Z");
   });
 });
 

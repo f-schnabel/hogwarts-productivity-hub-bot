@@ -21,6 +21,15 @@ export function parseVoiceSessionEndTime(value: string, localDay: dayjs.Dayjs): 
   return localDay.hour(Number(hour)).minute(Number(minute)).second(0).millisecond(0).toDate();
 }
 
+export function resolveVoiceSessionEndTime(value: string, localJoinedAt: dayjs.Dayjs): Date | null {
+  const parsedEndTime = parseVoiceSessionEndTime(value, localJoinedAt.startOf("day"));
+  if (!parsedEndTime) return null;
+
+  // The command only accepts minutes, while joinedAt can include seconds.
+  // Treat the same displayed minute as an explicitly excluded, zero-duration session.
+  return value === localJoinedAt.format("HH:mm") ? localJoinedAt.toDate() : parsedEndTime;
+}
+
 export function calculateVoiceSessionPointUpdatesForLocalDay(
   sessions: VoiceSessionPointInput[],
 ): VoiceSessionPointUpdate[] {

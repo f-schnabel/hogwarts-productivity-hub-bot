@@ -12,7 +12,7 @@ import {
 import { awardPoints } from "@/discord/core/points.ts";
 import {
   calculateVoiceSessionPointUpdatesForLocalDay,
-  parseVoiceSessionEndTime,
+  resolveVoiceSessionEndTime,
 } from "@/discord/core/voiceSessionCorrection.ts";
 import { errorReply, formatDuration, inGuild } from "@/discord/utils/interaction.ts";
 import { wrapWithAlerting } from "@/discord/utils/alerting.ts";
@@ -399,15 +399,16 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
     return;
   }
 
-  const oldLocalDay = dayjs(oldSession.joinedAt).tz(dbUser.timezone).startOf("day");
+  const oldLocalJoinedAt = dayjs(oldSession.joinedAt).tz(dbUser.timezone);
+  const oldLocalDay = oldLocalJoinedAt.startOf("day");
 
-  const correctedEndTime = parseVoiceSessionEndTime(endTimeInput, oldLocalDay);
+  const correctedEndTime = resolveVoiceSessionEndTime(endTimeInput, oldLocalJoinedAt);
   if (!correctedEndTime) {
     await errorReply(interaction, "Invalid End Time", "Use a valid local time in `HH:mm` format.", { deferred: true });
     return;
   }
-  if (correctedEndTime <= oldSession.joinedAt) {
-    await errorReply(interaction, "Invalid End Time", "The corrected end time must be after the session start.", { deferred: true });
+  if (correctedEndTime < oldSession.joinedAt) {
+    await errorReply(interaction, "Invalid End Time", "The corrected end time cannot be before the session start.", { deferred: true });
     return;
   }
   if (correctedEndTime > new Date()) {
