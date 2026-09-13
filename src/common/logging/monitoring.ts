@@ -1,4 +1,4 @@
-import client from "prom-client";
+import client from "@prometheus-io/client";
 import express from "express";
 import { createLogger } from "./logger.ts";
 
