@@ -12,8 +12,8 @@ export function requireRole(interaction: ChatInputCommandInteraction<"cached">, 
   if (!hasAnyRole(interaction.member, roles)) {
     const roleNames: string[] = [];
     if (roles & Role.OWNER)     roleNames.push("OWNER");
-    if (roles & Role.PREFECT)   roleNames.push("PREFECT");
     if (roles & Role.PROFESSOR) roleNames.push("PROFESSOR");
+    if (roles & Role.PREFECT)   roleNames.push("HEADPERSON or PREFECT");
     void errorReply(interaction, "Insufficient Permissions", `Only ${roleNames.join(" or ")} can use this command.`);
     return false;
   }
