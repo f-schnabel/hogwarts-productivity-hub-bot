@@ -53,7 +53,7 @@
     "@types/pg": "^8.23.1",
     "@types/twig": "^1.12.17",
     "@vitest/coverage-v8": "4.1.9",
-    "archunit": "^2.4.0",
+    "archunit": "^2.5.4",
     "drizzle-kit": "^0.31.10",
     "eslint": "^10.10.0",
     "jiti": "^2.7.0",
