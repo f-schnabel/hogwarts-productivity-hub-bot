@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@openrouter/sdk':
-        specifier: ^1.2.119
-        version: 1.2.119
+        specifier: ^1.2.123
+        version: 1.2.123
       '@prometheus-io/client':
         specifier: ^0.16.1
         version: 0.16.1
@@ -731,8 +731,8 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@openrouter/sdk@1.2.119':
-    resolution: {integrity: sha512-HpfsANnkAQqBG9i+TpBQ2ab1zc60Lv/M+IMdQTZf44y+begYds6xSmJEI8SPGjKU+s6Vs4aQ3fuV0MJJUfJtHg==}
+  '@openrouter/sdk@1.2.123':
+    resolution: {integrity: sha512-vZbQyYyCh9dZ0FKex/1kerwdZCEtwMM1m8t76pbUkgtFYKLeN08EOhYedc4COPPEVhCBBYHJ9qzWMrMN8nzYYA==}
 
   '@opentelemetry/api@1.9.1':
     resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
@@ -2641,6 +2641,9 @@ packages:
   zod@4.6.2:
     resolution: {integrity: sha512-lh5RCAGFa1Cm2hjtNwLQhSs/AsqdWnTQaBER9fEwN/88pSh7KOtJavtBx/0VlkN/uFd61SwYmljLMDAsHlvzBQ==}
 
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+
 snapshots:
 
   '@babel/helper-string-parser@7.29.7': {}
@@ -3057,9 +3060,9 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.3
 
-  '@openrouter/sdk@1.2.119':
+  '@openrouter/sdk@1.2.123':
     dependencies:
-      zod: 4.6.2
+      zod: 4.6.5
 
   '@opentelemetry/api@1.9.1': {}
 
@@ -4839,3 +4842,5 @@ snapshots:
   yocto-queue@0.1.0: {}
 
   zod@4.6.2: {}
+
+  zod@4.6.5: {}
