@@ -25,11 +25,11 @@ import {
   userTable,
   voiceSessionTable,
 } from "@/db/schema.ts";
-import { HOUSES, Role } from "@/common/constants.ts";
+import { HOUSES, MIN_MONTHLY_POINTS_FOR_WEIGHTED, Role } from "@/common/constants.ts";
 import { refreshAllYearRoles } from "@/discord/events/voiceStateUpdate/yearRole.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import { updateMember } from "@/discord/utils/updateMember.ts";
-import type { Command, Sums } from "@/common/types.ts";
+import type { Command, House, Sums } from "@/common/types.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../scoreboard/scoreboard.ts";
 import { and, asc, desc, eq, gte, isNull, lt, not } from "drizzle-orm";
 import dayjs from "dayjs";
@@ -38,6 +38,7 @@ import { journalDelete, journalExport, journalImport, journalList, journalSet, j
 import { requireRole } from "@/discord/utils/role.ts";
 import { autocompleteTimezone, setTimezone } from "@/discord/core/timezone.ts";
 import { calculateVoiceIntegritySums, type IntegrityVoiceSession } from "@/discord/core/voiceSessionIntegrity.ts";
+import { calculateHouseWhatIf } from "@/discord/core/houseWhatIf.ts";
 
 const log = createLogger("Admin");
 const ALLOWED_PREFECT_COMMANDS = ["timezone"];
@@ -155,6 +156,20 @@ export default {
         ),
     ).addSubcommand((subcommand) =>
       subcommand
+        .setName("what-if-house")
+        .setDescription("Previews the weighted scoreboard after moving a user to another house")
+        .addUserOption((option) =>
+          option.setName("user").setDescription("The user to hypothetically move").setRequired(true),
+        )
+        .addStringOption((option) =>
+          option
+            .setName("house")
+            .setDescription("The user's hypothetical new house")
+            .setRequired(true)
+            .addChoices(...HOUSES.map((house) => ({ name: house, value: house }))),
+        ),
+    ).addSubcommand((subcommand) =>
+      subcommand
         .setName("timezone")
         .setDescription("Set someone's timezone for accurate daily/monthly resets")
         .addUserOption((option) =>
@@ -223,6 +238,9 @@ export default {
         break;
       case "counting-set":
         await countingSet(interaction);
+        break;
+      case "what-if-house":
+        await whatIfHouse(interaction);
         break;
       case "timezone": {
         const user = interaction.options.getUser("user", true);
@@ -372,6 +390,54 @@ async function countingSet(interaction: ChatInputCommandInteraction<"cached">) {
 
   log.info("Counting value set", { count, userId: interaction.user.id });
   await interaction.editReply(`Current counting value set to ${count}.`);
+}
+
+async function whatIfHouse(interaction: ChatInputCommandInteraction<"cached">) {
+  const discordUser = interaction.options.getUser("user", true);
+  const targetHouse = interaction.options.getString("house", true) as House;
+  const users = await db
+    .select({
+      discordId: userTable.discordId,
+      house: userTable.house,
+      monthlyPoints: userTable.monthlyPoints,
+    })
+    .from(userTable);
+  const user = users.find((candidate) => candidate.discordId === discordUser.id);
+
+  if (!user) {
+    await errorReply(interaction, "User Not Found", `${discordUser.tag} does not exist in the bot database.`, {
+      deferred: true,
+    });
+    return;
+  }
+  if (user.house === targetHouse) {
+    await errorReply(interaction, "Same House", `${discordUser.tag} is already in ${targetHouse}.`, { deferred: true });
+    return;
+  }
+
+  const rows = calculateHouseWhatIf(users, user.discordId, targetHouse);
+  const table = rows.map((row, index) => {
+    const delta = row.projectedPoints - row.currentPoints;
+    const deltaText = delta === 0 ? "-" : `${delta > 0 ? "+" : ""}${delta}`;
+    return (
+      `${String(index + 1).padStart(1)}  ${row.house.padEnd(10)} ` +
+      `${String(row.projectedPoints).padStart(5)} ${deltaText.padStart(7)} ` +
+      String(row.projectedMemberCount).padStart(10)
+    );
+  });
+  const oldHouse = user.house ?? "No house";
+  const qualification = user.monthlyPoints >= MIN_MONTHLY_POINTS_FOR_WEIGHTED
+    ? "qualifies for weighting"
+    : "does not qualify for weighting";
+
+  await interaction.editReply(
+    `**What if ${discordUser.tag} moved from ${oldHouse} to ${targetHouse}?**\n` +
+    `${user.monthlyPoints} monthly points · ${qualification}\n\n` +
+    "**Projected weighted scoreboard**\n" +
+    "```\n#  House      Score  Change Qualifiers\n" +
+    `${table.join("\n")}\n` +
+    "```\nNo data was changed.",
+  );
 }
 
 async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached">) {
