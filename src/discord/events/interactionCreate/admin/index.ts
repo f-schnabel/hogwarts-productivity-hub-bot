@@ -25,7 +25,7 @@ import {
   userTable,
   voiceSessionTable,
 } from "@/db/schema.ts";
-import { HOUSES, MIN_MONTHLY_POINTS_FOR_WEIGHTED, Role } from "@/common/constants.ts";
+import { HOUSES, Role } from "@/common/constants.ts";
 import { refreshAllYearRoles } from "@/discord/events/voiceStateUpdate/yearRole.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import { updateMember } from "@/discord/utils/updateMember.ts";
@@ -416,27 +416,14 @@ async function whatIfHouse(interaction: ChatInputCommandInteraction<"cached">) {
   }
 
   const rows = calculateHouseWhatIf(users, user.discordId, targetHouse);
-  const table = rows.map((row, index) => {
-    const delta = row.projectedPoints - row.currentPoints;
-    const deltaText = delta === 0 ? "-" : `${delta > 0 ? "+" : ""}${delta}`;
-    return (
-      `${String(index + 1).padStart(1)}  ${row.house.padEnd(10)} ` +
-      `${String(row.projectedPoints).padStart(5)} ${deltaText.padStart(7)} ` +
-      String(row.projectedMemberCount).padStart(10)
-    );
-  });
+  const table = rows.map((row, index) =>
+    `${index + 1}. ${row.house.padEnd(10)} ${row.projectedPoints}`,
+  );
   const oldHouse = user.house ?? "No house";
-  const qualification = user.monthlyPoints >= MIN_MONTHLY_POINTS_FOR_WEIGHTED
-    ? "qualifies for weighting"
-    : "does not qualify for weighting";
 
   await interaction.editReply(
-    `**What if ${discordUser.tag} moved from ${oldHouse} to ${targetHouse}?**\n` +
-    `${user.monthlyPoints} monthly points · ${qualification}\n\n` +
-    "**Projected weighted scoreboard**\n" +
-    "```\n#  House      Score  Change Qualifiers\n" +
-    `${table.join("\n")}\n` +
-    "```\nNo data was changed.",
+    `**${discordUser.tag}: ${oldHouse} → ${targetHouse}**\n` +
+    `\`\`\`\n${table.join("\n")}\n\`\`\``,
   );
 }
 
