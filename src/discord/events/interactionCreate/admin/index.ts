@@ -496,8 +496,8 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
           eq(voiceSessionTable.discordId, user.id),
           eq(voiceSessionTable.isTracked, true),
           not(isNull(voiceSessionTable.leftAt)),
-          gte(voiceSessionTable.leftAt, oldLocalDay.toDate()),
-          lt(voiceSessionTable.leftAt, oldLocalDay.add(1, "day").toDate()),
+          gte(voiceSessionTable.joinedAt, oldLocalDay.toDate()),
+          lt(voiceSessionTable.joinedAt, oldLocalDay.add(1, "day").toDate()),
         ),
       )
       .orderBy(asc(voiceSessionTable.joinedAt));
@@ -519,6 +519,7 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
 
   const { users, expectedMap } = await computeExpectedValues();
   const fixed = await applyExpectedValues(users.filter((candidate) => candidate.discordId === user.id), expectedMap);
+  const aggregateTotalPoints = expectedMap.get(user.id)?.totalPoints ?? dbUser.totalPoints;
   await updateScoreboardMessages(await getHousepointMessages(db, await db.select().from(houseScoreboardTable)));
 
   const oldEnd = dayjs(oldSession.leftAt).tz(dbUser.timezone).format("HH:mm");
@@ -533,6 +534,8 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
     newDuration: updatedSession.duration,
     oldPoints: oldSession.points,
     newPoints: updatedSession.points,
+    oldAggregateTotalPoints: dbUser.totalPoints,
+    newAggregateTotalPoints: aggregateTotalPoints,
     aggregateUsersFixed: fixed,
     adjustedBy: interaction.user.id,
   });
@@ -542,7 +545,7 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
     `End: ${oldEnd} -> ${newEnd}\n` +
     `Duration: ${formatDuration(oldSession.duration ?? 0)} -> ${formatDuration(updatedSession.duration ?? 0)}\n` +
     `Session points: ${oldSession.points ?? 0} -> ${updatedSession.points ?? 0}\n` +
-    `Aggregate totals ${fixed > 0 ? "were recalculated." : "were already correct."}`,
+    `Aggregate total points: ${dbUser.totalPoints} -> ${aggregateTotalPoints}`,
   );
 }
 

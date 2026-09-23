@@ -61,4 +61,28 @@ describe("calculateVoiceSessionPointUpdatesForLocalDay", () => {
       { id: 1, points: 7 },
     ]);
   });
+
+  it("repairs point allocation after a midnight-boundary session was included", () => {
+    const updates = calculateVoiceSessionPointUpdatesForLocalDay(
+      [
+        {
+          id: 2,
+          joinedAt: new Date("2026-09-22T18:30:00.000Z"),
+          duration: 20 * 60 + 48,
+          points: 2,
+        },
+        {
+          id: 3,
+          joinedAt: new Date("2026-09-23T07:50:30.000Z"),
+          duration: 3 * 60 * 60 + 5 * 60 + 30,
+          points: 6,
+        },
+      ],
+    );
+
+    expect(updates).toEqual([
+      { id: 2, points: 0 },
+      { id: 3, points: 9 },
+    ]);
+  });
 });
