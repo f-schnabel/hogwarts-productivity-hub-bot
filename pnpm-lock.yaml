@@ -79,8 +79,8 @@ importers:
         specifier: 4.1.9
         version: 4.1.9(vitest@4.1.11)
       archunit:
-        specifier: ^2.4.0
-        version: 2.4.0
+        specifier: ^2.5.4
+        version: 2.5.4
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
@@ -1297,8 +1297,8 @@ packages:
     resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
     engines: {node: '>=8'}
 
-  archunit@2.4.0:
-    resolution: {integrity: sha512-F0Q5djFrz/hr0B8xKRmTvhqPN6sLa7Glon01ou9vXoSWwBVW2HBj6zSu/IidjVEnKrzt+NFAUvQK5VfQlbgprw==}
+  archunit@2.5.4:
+    resolution: {integrity: sha512-RiHvwHovO/Ey/sVSXsie/20Y+Ck0MDOqXKZwpRj1VY0A701tMnPwEIWTLFLeuNYpgEZ2DNbjRhWJqC3B5neXGA==}
     engines: {node: '>=14.0.0', npm: '>=6.0.0'}
 
   assertion-error@2.0.1:
@@ -3524,7 +3524,7 @@ snapshots:
     dependencies:
       color-convert: 2.0.1
 
-  archunit@2.4.0:
+  archunit@2.5.4:
     dependencies:
       '@zerollup/ts-helpers': 1.7.18(typescript@5.9.3)
       minimatch: 10.2.6
