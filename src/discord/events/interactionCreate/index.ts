@@ -9,7 +9,7 @@ import {
 import { commands } from "@/discord/commands.ts";
 import assert from "node:assert/strict";
 import { ensureUserExists } from "@/db/db.ts";
-import { alertOwner } from "@/discord/utils/alerting.ts";
+import { sendAlert } from "@/discord/utils/alerting.ts";
 import { interactionExecutionTimer } from "@/common/logging/monitoring.ts";
 import { createLogger, type Ctx } from "@/common/logging/logger.ts";
 
@@ -59,7 +59,7 @@ export async function execute(interaction: Interaction): Promise<void> {
     }
   } catch (error) {
     log.error("Execution failed", ctx, error);
-    await alertOwner(
+    await sendAlert(
       `💥 Command execution failed: /${interaction.commandName} isAutocomplete=${interaction.isAutocomplete()}\n${error instanceof Error ? error : "Unknown error"}`,
     );
     if (interaction.isAutocomplete()) return;

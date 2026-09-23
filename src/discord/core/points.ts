@@ -2,7 +2,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { db as globalDb, getMonthStartDate, type DbOrTx } from "@/db/db.ts";
 import { houseScoreboardTable, userTable } from "@/db/schema.ts";
 import { getHousepointMessages, updateScoreboardMessages } from "../events/interactionCreate/scoreboard/scoreboard.ts";
-import { alertOwner } from "@/discord/utils/alerting.ts";
+import { sendAlert } from "@/discord/utils/alerting.ts";
 import type { House } from "@/common/types.ts";
 import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "@/common/constants.ts";
 
@@ -54,7 +54,7 @@ async function refreshHouseScoreboards(db: DbOrTx, house: House | null | undefin
   // fire-and-forget: don't block transaction on Discord API calls
   void updateScoreboardMessages(await getHousepointMessages(db, scoreboards)).then(async (brokenIds) => {
     if (brokenIds.length > 0) {
-      await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries for ${house}.`);
+      await sendAlert(`Removed ${brokenIds.length} broken scoreboard entries for ${house}.`);
       await globalDb.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
     }
   });

@@ -27,7 +27,7 @@ import * as MessageCreate from "@/discord/events/messageCreate/index.ts";
 import * as MessageReactionAdd from "@/discord/events/messageReactionAdd/index.ts";
 import * as GuildMemberAdd from "@/discord/events/guildMemberAdd/index.ts";
 import * as GuildMemberRemove from "@/discord/events/guildMemberRemove/index.ts";
-import { alertOwner } from "@/discord/utils/alerting.ts";
+import { sendAlert } from "@/discord/utils/alerting.ts";
 import { interactionExecutionTimer, resetExecutionTimer, voiceSessionExecutionTimer } from "@/common/logging/monitoring.ts";
 import { commands } from "@/discord/commands.ts";
 import { promisify } from "node:util";
@@ -66,7 +66,7 @@ function registerEvents(client: Client) {
   client.on(Events.Warn, (info) => log.warn(info));
   client.on(Events.Error, (error) => {
     log.error("Client error event", undefined, error);
-    void alertOwner(`Client error event: ${error}`);
+    void sendAlert(`Client error event: ${error}`);
   });
 }
 
@@ -94,9 +94,9 @@ function registerShutdownHandlers() {
   process.on("SIGINT", () => void shutdown("SIGINT"));
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
-  process.on("uncaughtException", (error) => void alertOwner(`Uncaught Exception: ${error}`));
+  process.on("uncaughtException", (error) => void sendAlert(`Uncaught Exception: ${error}`));
   process.on("unhandledRejection", (reason) => {
-    void alertOwner(`Unhandled Rejection, reason: ${reason instanceof Error ? reason : "Unknown Error"}`);
+    void sendAlert(`Unhandled Rejection, reason: ${reason instanceof Error ? reason : "Unknown Error"}`);
   });
 }
 

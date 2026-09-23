@@ -24,7 +24,7 @@ import { submissionTable } from "@/db/schema.ts";
 import { and, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_TYPES } from "@/common/constants.ts";
 import type { Command, SubmissionType } from "@/common/types.ts";
-import { alertOwner } from "../../../utils/alerting.ts";
+import { sendAlert } from "../../../utils/alerting.ts";
 import { getSubmissionTypeLabel, submissionMessage } from "./submissionMessage.ts";
 import {
   canSetSubmissionReminder,
@@ -214,7 +214,7 @@ export default {
         }
       } catch (error) {
         // If we can't update the linked message, continue silently
-        await alertOwner(
+        await sendAlert(
           `Failed to update linked submission message for submission ID ${linkedSubmission.id} error: ${error instanceof Error ? error.message : "Unknown Error"}`,
         );
       }
@@ -471,7 +471,7 @@ async function refreshSubmissionMessage(
     const message = await channel.messages.fetch(submission.messageId);
     await message.edit(await submissionMessage({ submission, userTimezone, linkedSubmission }));
   } catch (error) {
-    await alertOwner(
+    await sendAlert(
       `Failed to refresh reminder button for submission ID ${submission.id} error: ${error instanceof Error ? error.message : "Unknown Error"}`,
     );
   }

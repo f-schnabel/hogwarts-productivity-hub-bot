@@ -72,7 +72,7 @@ Each command exports:
 
 **Discord Utils** (in `src/discord/utils/`):
 
-- `alerting.ts` - Error alerting to bot owner
+- `alerting.ts` - Operational alerts to a configured Discord channel
 - `interaction.ts` - Shared interaction formatting and replies
 - `updateMember.ts` - Nickname and role updates
 
@@ -155,8 +155,8 @@ Each command exports:
 
 **Error Handling**:
 
-- `src/discord/utils/alerting.ts` - Alert bot owner on critical errors
-- Uncaught exceptions/rejections sent to owner via DM
+- `src/discord/utils/alerting.ts` - Send critical error and deployment alerts to the configured channel
+- Uncaught exceptions/rejections sent to the alert channel
 - Graceful shutdown closes voice sessions before exit
 
 ### Environment Variables
@@ -167,7 +167,8 @@ Required in `.env` (see `.env.example`):
 - `CLIENT_ID` - Application ID
 - `GUILD_ID` - Discord server ID
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` - PostgreSQL credentials
-- `OWNER_ID` - Discord user ID for error alerts
+- `OWNER_ID` - Discord user ID used for owner permissions
+- `ALERT_CHANNEL_ID` - Channel for operational error and deployment alerts
 - `GRYFFINDOR_ROLE_ID`, `SLYTHERIN_ROLE_ID`, `HUFFLEPUFF_ROLE_ID`, `RAVENCLAW_ROLE_ID` - House roles
 - `PREFECT_ROLE_IDS` - Comma-separated prefect role IDs
 - `PROFESSOR_ROLE_ID` - Professor role

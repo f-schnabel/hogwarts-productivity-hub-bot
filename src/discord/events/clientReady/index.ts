@@ -2,7 +2,7 @@ import type { Client, Guild } from "discord.js";
 import dayjs from "dayjs";
 import { commands } from "@/discord/commands.ts";
 import * as VoiceStateScanner from "@/discord/events/clientReady/voiceStateScanner.ts";
-import { alertOwner } from "@/discord/utils/alerting.ts";
+import { sendAlert } from "@/discord/utils/alerting.ts";
 import { db, getVCEmoji } from "@/db/db.ts";
 import { houseScoreboardTable, userTable } from "@/db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
@@ -45,7 +45,7 @@ export async function execute(c: Client<true>): Promise<void> {
     process.exit(1);
   }
   log.info("Bot ready");
-  await alertOwner("Bot deployed successfully.");
+  await sendAlert("Bot deployed successfully.");
 }
 
 // Warm recent submission messages into cache so reaction-based reopen works without partials.
@@ -98,7 +98,7 @@ async function logDbUserRetention(): Promise<{ staleUserIds: string[]; totalDbUs
 
   // If less than 100 users found, alert and skip deletion (likely guild cache is broken)
   if (foundCount < MIN_USERS_FOR_SAFE_DELETION) {
-    await alertOwner(
+    await sendAlert(
       `Aborting stale user deletion: only ${foundCount}/${dbUsers.length} (${percentage}%) users found in guild cache.`,
     );
     return { staleUserIds: [], totalDbUsers: dbUsers.length };
@@ -121,7 +121,7 @@ async function deleteStaleUsers(staleUserIds: string[], totalDbUsers: number) {
       stale: staleUserIds.length,
       total: totalDbUsers,
     });
-    await alertOwner(`Skipped stale user deletion: ${staleUserIds.length}/${totalDbUsers} users stale (>50%)`);
+    await sendAlert(`Skipped stale user deletion: ${staleUserIds.length}/${totalDbUsers} users stale (>50%)`);
     return;
   }
 
@@ -138,7 +138,7 @@ async function refreshScoreboardMessages() {
 
   if (brokenIds.length > 0) {
     await db.delete(houseScoreboardTable).where(inArray(houseScoreboardTable.id, brokenIds));
-    await alertOwner(`Removed ${brokenIds.length} broken scoreboard entries on startup.`);
+    await sendAlert(`Removed ${brokenIds.length} broken scoreboard entries on startup.`);
   }
   log.info("Scoreboards refreshed", {
     refreshed: scoreboards.length - brokenIds.length,
@@ -201,7 +201,7 @@ async function resetVCEmojisAndRoles(c: Client<true>) {
   const guild = getGuild();
   const role = guild.roles.cache.get(process.env.VC_ROLE_ID);
   if (!role) {
-    await alertOwner("VC role not found: " + process.env.VC_ROLE_ID);
+    await sendAlert("VC role not found: " + process.env.VC_ROLE_ID);
     return;
   }
 

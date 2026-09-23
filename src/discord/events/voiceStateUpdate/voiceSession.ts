@@ -5,7 +5,7 @@ import type { VoiceSession } from "@/common/types.ts";
 import assert from "node:assert/strict";
 import { createLogger } from "@/common/logging/logger.ts";
 import { formatDuration } from "@/discord/utils/interaction.ts";
-import { alertOwner } from "@/discord/utils/alerting.ts";
+import { sendAlert } from "@/discord/utils/alerting.ts";
 import { awardPoints, calculatePoints, reversePoints } from "@/discord/core/points.ts";
 import { oneLine } from "common-tags";
 import { VOICE_SESSION_RESUME_WINDOW_MS } from "@/common/constants.ts";
@@ -39,7 +39,7 @@ export async function startVoiceSession(
 
     if (existingVoiceSessions.length > 0) {
       log.warn("Existing session found, closing first", { ...ctx, existingSessions: existingVoiceSessions.length });
-      await alertOwner(
+      await sendAlert(
         oneLine`
         Existing voice session(s) found
         when starting new voice session for user ${username} (${discordId})
@@ -139,7 +139,7 @@ export async function updateVoiceSessionChannel(
         found: existingVoiceSessions.length,
         expected: 1,
       });
-      await alertOwner(
+      await sendAlert(
         oneLine`
         Unexpected session count when switching voice channels
         for user ${oldSession.username} (${oldSession.discordId}).
@@ -220,7 +220,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, endedAt
       .for("no key update");
     if (existingVoiceSession.length !== 1) {
       log.error("Unexpected session count", { ...ctx, found: existingVoiceSession.length, expected: 1 });
-      await alertOwner(
+      await sendAlert(
         oneLine`
         Unexpected session count when ending voice session
         for user ${session.username} (${session.discordId})

@@ -6,6 +6,7 @@ export declare global {
       DB_PASSWORD: string;
       DB_HOST: string;
       OWNER_ID: string;
+      ALERT_CHANNEL_ID: string;
       GRYFFINDOR_ROLE_ID: string;
       SLYTHERIN_ROLE_ID: string;
       HUFFLEPUFF_ROLE_ID: string;
