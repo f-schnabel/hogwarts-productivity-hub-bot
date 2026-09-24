@@ -416,9 +416,12 @@ async function whatIfHouse(interaction: ChatInputCommandInteraction<"cached">) {
   }
 
   const rows = calculateHouseWhatIf(users, user.discordId, targetHouse);
-  const table = rows.map((row, index) =>
-    `${index + 1}. ${row.house.padEnd(10)} ${row.projectedPoints}`,
-  );
+  const pointsWidth = Math.max(...rows.map((row) => String(row.projectedPoints).length));
+  const table = rows.map((row, index) => {
+    const diff = row.projectedPoints - row.currentPoints;
+    const diffText = diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "±0";
+    return `${index + 1}. ${row.house.padEnd(10)} ${String(row.projectedPoints).padStart(pointsWidth)} (${diffText})`;
+  });
   const oldHouse = user.house ?? "No house";
 
   await interaction.editReply(
