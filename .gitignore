@@ -60,3 +60,6 @@ nul
 /config/app/hogwarts-bot.service
 .codex
 target
+
+# Last commit announced in the alert channel on startup
+.last-deployed-commit

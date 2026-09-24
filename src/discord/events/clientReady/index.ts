@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import { commands } from "@/discord/commands.ts";
 import * as VoiceStateScanner from "@/discord/events/clientReady/voiceStateScanner.ts";
 import { sendAlert } from "@/discord/utils/alerting.ts";
+import { formatDeploymentMessage, getDeploymentInfo, saveDeployedCommit } from "@/common/deployment.ts";
 import { db, getVCEmoji } from "@/db/db.ts";
 import { houseScoreboardTable, userTable } from "@/db/schema.ts";
 import { gt, inArray } from "drizzle-orm";
@@ -45,7 +46,9 @@ export async function execute(c: Client<true>): Promise<void> {
     process.exit(1);
   }
   log.info("Bot ready");
-  await sendAlert("Bot deployed successfully.");
+  const deployment = await getDeploymentInfo();
+  await sendAlert(formatDeploymentMessage(deployment));
+  if (deployment) await saveDeployedCommit(deployment.head);
 }
 
 // Warm recent submission messages into cache so reaction-based reopen works without partials.

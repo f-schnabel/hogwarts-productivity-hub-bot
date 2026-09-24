@@ -157,6 +157,7 @@ Each command exports:
 
 - `src/discord/utils/alerting.ts` - Send critical error and deployment alerts to the configured channel
 - Uncaught exceptions/rejections sent to the alert channel
+- `src/common/deployment.ts` - On startup, posts commit summaries since the last announced commit (stored in gitignored `.last-deployed-commit`)
 - Graceful shutdown closes voice sessions before exit
 
 ### Environment Variables
