@@ -13,7 +13,7 @@ describe("sendAlert", () => {
     await sendAlert("Bot deployed successfully.");
 
     expect(fetchChannel).toHaveBeenCalledWith("alert-channel-id");
-    expect(send).toHaveBeenCalledWith("Bot deployed successfully.");
+    expect(send).toHaveBeenCalledWith({ content: "Bot deployed successfully.", allowedMentions: { parse: [] } });
   });
 
   it("rejects a missing or unsendable alert channel", async () => {

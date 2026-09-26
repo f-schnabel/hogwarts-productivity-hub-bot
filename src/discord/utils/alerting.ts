@@ -9,7 +9,8 @@ export async function sendAlert(message: string): Promise<void> {
     throw new Error(`Alert channel ${process.env.ALERT_CHANNEL_ID} was not found or cannot receive messages.`);
   }
 
-  await channel.send(message);
+  // Render mentions without pinging anyone
+  await channel.send({ content: message, allowedMentions: { parse: [] } });
   log.info("Alert sent", { channelId: process.env.ALERT_CHANNEL_ID, message });
 }
 

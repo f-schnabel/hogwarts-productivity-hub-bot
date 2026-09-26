@@ -15,6 +15,59 @@ const EXCLUDE_VOICE_CHANNEL_IDS = process.env.EXCLUDE_VOICE_CHANNEL_IDS?.split("
 
 export type VoiceSessionStartMode = "new" | "resume-recent";
 
+interface SessionSummary {
+  id: number;
+  channelName: string;
+  channelId: string;
+  joinedAt: Date;
+  leftAt: Date | null;
+  isTracked: boolean;
+}
+
+// Discord renders <t:unix:R> as a relative time ("5 minutes ago")
+const relativeTime = (date: Date) => `<t:${Math.floor(date.getTime() / 1000)}:R>`;
+
+function describeSession(s: SessionSummary) {
+  const opened = `\`#${s.id}\` **${s.channelName}**, joined ${relativeTime(s.joinedAt)}`;
+  if (s.leftAt === null) return `${opened}, still open`;
+  return `${opened}, closed ${relativeTime(s.leftAt)} (${s.isTracked ? "tracked" : "untracked"})`;
+}
+
+/** Explain why the expected single open session in `channelId` was not found, as Discord markdown */
+async function diagnoseSessionMismatch(db: DbOrTx, discordId: string, channelId: string) {
+  const recent = await db
+    .select({
+      id: voiceSessionTable.id,
+      channelName: voiceSessionTable.channelName,
+      channelId: voiceSessionTable.channelId,
+      joinedAt: voiceSessionTable.joinedAt,
+      leftAt: voiceSessionTable.leftAt,
+      isTracked: voiceSessionTable.isTracked,
+    })
+    .from(voiceSessionTable)
+    .where(eq(voiceSessionTable.discordId, discordId))
+    .orderBy(desc(voiceSessionTable.joinedAt))
+    .limit(5);
+
+  const open = recent.filter((s) => s.leftAt === null);
+  const openHere = open.filter((s) => s.channelId === channelId || s.channelId === "unknown");
+  const openElsewhere = open.filter((s) => !openHere.includes(s));
+
+  let cause: string;
+  if (openHere.length > 1) {
+    cause = "Multiple open sessions in this channel (duplicate join event?)";
+  } else if (openElsewhere.length > 0) {
+    cause = "Open session is in a different channel (missed channel switch?)";
+  } else if (recent.length > 0) {
+    cause = "No open session (join missed while bot offline, or already closed by reset/shutdown/earlier leave?)";
+  } else {
+    cause = "User has no voice sessions at all (join never recorded)";
+  }
+
+  const sessions = recent.length > 0 ? recent.map((s) => `- ${describeSession(s)}`).join("\n") : "- none";
+  return `**Likely cause:** ${cause}\n**Recent sessions:**\n${sessions}`;
+}
+
 // Start a voice session when user joins VC (timezone-aware)
 export async function startVoiceSession(
   session: VoiceSession,
@@ -132,18 +185,23 @@ export async function updateVoiceSessionChannel(
       .for("no key update");
 
     if (existingVoiceSessions.length !== 1) {
+      const diagnosis = await diagnoseSessionMismatch(db, oldSession.discordId, oldSession.channelId ?? "unknown");
       log.error("Unexpected session count during channel switch", {
         userId: oldSession.discordId,
         from: oldSession.channelName,
         to: newSession.channelName,
         found: existingVoiceSessions.length,
         expected: 1,
+        diagnosis,
       });
       await sendAlert(
-        oneLine`
-        Unexpected session count when switching voice channels
-        for user ${oldSession.username} (${oldSession.discordId}).
-        Found ${existingVoiceSessions.length}, expected 1.`,
+        [
+          "### ⚠️ Could not move voice session",
+          oneLine`
+          <@${oldSession.discordId}> switched from **${oldSession.channelName ?? "Unknown"}** to **${newChannelName}**,
+          but ${existingVoiceSessions.length} open sessions were found in the old channel (expected 1).`,
+          diagnosis,
+        ].join("\n"),
       );
       return false;
     }
@@ -219,13 +277,17 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, endedAt
       )
       .for("no key update");
     if (existingVoiceSession.length !== 1) {
-      log.error("Unexpected session count", { ...ctx, found: existingVoiceSession.length, expected: 1 });
+      const diagnosis = await diagnoseSessionMismatch(db, session.discordId, channelId);
+      log.error("Unexpected session count", { ...ctx, found: existingVoiceSession.length, expected: 1, diagnosis });
       await sendAlert(
-        oneLine`
-        Unexpected session count when ending voice session
-        for user ${session.username} (${session.discordId})
-        in channel ${session.channelName ?? "Unknown"} (${channelId}).
-        Found ${existingVoiceSession.length}, expected 1.`,
+        [
+          "### ⚠️ Could not end voice session",
+          oneLine`
+          <@${session.discordId}> left **${session.channelName ?? "Unknown"}**,
+          but ${existingVoiceSession.length} open sessions were found for that channel (expected 1).
+          No points or voice time were awarded.`,
+          diagnosis,
+        ].join("\n"),
       );
       return null;
     }
