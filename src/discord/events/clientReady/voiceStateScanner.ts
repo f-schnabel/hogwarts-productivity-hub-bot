@@ -9,7 +9,7 @@ import { BaseGuildVoiceChannel, ChannelType, Collection, type Guild } from "disc
 import { closeVoiceSessionUntracked, endVoiceSession } from "@/discord/events/voiceStateUpdate/voiceSession.ts";
 import { db, ensureUserExists } from "@/db/db.ts";
 import { voiceSessionTable } from "@/db/schema.ts";
-import { isNull } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { createLogger } from "@/common/logging/logger.ts";
 import { getGuild } from "@/discord/events/clientReady/index.ts";
 import { MAX_SESSION_AGE_MS } from "@/common/constants.ts";
@@ -20,6 +20,7 @@ const log = createLogger("VoiceScan");
 let isScanning = false;
 
 interface OpenSession {
+  id: number;
   discordId: string;
   channelId: string;
   channelName: string;
@@ -69,6 +70,7 @@ export async function scanAndStartTracking() {
   // Fetch all open sessions with their details
   const openSessions = await db
     .select({
+      id: voiceSessionTable.id,
       discordId: voiceSessionTable.discordId,
       channelId: voiceSessionTable.channelId,
       channelName: voiceSessionTable.channelName,
@@ -256,6 +258,19 @@ async function scanVoiceChannel(
           }
 
           if (validSession !== null) {
+            // User may have switched channels while the bot was offline; move the session so leave/switch finds it
+            if (validSession.channelId !== channel.id) {
+              await db
+                .update(voiceSessionTable)
+                .set({ channelId: channel.id, channelName: channel.name })
+                .where(eq(voiceSessionTable.id, validSession.id));
+              log.info("Moved resumed session to current channel", {
+                userId: discordId,
+                user: username,
+                from: validSession.channelName,
+                to: channel.name,
+              });
+            }
             // Valid session found - resume it (keep it open)
             ctx.results.sessionsResumed++;
             usersResumed.push(username);
