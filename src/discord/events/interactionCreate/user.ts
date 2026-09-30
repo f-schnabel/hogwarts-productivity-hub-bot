@@ -257,9 +257,10 @@ async function points(interaction: ChatInputCommandInteraction) {
 
   const activityLines = [...weeklyLines, ...dailyLines].join("\n") || "None";
 
-  // Year progress calculation
-  const currentYear = getYearFromMonthlyVoiceTime(userData.monthlyVoiceTime);
-  const currentHours = userData.monthlyVoiceTime / 3600;
+  // Year progress calculation (includes pending active session time)
+  const monthlyVoiceTimeWithPending = userData.monthlyVoiceTime + activeSessionDuration;
+  const currentYear = getYearFromMonthlyVoiceTime(monthlyVoiceTimeWithPending);
+  const currentHours = monthlyVoiceTimeWithPending / 3600;
   let yearProgressValue: string;
   const width = 20;
 
