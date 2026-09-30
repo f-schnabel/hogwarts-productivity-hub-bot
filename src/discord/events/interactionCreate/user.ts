@@ -261,6 +261,8 @@ async function points(interaction: ChatInputCommandInteraction) {
   const monthlyVoiceTimeWithPending = userData.monthlyVoiceTime + activeSessionDuration;
   const currentYear = getYearFromMonthlyVoiceTime(monthlyVoiceTimeWithPending);
   const currentHours = monthlyVoiceTimeWithPending / 3600;
+  // Display hours like points: floor, with 5 minute grace period
+  const displayHours = Math.floor((monthlyVoiceTimeWithPending + 5 * 60) / 3600);
   let yearProgressValue: string;
   const width = 20;
 
@@ -269,9 +271,9 @@ async function points(interaction: ChatInputCommandInteraction) {
     const progress = Math.min(currentHours / nextThreshold, 1);
     const filled = Math.round(progress * width);
     const bar = "▓".repeat(filled) + "░".repeat(width - filled);
-    yearProgressValue = `**Year 0** (0h - ${nextThreshold}h)\n${bar} ${currentHours.toFixed(0)}/${nextThreshold}h\nNext rank: **Year 1** (${nextThreshold}h - ${YEAR_THRESHOLDS_HOURS[1]}h)`;
+    yearProgressValue = `**Year 0** (0h - ${nextThreshold}h)\n${bar} ${displayHours}/${nextThreshold}h\nNext rank: **Year 1** (${nextThreshold}h - ${YEAR_THRESHOLDS_HOURS[1]}h)`;
   } else if (currentYear === 7) {
-    yearProgressValue = `**Year 7** (${YEAR_THRESHOLDS_HOURS[6]}h+)\n${"▓".repeat(width)} (${currentHours.toFixed(0)}h)\nMaximum rank achieved`;
+    yearProgressValue = `**Year 7** (${YEAR_THRESHOLDS_HOURS[6]}h+)\n${"▓".repeat(width)} (${displayHours}h)\nMaximum rank achieved`;
   } else {
     const nextThreshold = YEAR_THRESHOLDS_HOURS[currentYear];
     const currentThreshold = YEAR_THRESHOLDS_HOURS[currentYear - 1];
@@ -282,7 +284,7 @@ async function points(interaction: ChatInputCommandInteraction) {
     const nextNextThreshold = YEAR_THRESHOLDS_HOURS[currentYear + 1];
     const nextRankRange =
       nextNextThreshold !== undefined ? `${nextThreshold}h - ${nextNextThreshold}h` : `${nextThreshold}h+`;
-    yearProgressValue = `**Year ${currentYear}** (${currentThreshold}h - ${nextThreshold}h)\n${bar} ${currentHours.toFixed(0)}/${nextThreshold}h\nNext rank: **Year ${currentYear + 1}** (${nextRankRange})`;
+    yearProgressValue = `**Year ${currentYear}** (${currentThreshold}h - ${nextThreshold}h)\n${bar} ${displayHours}/${nextThreshold}h\nNext rank: **Year ${currentYear + 1}** (${nextRankRange})`;
   }
 
   await interaction.editReply({
