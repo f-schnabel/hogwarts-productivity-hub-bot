@@ -2,7 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import dayjs from "dayjs";
 import { db, getMonthStartDate } from "@/db/db.ts";
 import { submissionTable, userTable, voiceSessionTable } from "@/db/schema.ts";
-import { and, asc, eq, gte, isNull } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { formatDuration, errorReply, inGuild, splitLinesByLength } from "@/discord/utils/interaction.ts";
 import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "@/common/constants.ts";
 import { getYearFromMonthlyVoiceTime } from "@/discord/core/year.ts";
@@ -63,6 +63,23 @@ export default {
     }
   },
 } as Command;
+
+interface ActivityData {
+  voiceSeconds: number;
+  voicePoints: number;
+  submissionPoints: number;
+  submissionCount: number;
+  /** Voice time earlier on the reset day, before the monthly reset */
+  preResetSeconds: number;
+}
+
+const emptyActivity = (): ActivityData => ({
+  voiceSeconds: 0,
+  voicePoints: 0,
+  submissionPoints: 0,
+  submissionCount: 0,
+  preResetSeconds: 0,
+});
 
 async function time(interaction: ChatInputCommandInteraction) {
   const user = interaction.options.getUser("user", true);
@@ -162,14 +179,11 @@ async function points(interaction: ChatInputCommandInteraction) {
 
   // Group by day in user's timezone
   const tz = userData.timezone;
-  const dailyData = new Map<
-    string,
-    { voiceSeconds: number; voicePoints: number; submissionPoints: number; submissionCount: number }
-  >();
+  const dailyData = new Map<string, ActivityData>();
 
   for (const session of voiceSessions) {
     const day = dayjs(session.joinedAt).tz(tz).format("YYYY-MM-DD");
-    const existing = dailyData.get(day) ?? { voiceSeconds: 0, voicePoints: 0, submissionPoints: 0, submissionCount: 0 };
+    const existing = dailyData.get(day) ?? emptyActivity();
     existing.voiceSeconds += session.duration ?? 0;
     existing.voicePoints += session.points ?? 0;
     dailyData.set(day, existing);
@@ -177,7 +191,7 @@ async function points(interaction: ChatInputCommandInteraction) {
 
   for (const submission of submissions) {
     const day = dayjs(submission.submittedAt).tz(tz).format("YYYY-MM-DD");
-    const existing = dailyData.get(day) ?? { voiceSeconds: 0, voicePoints: 0, submissionPoints: 0, submissionCount: 0 };
+    const existing = dailyData.get(day) ?? emptyActivity();
     existing.submissionPoints += submission.points;
     existing.submissionCount += 1;
     dailyData.set(day, existing);
@@ -186,10 +200,29 @@ async function points(interaction: ChatInputCommandInteraction) {
   // Add active session to daily data (blend in with completed sessions)
   if (activeSession) {
     const day = dayjs(activeSession.joinedAt).tz(tz).format("YYYY-MM-DD");
-    const existing = dailyData.get(day) ?? { voiceSeconds: 0, voicePoints: 0, submissionPoints: 0, submissionCount: 0 };
+    const existing = dailyData.get(day) ?? emptyActivity();
     existing.voiceSeconds += activeSessionDuration;
     existing.voicePoints += activeSessionPoints;
     dailyData.set(day, existing);
+  }
+
+  // Voice time on the reset day from before the reset isn't part of this month,
+  // but points that day were calculated from the whole day's voice time
+  const resetDay = dayjs(startOfMonth).tz(tz);
+  const resetDayData = dailyData.get(resetDay.format("YYYY-MM-DD"));
+  if (resetDayData && resetDayData.voiceSeconds > 0) {
+    const [preReset] = await db
+      .select({ seconds: sql<number>`coalesce(sum(${voiceSessionTable.duration}), 0)::int` })
+      .from(voiceSessionTable)
+      .where(
+        and(
+          eq(voiceSessionTable.discordId, user.id),
+          eq(voiceSessionTable.isTracked, true),
+          gte(voiceSessionTable.joinedAt, resetDay.startOf("day").toDate()),
+          lt(voiceSessionTable.leftAt, startOfMonth),
+        ),
+      );
+    resetDayData.preResetSeconds = preReset?.seconds ?? 0;
   }
 
   // Build activity lines: daily for current week, weekly aggregates for previous weeks
@@ -197,14 +230,8 @@ async function points(interaction: ChatInputCommandInteraction) {
   const currentWeekStart = now.startOf("week");
 
   // Separate current week days vs previous weeks
-  const currentWeekDays: [
-    string,
-    { voiceSeconds: number; voicePoints: number; submissionPoints: number; submissionCount: number },
-  ][] = [];
-  const weeklyData = new Map<
-    string,
-    { voiceSeconds: number; voicePoints: number; submissionPoints: number; submissionCount: number }
-  >();
+  const currentWeekDays: [string, ActivityData][] = [];
+  const weeklyData = new Map<string, ActivityData>();
 
   for (const [day, data] of dailyData.entries()) {
     const dayDate = dayjs(day);
@@ -215,27 +242,24 @@ async function points(interaction: ChatInputCommandInteraction) {
       const weekStart = dayDate.startOf("week").isAfter(startOfMonth)
         ? dayDate.startOf("week").format("YYYY-MM-DD")
         : dayjs(startOfMonth).format("YYYY-MM-DD");
-      const existing = weeklyData.get(weekStart) ?? {
-        voiceSeconds: 0,
-        voicePoints: 0,
-        submissionPoints: 0,
-        submissionCount: 0,
-      };
+      const existing = weeklyData.get(weekStart) ?? emptyActivity();
       existing.voiceSeconds += data.voiceSeconds;
       existing.voicePoints += data.voicePoints;
       existing.submissionPoints += data.submissionPoints;
       existing.submissionCount += data.submissionCount;
+      existing.preResetSeconds += data.preResetSeconds;
       weeklyData.set(weekStart, existing);
     }
   }
 
-  const formatLine = (
-    label: string,
-    data: { voiceSeconds: number; voicePoints: number; submissionPoints: number; submissionCount: number },
-  ) => {
+  const formatLine = (label: string, data: ActivityData) => {
     const total = data.voicePoints + data.submissionPoints;
     const parts: string[] = [];
-    if (data.voiceSeconds > 0) parts.push(`${formatDuration(data.voiceSeconds)} (${data.voicePoints} pt)`);
+    if (data.voiceSeconds > 0) {
+      // Points that day also count the earlier time, so show it to explain them
+      const earlier = data.preResetSeconds > 0 ? `, +${formatDuration(data.preResetSeconds)} before reset` : "";
+      parts.push(`${formatDuration(data.voiceSeconds)} (${data.voicePoints} pt${earlier})`);
+    }
     if (data.submissionPoints > 0) {
       const todoLabel = data.submissionCount === 1 ? "To-Do List" : "To-Do Lists";
       parts.push(`${todoLabel} (${data.submissionPoints} pt)`);
