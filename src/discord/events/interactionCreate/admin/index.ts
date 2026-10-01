@@ -41,6 +41,7 @@ import { requireRole } from "@/discord/utils/role.ts";
 import { autocompleteTimezone, setTimezone } from "@/discord/core/timezone.ts";
 import { calculateVoiceIntegritySums, type IntegrityVoiceSession } from "@/discord/core/voiceSessionIntegrity.ts";
 import { calculateHouseWhatIf } from "@/discord/core/houseWhatIf.ts";
+import { formatIntegrityLine, formatIntegrityReport } from "@/discord/core/integrityReport.ts";
 
 const log = createLogger("Admin");
 const ALLOWED_PREFECT_COMMANDS = ["timezone"];
@@ -749,59 +750,33 @@ async function computeExpectedValues() {
 }
 
 async function checkIntegrity(interaction: ChatInputCommandInteraction<"cached">) {
-  const { users, expectedMap, voicePointsMap, submissionMap, adjustmentMap } = await computeExpectedValues();
+  const { users, expectedMap } = await computeExpectedValues();
 
-  const discrepancies: string[] = [];
-  const zero = { total: 0, monthly: 0, daily: 0 };
-
-  for (const user of users) {
+  const rows = users.flatMap((user) => {
     const expected = expectedMap.get(user.discordId);
-    if (!expected) continue;
-    const vcPts = voicePointsMap.get(user.discordId) ?? zero;
-    const sub = submissionMap.get(user.discordId) ?? zero;
-    const adj = adjustmentMap.get(user.discordId) ?? zero;
+    if (!expected) return [];
+    return [
+      {
+        username: user.username,
+        stored: {
+          points: { total: user.totalPoints, monthly: user.monthlyPoints, daily: user.dailyPoints },
+          voiceTime: { total: user.totalVoiceTime, monthly: user.monthlyVoiceTime, daily: user.dailyVoiceTime },
+        },
+        expected: {
+          points: { total: expected.totalPoints, monthly: expected.monthlyPoints, daily: expected.dailyPoints },
+          voiceTime: {
+            total: expected.totalVoiceTime,
+            monthly: expected.monthlyVoiceTime,
+            daily: expected.dailyVoiceTime,
+          },
+        },
+      },
+    ];
+  });
 
-    if (user.totalPoints !== expected.totalPoints) {
-      discrepancies.push(
-        `**${user.username}** totalPts: stored=${user.totalPoints}, expected=${expected.totalPoints} (vc=${vcPts.total}, sub=${sub.total}, adj=${adj.total})`,
-      );
-    }
-    if (user.monthlyPoints !== expected.monthlyPoints) {
-      discrepancies.push(
-        `**${user.username}** monthlyPts: stored=${user.monthlyPoints}, expected=${expected.monthlyPoints} (vc=${vcPts.monthly}, sub=${sub.monthly}, adj=${adj.monthly})`,
-      );
-    }
-    if (user.dailyPoints !== expected.dailyPoints) {
-      discrepancies.push(
-        `**${user.username}** dailyPts: stored=${user.dailyPoints}, expected=${expected.dailyPoints} (vc=${vcPts.daily}, sub=${sub.daily}, adj=${adj.daily})`,
-      );
-    }
-
-    if (user.totalVoiceTime !== expected.totalVoiceTime) {
-      discrepancies.push(
-        `**${user.username}** totalVcTime: stored=${user.totalVoiceTime}, expected=${expected.totalVoiceTime}`,
-      );
-    }
-    if (user.monthlyVoiceTime !== expected.monthlyVoiceTime) {
-      discrepancies.push(
-        `**${user.username}** monthlyVcTime: stored=${user.monthlyVoiceTime}, expected=${expected.monthlyVoiceTime}`,
-      );
-    }
-    if (user.dailyVoiceTime !== expected.dailyVoiceTime) {
-      discrepancies.push(
-        `**${user.username}** dailyVcTime: stored=${user.dailyVoiceTime}, expected=${expected.dailyVoiceTime}`,
-      );
-    }
-  }
-
-  log.info("Integrity check complete", { discrepancies: discrepancies.length });
-
-  if (discrepancies.length === 0) {
-    await interaction.editReply("✅ No discrepancies found.");
-  } else {
-    const message = `⚠️ Found ${discrepancies.length} discrepancies:\n${discrepancies.slice(0, 20).join("\n")}${discrepancies.length > 20 ? `\n...and ${discrepancies.length - 20} more` : ""}`;
-    await interaction.editReply(message);
-  }
+  const message = formatIntegrityReport(rows);
+  log.info("Integrity check complete", { usersWithDiscrepancies: rows.filter(formatIntegrityLine).length });
+  await interaction.editReply(message);
 }
 
 async function fixIntegrity(interaction: ChatInputCommandInteraction<"cached">) {
