@@ -2,6 +2,7 @@ import { ChannelType, GuildMember, userMention, type VoiceState } from "discord.
 import { db, ensureUserExists, getUserTimezone } from "@/db/db.ts";
 import {
   endVoiceSession,
+  getMonthlyVoiceTimeWithOpenSession,
   startVoiceSession,
   updateVoiceSessionChannel,
   type VoiceSessionStartMode,
@@ -85,7 +86,7 @@ export async function execute(oldState: VoiceState, newState: VoiceState) {
     } else if (!oldChannelExcluded && !newChannelExcluded && oldVoiceSession.channelId !== newVoiceSession.channelId) {
       // User switched between tracked voice channels
       event = "switch";
-      await vcSwitch(oldVoiceSession, newVoiceSession);
+      await vcSwitch(oldVoiceSession, newVoiceSession, member);
     }
   }, `Voice state update for ${username} (${discordId})`);
 
@@ -145,9 +146,22 @@ async function leave(oldVoiceSession: VoiceSession, member: GuildMember) {
   ]);
 }
 
-async function vcSwitch(oldVoiceSession: VoiceSession, newVoiceSession: VoiceSession) {
+async function vcSwitch(oldVoiceSession: VoiceSession, newVoiceSession: VoiceSession, member: GuildMember) {
   const updated = await updateVoiceSessionChannel(oldVoiceSession, newVoiceSession, db);
   if (!updated) {
     await startVoiceSession(newVoiceSession, db, "new");
+    return;
   }
+
+  // The session stays open on a switch, so include its time to promote users without waiting for them to leave
+  const user = await getMonthlyVoiceTimeWithOpenSession(db, newVoiceSession.discordId);
+  await Promise.all([
+    updateMember({
+      member,
+      reason: "Year rank reached during voice session",
+      nickname: null,
+      roleUpdates: calculateYearRoles(member, user),
+    }),
+    announceYearPromotion(member, user),
+  ]);
 }

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { DbOrTx } from "@/db/db.ts";
 import {
   endVoiceSession,
+  getMonthlyVoiceTimeWithOpenSession,
   startVoiceSession,
   updateVoiceSessionChannel,
 } from "@/discord/events/voiceStateUpdate/voiceSession.ts";
@@ -94,5 +95,48 @@ describe("voice session continuity", () => {
     await endVoiceSession(session, db, boundary);
 
     expect(set).toHaveBeenNthCalledWith(1, { leftAt: boundary, isTracked: true });
+  });
+});
+
+describe("getMonthlyVoiceTimeWithOpenSession", () => {
+  const mockDb = (rows: unknown[]) =>
+    ({
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue(rows) }),
+            }),
+          }),
+        }),
+      }),
+    }) as unknown as DbOrTx;
+
+  it("adds the open session's time to the monthly voice time", async () => {
+    const now = new Date("2026-10-01T10:00:00.000Z");
+    const db = mockDb([
+      {
+        monthlyVoiceTime: 1800,
+        house: "Gryffindor",
+        announcedYear: 0,
+        openSessionJoinedAt: new Date("2026-10-01T09:30:00.000Z"),
+      },
+    ]);
+
+    await expect(getMonthlyVoiceTimeWithOpenSession(db, "user-1", now)).resolves.toEqual({
+      monthlyVoiceTime: 3600,
+      house: "Gryffindor",
+      announcedYear: 0,
+    });
+  });
+
+  it("returns the stored monthly voice time without an open session", async () => {
+    const db = mockDb([{ monthlyVoiceTime: 1800, house: null, announcedYear: 0, openSessionJoinedAt: null }]);
+
+    await expect(getMonthlyVoiceTimeWithOpenSession(db, "user-1")).resolves.toEqual({
+      monthlyVoiceTime: 1800,
+      house: null,
+      announcedYear: 0,
+    });
   });
 });

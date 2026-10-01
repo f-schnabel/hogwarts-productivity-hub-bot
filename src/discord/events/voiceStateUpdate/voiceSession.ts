@@ -348,3 +348,29 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, endedAt
     return user;
   });
 }
+
+/** User's monthly voice time including the time of their currently open session (not yet awarded) */
+export async function getMonthlyVoiceTimeWithOpenSession(db: DbOrTx, discordId: string, now: Date = new Date()) {
+  const [user] = await db
+    .select({
+      monthlyVoiceTime: userTable.monthlyVoiceTime,
+      house: userTable.house,
+      announcedYear: userTable.announcedYear,
+      openSessionJoinedAt: voiceSessionTable.joinedAt,
+    })
+    .from(userTable)
+    .leftJoin(
+      voiceSessionTable,
+      and(eq(voiceSessionTable.discordId, userTable.discordId), isNull(voiceSessionTable.leftAt)),
+    )
+    .where(eq(userTable.discordId, discordId))
+    .orderBy(desc(voiceSessionTable.joinedAt))
+    .limit(1);
+  if (!user) return null;
+
+  const { openSessionJoinedAt, ...rest } = user;
+  const pending = openSessionJoinedAt
+    ? Math.max(0, Math.floor((now.getTime() - openSessionJoinedAt.getTime()) / 1000))
+    : 0;
+  return { ...rest, monthlyVoiceTime: rest.monthlyVoiceTime + pending };
+}

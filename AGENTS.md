@@ -108,6 +108,12 @@ Each command exports:
 - Users progress Year 1-7 based on monthly voice time
 - Thresholds: 1, 10, 20, 40, 80, 100, 120 hours
 - Announcements sent to configured channel on promotion
+- Checked when a user leaves VC and when they switch channels (switch counts the open session's time so far)
+
+**Monthly Reset** (`/admin reset-monthly-points`):
+
+- Splits open voice sessions at the reset (old part closes 1ms before it and is awarded to the old month)
+- Resets monthly and daily points/voice time, so new-month points only count voice time after the reset
 
 **Timezone-Based Daily Resets** (`src/services/centralResetService.ts`):
 
