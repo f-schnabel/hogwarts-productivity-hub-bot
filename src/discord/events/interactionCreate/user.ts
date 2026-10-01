@@ -253,7 +253,7 @@ async function points(interaction: ChatInputCommandInteraction) {
     const parts: string[] = [];
     if (data.voiceSeconds > 0) {
       // Points that day also count the leftover time from before the reset, so show it to explain them
-      const earlier = data.preResetSeconds > 0 ? `, +${formatDuration(data.preResetSeconds)} from before reset` : "";
+      const earlier = data.preResetSeconds > 0 ? `, +${formatDuration(data.preResetSeconds)}` : "";
       parts.push(`${formatDuration(data.voiceSeconds)} (${data.voicePoints} pt${earlier})`);
     }
     if (data.submissionPoints > 0) {
