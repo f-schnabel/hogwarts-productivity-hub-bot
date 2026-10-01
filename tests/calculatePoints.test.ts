@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculatePoints, calculatePointsHelper } from "@/discord/core/points.ts";
+import { calculatePoints, calculatePointsHelper, getUncountedVoiceTime } from "@/discord/core/points.ts";
 import { FIRST_HOUR_POINTS, MAX_HOURS_PER_DAY, REST_HOURS_POINTS } from "@/common/constants.ts";
 
 describe("Calculate Points Tests", () => {
@@ -74,6 +74,17 @@ describe("Calculate Points Tests", () => {
 
     it("caps hours before and after the reset together", () => {
       expect(calculatePointsHelper(20 * 60 * 60, 10 * 60 * 60)).toBe(REST_HOURS_POINTS * (MAX_HOURS_PER_DAY - 10));
+    });
+  });
+
+  describe("getUncountedVoiceTime", () => {
+    it("returns the time after the last counted hour", () => {
+      expect(getUncountedVoiceTime(90 * 60)).toBe(30 * 60);
+      expect(getUncountedVoiceTime(30 * 60)).toBe(30 * 60);
+    });
+
+    it("returns 0 when the grace period completed the hour", () => {
+      expect(getUncountedVoiceTime(56 * 60)).toBe(0);
     });
   });
 });

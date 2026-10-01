@@ -11,7 +11,7 @@ import type { Command } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import assert from "node:assert";
 import { requireRole } from "../../utils/role.ts";
-import { calculatePoints, getPreResetVoiceTime } from "@/discord/core/points.ts";
+import { calculatePoints, getPreResetVoiceTime, getUncountedVoiceTime } from "@/discord/core/points.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -69,7 +69,7 @@ interface ActivityData {
   voicePoints: number;
   submissionPoints: number;
   submissionCount: number;
-  /** Voice time earlier on the reset day, before the monthly reset */
+  /** Voice time earlier on the reset day, before the monthly reset, that didn't complete an hour for points */
   preResetSeconds: number;
 }
 
@@ -206,8 +206,8 @@ async function points(interaction: ChatInputCommandInteraction) {
     dailyData.set(day, existing);
   }
 
-  // Voice time on the reset day from before the reset isn't part of this month,
-  // but points that day were calculated from the whole day's voice time
+  // Voice time on the reset day from before the reset isn't part of this month, but the part of it
+  // that didn't complete an hour for points yet counted towards the points after the reset
   const resetDay = dayjs(startOfMonth).tz(tz);
   const resetDayData = dailyData.get(resetDay.format("YYYY-MM-DD"));
   if (resetDayData && resetDayData.voiceSeconds > 0) {
@@ -222,7 +222,7 @@ async function points(interaction: ChatInputCommandInteraction) {
           lt(voiceSessionTable.leftAt, startOfMonth),
         ),
       );
-    resetDayData.preResetSeconds = preReset?.seconds ?? 0;
+    resetDayData.preResetSeconds = getUncountedVoiceTime(preReset?.seconds ?? 0);
   }
 
   // Build activity lines: daily for current week, weekly aggregates for previous weeks
@@ -256,8 +256,8 @@ async function points(interaction: ChatInputCommandInteraction) {
     const total = data.voicePoints + data.submissionPoints;
     const parts: string[] = [];
     if (data.voiceSeconds > 0) {
-      // Points that day also count the earlier time, so show it to explain them
-      const earlier = data.preResetSeconds > 0 ? `, +${formatDuration(data.preResetSeconds)} before reset` : "";
+      // Points that day also count the leftover time from before the reset, so show it to explain them
+      const earlier = data.preResetSeconds > 0 ? `, +${formatDuration(data.preResetSeconds)} from before reset` : "";
       parts.push(`${formatDuration(data.voiceSeconds)} (${data.voicePoints} pt${earlier})`);
     }
     if (data.submissionPoints > 0) {

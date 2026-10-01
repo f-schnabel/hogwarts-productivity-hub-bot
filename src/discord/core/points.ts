@@ -65,6 +65,11 @@ function countedHours(voiceTime: number): number {
   return Math.floor((voiceTime + 5 * 60) / (60 * 60));
 }
 
+/** Voice time left over after the hours that already counted for points (e.g. 1h30 → 30min) */
+export function getUncountedVoiceTime(voiceTime: number): number {
+  return Math.max(0, voiceTime - countedHours(voiceTime) * 60 * 60);
+}
+
 /**
  * Points for a day's voice time.
  * On the day of a monthly reset, `preResetVoiceTime` is the part of `voiceTime` before the reset: only the
