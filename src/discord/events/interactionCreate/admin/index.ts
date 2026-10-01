@@ -2,7 +2,6 @@ import { ChatInputCommandInteraction, SlashCommandBuilder, AutocompleteInteracti
 import {
   db,
   getMonthStartDate,
-  getOpenVoiceSessions,
   getVCEmoji,
   getWeightedHousePoints,
   getUnweightedHousePoints,
@@ -28,7 +27,6 @@ import {
 } from "@/db/schema.ts";
 import { HOUSES, Role } from "@/common/constants.ts";
 import { refreshAllYearRoles } from "@/discord/events/voiceStateUpdate/yearRole.ts";
-import { endVoiceSession, startVoiceSession } from "@/discord/events/voiceStateUpdate/voiceSession.ts";
 import { createLogger } from "@/common/logging/logger.ts";
 import { updateMember } from "@/discord/utils/updateMember.ts";
 import type { Command, House, Sums } from "@/common/types.ts";
@@ -281,19 +279,7 @@ async function adjustPoints(interaction: ChatInputCommandInteraction<"cached">) 
 }
 
 async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cached">) {
-  const resetAt = new Date();
   const scoreboards = await db.transaction(async (db) => {
-    // Split open voice sessions at the reset so time before it counts for the old month only.
-    // Close them just before the reset so month queries (leftAt >= monthStart) don't pick them up.
-    const splitEndAt = new Date(resetAt.getTime() - 1);
-    const openSessions = await getOpenVoiceSessions(db);
-    const splitSessions: typeof openSessions = [];
-    for (const session of openSessions) {
-      const ended = await endVoiceSession(session, db, splitEndAt);
-      if (ended !== null) splitSessions.push(session);
-    }
-    log.info("Voice sessions split for monthly reset", { count: splitSessions.length });
-
     // Snapshot house cup results before resetting
     const [weighted, unweighted, champions] = await Promise.all([
       getWeightedHousePoints(db),
@@ -339,8 +325,6 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
     );
     log.info("House cup snapshot saved", { month, winner });
 
-    // Daily voice time is kept: until the next daily reset, daily minus monthly voice time is the time
-    // before this reset, used so the first-hour bonus isn't given twice that day (see getPreResetVoiceTime)
     const result = await db.update(userTable).set({
       monthlyPoints: 0,
       monthlyVoiceTime: 0,
@@ -349,11 +333,7 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
     log.info("Monthly reset complete", { usersReset: result.rowCount });
 
     // Store reset timestamp
-    await setMonthStartDate(resetAt, db);
-
-    for (const session of splitSessions) {
-      await startVoiceSession(session, db, "new", resetAt);
-    }
+    await setMonthStartDate(new Date(), db);
     return await db.select().from(houseScoreboardTable);
   });
   await updateScoreboardMessages(await getHousepointMessages(db, scoreboards));
@@ -511,7 +491,6 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
       .select({
         id: voiceSessionTable.id,
         joinedAt: voiceSessionTable.joinedAt,
-        leftAt: voiceSessionTable.leftAt,
         duration: voiceSessionTable.duration,
         points: voiceSessionTable.points,
       })
@@ -527,7 +506,7 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
       )
       .orderBy(asc(voiceSessionTable.joinedAt));
 
-    const pointUpdates = calculateVoiceSessionPointUpdatesForLocalDay(userSessions, await getMonthStartDate(tx));
+    const pointUpdates = calculateVoiceSessionPointUpdatesForLocalDay(userSessions);
 
     for (const pointUpdate of pointUpdates) {
       await tx

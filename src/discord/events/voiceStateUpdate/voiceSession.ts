@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { createLogger } from "@/common/logging/logger.ts";
 import { formatDuration } from "@/discord/utils/interaction.ts";
 import { sendAlert } from "@/discord/utils/alerting.ts";
-import { awardPoints, calculatePoints, getPreResetVoiceTime, reversePoints } from "@/discord/core/points.ts";
+import { awardPoints, calculatePoints, reversePoints } from "@/discord/core/points.ts";
 import { oneLine } from "common-tags";
 import { VOICE_SESSION_RESUME_WINDOW_MS } from "@/common/constants.ts";
 
@@ -320,15 +320,13 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, endedAt
         monthlyVoiceTime: userTable.monthlyVoiceTime,
         house: userTable.house,
         announcedYear: userTable.announcedYear,
-        lastDailyReset: userTable.lastDailyReset,
       });
     assert(user !== undefined, `User not found for Discord ID ${session.discordId}`);
 
     // Calculate and award points for this session
     const oldDailyVoiceTime = user.dailyVoiceTime - duration;
     const newDailyVoiceTime = user.dailyVoiceTime;
-    const preResetVoiceTime = getPreResetVoiceTime(user, await getMonthStartDate(db));
-    const pointsEarned = calculatePoints(oldDailyVoiceTime, newDailyVoiceTime, preResetVoiceTime);
+    const pointsEarned = calculatePoints(oldDailyVoiceTime, newDailyVoiceTime);
 
     log.info("Session ended", {
       ...ctx,
@@ -336,7 +334,6 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, endedAt
       points: pointsEarned,
       oldDaily: formatDuration(oldDailyVoiceTime),
       newDaily: formatDuration(newDailyVoiceTime),
-      ...(preResetVoiceTime > 0 && { preReset: formatDuration(preResetVoiceTime) }),
     });
 
     if (pointsEarned > 0) {
