@@ -113,7 +113,9 @@ Each command exports:
 **Monthly Reset** (`/admin reset-monthly-points`):
 
 - Splits open voice sessions at the reset (old part closes 1ms before it and is awarded to the old month)
-- Resets monthly and daily points/voice time, so new-month points only count voice time after the reset
+- Resets monthly points/voice time but keeps daily ones; until the user's next daily reset, daily minus monthly voice time is the time before the reset (`getPreResetVoiceTime` in `src/discord/core/points.ts`)
+- On the reset day, new-month points only count hours after the reset, and the first hour after it gives 5 points only if the first-hour bonus wasn't already earned before the reset that day (2 points otherwise); the 12h daily cap covers both parts
+- `/admin check-integrity`/`fix-integrity` and `fix-voice-session` apply the same rule for the current month start
 
 **Timezone-Based Daily Resets** (`src/services/centralResetService.ts`):
 

@@ -69,9 +69,10 @@ describe("voice session continuity", () => {
   });
 
   it("ends a reset session at the supplied boundary", async () => {
+    const boundary = new Date("2026-06-21T18:30:00.000Z");
     const firstReturning = vi.fn().mockResolvedValue([{ id: 42, duration: 0 }]);
     const secondReturning = vi.fn().mockResolvedValue([
-      { dailyVoiceTime: 0, monthlyVoiceTime: 0, house: null, announcedYear: 0 },
+      { dailyVoiceTime: 0, monthlyVoiceTime: 0, house: null, announcedYear: 0, lastDailyReset: boundary },
     ]);
     const set = vi.fn()
       .mockReturnValueOnce({ where: vi.fn().mockReturnValue({ returning: firstReturning }) })
@@ -80,9 +81,10 @@ describe("voice session continuity", () => {
     const transactionDb = {
       select: vi.fn().mockReturnValue({
         from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            for: vi.fn().mockResolvedValue([{ id: 42 }]),
-          }),
+          // Open session lookup (`.for(...)`), or the month start setting (awaited directly)
+          where: vi.fn().mockReturnValue(
+            Object.assign(Promise.resolve([]), { for: vi.fn().mockResolvedValue([{ id: 42 }]) }),
+          ),
         }),
       }),
       update: vi.fn().mockReturnValue({ set }),
@@ -90,7 +92,6 @@ describe("voice session continuity", () => {
     const db = {
       transaction: vi.fn(async (callback: (tx: typeof transactionDb) => Promise<unknown>) => callback(transactionDb)),
     } as unknown as DbOrTx;
-    const boundary = new Date("2026-06-21T18:30:00.000Z");
 
     await endVoiceSession(session, db, boundary);
 

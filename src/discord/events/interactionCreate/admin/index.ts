@@ -338,13 +338,12 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
     );
     log.info("House cup snapshot saved", { month, winner });
 
-    // Daily totals are reset too, so points in the new month only count voice time after the reset
+    // Daily voice time is kept: until the next daily reset, daily minus monthly voice time is the time
+    // before this reset, used so the first-hour bonus isn't given twice that day (see getPreResetVoiceTime)
     const result = await db.update(userTable).set({
       monthlyPoints: 0,
       monthlyVoiceTime: 0,
       announcedYear: 0,
-      dailyPoints: 0,
-      dailyVoiceTime: 0,
     });
     log.info("Monthly reset complete", { usersReset: result.rowCount });
 
@@ -511,6 +510,7 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
       .select({
         id: voiceSessionTable.id,
         joinedAt: voiceSessionTable.joinedAt,
+        leftAt: voiceSessionTable.leftAt,
         duration: voiceSessionTable.duration,
         points: voiceSessionTable.points,
       })
@@ -526,7 +526,7 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
       )
       .orderBy(asc(voiceSessionTable.joinedAt));
 
-    const pointUpdates = calculateVoiceSessionPointUpdatesForLocalDay(userSessions);
+    const pointUpdates = calculateVoiceSessionPointUpdatesForLocalDay(userSessions, await getMonthStartDate(tx));
 
     for (const pointUpdate of pointUpdates) {
       await tx
