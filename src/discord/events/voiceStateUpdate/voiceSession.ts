@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { createLogger } from "@/common/logging/logger.ts";
 import { formatDuration } from "@/discord/utils/interaction.ts";
 import { sendAlert } from "@/discord/utils/alerting.ts";
-import { awardPoints, calculatePoints, reversePoints } from "@/discord/core/points.ts";
+import { awardPoints, calculatePoints, getPreResetVoiceTime, reversePoints } from "@/discord/core/points.ts";
 import { oneLine } from "common-tags";
 import { VOICE_SESSION_RESUME_WINDOW_MS } from "@/common/constants.ts";
 
@@ -320,13 +320,15 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, endedAt
         monthlyVoiceTime: userTable.monthlyVoiceTime,
         house: userTable.house,
         announcedYear: userTable.announcedYear,
+        lastDailyReset: userTable.lastDailyReset,
       });
     assert(user !== undefined, `User not found for Discord ID ${session.discordId}`);
 
     // Calculate and award points for this session
     const oldDailyVoiceTime = user.dailyVoiceTime - duration;
     const newDailyVoiceTime = user.dailyVoiceTime;
-    const pointsEarned = calculatePoints(oldDailyVoiceTime, newDailyVoiceTime);
+    const preResetVoiceTime = getPreResetVoiceTime(user, await getMonthStartDate(db));
+    const pointsEarned = calculatePoints(oldDailyVoiceTime, newDailyVoiceTime, preResetVoiceTime);
 
     log.info("Session ended", {
       ...ctx,
@@ -334,6 +336,7 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, endedAt
       points: pointsEarned,
       oldDaily: formatDuration(oldDailyVoiceTime),
       newDaily: formatDuration(newDailyVoiceTime),
+      ...(preResetVoiceTime > 0 && { preReset: formatDuration(preResetVoiceTime) }),
     });
 
     if (pointsEarned > 0) {
@@ -347,4 +350,30 @@ export async function endVoiceSession(session: VoiceSession, db: DbOrTx, endedAt
 
     return user;
   });
+}
+
+/** User's monthly voice time including the time of their currently open session (not yet awarded) */
+export async function getMonthlyVoiceTimeWithOpenSession(db: DbOrTx, discordId: string, now: Date = new Date()) {
+  const [user] = await db
+    .select({
+      monthlyVoiceTime: userTable.monthlyVoiceTime,
+      house: userTable.house,
+      announcedYear: userTable.announcedYear,
+      openSessionJoinedAt: voiceSessionTable.joinedAt,
+    })
+    .from(userTable)
+    .leftJoin(
+      voiceSessionTable,
+      and(eq(voiceSessionTable.discordId, userTable.discordId), isNull(voiceSessionTable.leftAt)),
+    )
+    .where(eq(userTable.discordId, discordId))
+    .orderBy(desc(voiceSessionTable.joinedAt))
+    .limit(1);
+  if (!user) return null;
+
+  const { openSessionJoinedAt, ...rest } = user;
+  const pending = openSessionJoinedAt
+    ? Math.max(0, Math.floor((now.getTime() - openSessionJoinedAt.getTime()) / 1000))
+    : 0;
+  return { ...rest, monthlyVoiceTime: rest.monthlyVoiceTime + pending };
 }

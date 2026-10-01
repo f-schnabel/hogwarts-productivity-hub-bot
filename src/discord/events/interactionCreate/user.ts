@@ -11,7 +11,7 @@ import type { Command } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import assert from "node:assert";
 import { requireRole } from "../../utils/role.ts";
-import { calculatePoints } from "@/discord/core/points.ts";
+import { calculatePoints, getPreResetVoiceTime } from "@/discord/core/points.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -150,7 +150,11 @@ async function points(interaction: ChatInputCommandInteraction) {
   let activeSessionPoints = 0;
   if (activeSession) {
     activeSessionDuration = Math.floor((Date.now() - activeSession.joinedAt.getTime()) / 1000);
-    activeSessionPoints = calculatePoints(userData.dailyVoiceTime, userData.dailyVoiceTime + activeSessionDuration);
+    activeSessionPoints = calculatePoints(
+      userData.dailyVoiceTime,
+      userData.dailyVoiceTime + activeSessionDuration,
+      getPreResetVoiceTime(userData, startOfMonth),
+    );
   }
 
   const totalSubmissionPoints = submissions.reduce((sum, s) => sum + s.points, 0);
