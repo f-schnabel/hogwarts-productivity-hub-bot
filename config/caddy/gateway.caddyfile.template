@@ -1,0 +1,17 @@
+# Template for the Drizzle Gateway Caddy site. NOT loaded by Caddy directly
+# (the `.template` suffix keeps it out of `import *.caddyfile`).
+#
+# config/drizzle-gateway/deploy.sh renders this into /etc/caddy/gateway.caddyfile
+# with a real Basic Auth user + bcrypt hash, so no credential ever lands in this
+# version-controlled repo. The Basic Auth prompt is the public login gate that
+# keeps gateway.schnabel.dev reachable from anywhere but only by you; port 4983
+# itself stays firewalled and is reached only by Caddy on 127.0.0.1.
+gateway.schnabel.dev {
+	basic_auth {
+		__BASICAUTH_USER__ __BASICAUTH_HASH__
+	}
+	reverse_proxy 127.0.0.1:4983
+	log {
+		output file /var/log/caddy/access.log
+	}
+}

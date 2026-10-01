@@ -1,0 +1,30 @@
+[Unit]
+Description=Drizzle Gateway (database admin UI)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=drizzle
+Group=drizzle
+WorkingDirectory=/opt/drizzle-gateway
+Environment=PORT=4983
+Environment=STORE_PATH=/var/lib/drizzle-gateway
+EnvironmentFile=/etc/drizzle-gateway.env
+ExecStart=/opt/drizzle-gateway/gateway
+Restart=always
+RestartSec=3
+
+# hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/drizzle-gateway
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
