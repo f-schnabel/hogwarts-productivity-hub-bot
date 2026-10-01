@@ -32,7 +32,7 @@ export function calculateVoiceIntegritySums(
       joinedAt: session.joinedAt,
       leftAt: session.leftAt,
       duration: session.duration,
-    }, timezone, monthStart)) {
+    }, timezone)) {
       piece.id = nextVirtualId++;
       const dailySessions = sessionsByLocalDay.get(piece.localDay) ?? [];
       dailySessions.push(piece);
@@ -47,7 +47,7 @@ export function calculateVoiceIntegritySums(
   for (const [localDay, dailySessions] of sessionsByLocalDay) {
     dailySessions.sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
     const calculatedPoints = new Map(
-      calculateVoiceSessionPointsForLocalDay(dailySessions, monthStart).map((result) => [result.id, result.points]),
+      calculateVoiceSessionPointsForLocalDay(dailySessions).map((result) => [result.id, result.points]),
     );
 
     for (const session of dailySessions) {
@@ -55,7 +55,7 @@ export function calculateVoiceIntegritySums(
       points.total += sessionPoints;
       time.total += session.duration;
 
-      if (session.joinedAt >= monthStart) {
+      if (session.leftAt >= monthStart) {
         points.monthly += sessionPoints;
         time.monthly += session.duration;
       }
@@ -69,11 +69,9 @@ export function calculateVoiceIntegritySums(
   return { points, time };
 }
 
-// Split at local midnights and at the monthly reset, so each piece belongs to one local day and one month
 function splitSessionAtLocalMidnights(
   session: { joinedAt: Date; leftAt: Date; duration: number },
   timezone: string,
-  monthStart: Date,
 ): VirtualVoiceSession[] {
   if (session.leftAt <= session.joinedAt) return [];
 
@@ -85,8 +83,7 @@ function splitSessionAtLocalMidnights(
     const localCursor = dayjs(cursor).tz(timezone);
     const nextLocalDate = localCursor.add(1, "day").format("YYYY-MM-DD");
     const nextMidnight = dayjs.tz(nextLocalDate, timezone).startOf("day").toDate();
-    const nextBoundary = cursor < monthStart && monthStart < nextMidnight ? monthStart : nextMidnight;
-    const leftAt = nextBoundary < session.leftAt ? nextBoundary : session.leftAt;
+    const leftAt = nextMidnight < session.leftAt ? nextMidnight : session.leftAt;
     const elapsedFraction =
       (leftAt.getTime() - session.joinedAt.getTime()) /
       (session.leftAt.getTime() - session.joinedAt.getTime());

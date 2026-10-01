@@ -45,19 +45,16 @@ describe("calculateVoiceSessionPointUpdatesForLocalDay", () => {
         {
           id: 1,
           joinedAt: new Date("2026-05-17T08:00:00.000Z"),
-          leftAt: new Date("2026-05-17T10:00:00.000Z"),
           duration: 2 * 60 * 60,
           points: 5,
         },
         {
           id: 2,
           joinedAt: new Date("2026-05-17T10:00:00.000Z"),
-          leftAt: new Date("2026-05-17T11:00:00.000Z"),
           duration: 60 * 60,
           points: 2,
         },
       ],
-      new Date("2026-05-01T00:00:00.000Z"),
     );
 
     expect(updates).toEqual([
@@ -71,54 +68,21 @@ describe("calculateVoiceSessionPointUpdatesForLocalDay", () => {
         {
           id: 2,
           joinedAt: new Date("2026-09-22T18:30:00.000Z"),
-          leftAt: new Date("2026-09-22T18:50:48.000Z"),
           duration: 20 * 60 + 48,
           points: 2,
         },
         {
           id: 3,
           joinedAt: new Date("2026-09-23T07:50:30.000Z"),
-          leftAt: new Date("2026-09-23T10:56:00.000Z"),
           duration: 3 * 60 * 60 + 5 * 60 + 30,
           points: 6,
         },
       ],
-      new Date("2026-09-01T00:00:00.000Z"),
     );
 
     expect(updates).toEqual([
       { id: 2, points: 0 },
       { id: 3, points: 9 },
-    ]);
-  });
-
-  it("does not give the first-hour bonus twice on the day of a monthly reset", () => {
-    const monthStart = new Date("2026-10-01T12:00:00.000Z");
-    const updates = calculateVoiceSessionPointUpdatesForLocalDay(
-      [
-        {
-          id: 1,
-          joinedAt: new Date("2026-10-01T09:30:00.000Z"),
-          leftAt: new Date("2026-10-01T11:59:59.999Z"),
-          duration: 90 * 60,
-          points: null,
-        },
-        {
-          id: 2,
-          joinedAt: monthStart,
-          leftAt: new Date("2026-10-01T13:44:00.000Z"),
-          duration: 104 * 60,
-          points: null,
-        },
-      ],
-      monthStart,
-    );
-
-    expect(updates).toEqual([
-      // 1.5h before the reset: first hour
-      { id: 1, points: 5 },
-      // 1h44m after the reset counts from the reset: one hour, without a second first-hour bonus
-      { id: 2, points: 2 },
     ]);
   });
 });

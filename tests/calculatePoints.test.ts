@@ -58,25 +58,6 @@ describe("Calculate Points Tests", () => {
     }
   });
 
-  describe("with voice time before a monthly reset", () => {
-    it("only counts hours after the reset", () => {
-      // 1.5h before the reset, 1h44m after it: one hour after the reset
-      expect(calculatePoints(90 * 60, 90 * 60 + 104 * 60, 90 * 60)).toBe(REST_HOURS_POINTS);
-    });
-
-    it("gives the first-hour bonus if it wasn't earned before the reset", () => {
-      expect(calculatePoints(30 * 60, 30 * 60 + 60 * 60, 30 * 60)).toBe(FIRST_HOUR_POINTS);
-    });
-
-    it("does not give the first-hour bonus twice", () => {
-      expect(calculatePointsHelper(2 * 60 * 60, 60 * 60)).toBe(REST_HOURS_POINTS);
-    });
-
-    it("caps hours before and after the reset together", () => {
-      expect(calculatePointsHelper(20 * 60 * 60, 10 * 60 * 60)).toBe(REST_HOURS_POINTS * (MAX_HOURS_PER_DAY - 10));
-    });
-  });
-
   describe("getUncountedVoiceTime", () => {
     it("returns the time after the last counted hour", () => {
       expect(getUncountedVoiceTime(90 * 60)).toBe(30 * 60);
