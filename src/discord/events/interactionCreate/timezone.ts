@@ -5,7 +5,7 @@ import { autocompleteTimezone, setTimezone } from "@/discord/core/timezone.ts";
 export default {
   data: new SlashCommandBuilder()
     .setName("timezone")
-    .setDescription("Manage your timezone settings for accurate daily/monthly resets")
+    .setDescription("Set your timezone for accurate points calculation")
     .addStringOption((option) =>
       option
         .setName("timezone")

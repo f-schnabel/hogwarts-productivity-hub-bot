@@ -16,11 +16,11 @@ import { calculatePoints, getUncountedVoiceTime } from "@/discord/core/points.ts
 export default {
   data: new SlashCommandBuilder()
     .setName("user")
-    .setDescription("Manage your timezone settings for accurate daily/monthly resets")
+    .setDescription("View user points, activity, and local time")
     .addSubcommand((subcommand) =>
       subcommand
         .setName("time")
-        .setDescription("View a user's clock in their timezone")
+        .setDescription("View a user's current time and timezone")
         .addUserOption((option) =>
           option.setName("user").setDescription("The user to view the clock for").setRequired(true),
         ),
@@ -28,9 +28,9 @@ export default {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("points")
-        .setDescription("View breakdown of a user's monthly points")
+        .setDescription("View breakdown of a user's daily & monthly points")
         .addUserOption((option) =>
-          option.setName("user").setDescription("The user to view points for").setRequired(true),
+          option.setName("user").setDescription("The user to view points for (defaults to you)").setRequired(false),
         ),
     )
     .addSubcommand((subcommand) =>
@@ -103,7 +103,7 @@ async function points(interaction: ChatInputCommandInteraction) {
   if (!inGuild(interaction)) return;
   await interaction.deferReply();
 
-  const user = interaction.options.getUser("user", true);
+  const user = interaction.options.getUser("user") ?? interaction.user;
   const [userData] = await db.select().from(userTable).where(eq(userTable.discordId, user.id));
 
   if (!userData) {

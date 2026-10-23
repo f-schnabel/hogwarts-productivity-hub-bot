@@ -117,7 +117,7 @@ export async function join(
     const channel = await member.guild.channels.fetch(GRINGOTTS_CHANNEL_ID);
     if (channel?.isTextBased()) {
       await channel.send({
-        content: `${userMention(member.id)}\nYour timezone is not set yet. Please adjust it using command \`/timezone\`.`,
+        content: `${userMention(member.id)}\nYour timezone is not set yet. Please adjust it using command \`/timezone\`. Type your country and select the right timezone.`,
       });
     }
   }

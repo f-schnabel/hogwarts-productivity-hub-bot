@@ -39,7 +39,7 @@ const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
 export default {
   data: new SlashCommandBuilder()
     .setName("submit")
-    .setDescription("Submit a score")
+    .setDescription("Submit a new or completed to-do list")
     .addStringOption((option) =>
       option
         .setName("type")

@@ -17,7 +17,7 @@ pnpm analytics:dev
 pnpm run register
 
 # Testing
-pnpm test              # Run tests once
+pnpm test run          # Run tests once
 pnpm test:watch        # Run tests in watch mode
 pnpm test:coverage     # Run tests with coverage
 
@@ -140,7 +140,7 @@ Each command exports:
 - Routes: house scoreboard, leaderboard, user profiles
 - Templates: houses.twig, leaderboard.twig, user.twig
 
-**Monitoring** (`src/common/monitoring.ts`):
+**Monitoring** (`src/common/logging/monitoring.ts`):
 
 - Prometheus metrics exposed on http://localhost:8080/metrics
 - Tracks interaction execution time, voice session duration, reset duration
