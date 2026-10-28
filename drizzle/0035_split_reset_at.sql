@@ -1,0 +1,1 @@
+ALTER TABLE "house_cup_month" ADD COLUMN "sessions_split_at" timestamp;

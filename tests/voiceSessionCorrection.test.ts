@@ -57,7 +57,7 @@ describe("calculateVoiceSessionPointUpdatesForLocalDay", () => {
           points: 2,
         },
       ],
-      new Date("2026-05-01T00:00:00.000Z"),
+      [],
     );
 
     expect(updates).toEqual([
@@ -83,7 +83,7 @@ describe("calculateVoiceSessionPointUpdatesForLocalDay", () => {
           points: 6,
         },
       ],
-      new Date("2026-09-01T00:00:00.000Z"),
+      [],
     );
 
     expect(updates).toEqual([
@@ -111,7 +111,7 @@ describe("calculateVoiceSessionPointUpdatesForLocalDay", () => {
           points: null,
         },
       ],
-      monthStart,
+      [monthStart],
     );
 
     expect(updates).toEqual([
@@ -119,6 +119,34 @@ describe("calculateVoiceSessionPointUpdatesForLocalDay", () => {
       { id: 1, points: 5 },
       // 1h44m after the reset counts from the reset: one hour, without a second first-hour bonus
       { id: 2, points: 2 },
+    ]);
+  });
+
+  it("counts the day as one when the reset didn't split sessions", () => {
+    const updates = calculateVoiceSessionPointUpdatesForLocalDay(
+      [
+        {
+          id: 1,
+          joinedAt: new Date("2026-10-01T09:30:00.000Z"),
+          leftAt: new Date("2026-10-01T11:00:00.000Z"),
+          duration: 90 * 60,
+          points: null,
+        },
+        {
+          id: 2,
+          joinedAt: new Date("2026-10-01T12:00:00.000Z"),
+          leftAt: new Date("2026-10-01T13:44:00.000Z"),
+          duration: 104 * 60,
+          points: null,
+        },
+      ],
+      // A split reset on another day
+      [new Date("2026-09-01T12:00:00.000Z")],
+    );
+
+    expect(updates).toEqual([
+      { id: 1, points: 5 },
+      { id: 2, points: 4 },
     ]);
   });
 });

@@ -127,6 +127,9 @@ export const houseCupMonthTable = pgTable("house_cup_month", {
   month: varchar({ length: 7 }).notNull().unique(), // "2026-03" format
   winner: houseEnum().notNull(),
   createdAt: timestamp().notNull().defaultNow(),
+  // Time of the monthly reset that ended this month, when open voice sessions were split at it and hours restarted.
+  // Null for resets from before sessions were split, which counted the reset day as one day.
+  sessionsSplitAt: timestamp(),
 });
 
 // Per-house stats for each house cup month

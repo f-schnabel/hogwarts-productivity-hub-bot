@@ -3,6 +3,7 @@ import {
   db,
   getMonthStartDate,
   getOpenVoiceSessions,
+  getSplitResetTimes,
   getVCEmoji,
   getWeightedHousePoints,
   getUnweightedHousePoints,
@@ -318,7 +319,7 @@ async function resetMonthlyPoints(interaction: ChatInputCommandInteraction<"cach
 
     const [cupMonth] = await db
       .insert(houseCupMonthTable)
-      .values({ month, winner })
+      .values({ month, winner, sessionsSplitAt: resetAt })
       .returning({ id: houseCupMonthTable.id });
     assert(cupMonth, "Failed to create house cup month record");
 
@@ -492,6 +493,19 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
     await errorReply(interaction, "Invalid End Time", "The corrected end time cannot be in the future.", { deferred: true });
     return;
   }
+  // The monthly reset split open sessions; a session ending past one would score old-month time in the new month
+  const splitResetTimes = await getSplitResetTimes();
+  const crossedReset = splitResetTimes.find((time) => oldSession.joinedAt < time && time <= correctedEndTime);
+  if (crossedReset) {
+    const resetTime = dayjs(crossedReset).tz(dbUser.timezone).format("MMM D HH:mm");
+    await errorReply(
+      interaction,
+      "Invalid End Time",
+      `The corrected end time cannot be after the monthly reset (${resetTime}). The session after it was tracked separately.`,
+      { deferred: true },
+    );
+    return;
+  }
 
   const updatedSession = await db.transaction(async (tx) => {
     const [updatedSession] = await tx
@@ -527,7 +541,7 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
       )
       .orderBy(asc(voiceSessionTable.joinedAt));
 
-    const pointUpdates = calculateVoiceSessionPointUpdatesForLocalDay(userSessions, await getMonthStartDate(tx));
+    const pointUpdates = calculateVoiceSessionPointUpdatesForLocalDay(userSessions, splitResetTimes);
 
     for (const pointUpdate of pointUpdates) {
       await tx
@@ -635,7 +649,7 @@ interface ExpectedValues {
 }
 
 async function computeExpectedValues() {
-  const monthStartDate = await getMonthStartDate();
+  const [monthStartDate, splitResetTimes] = await Promise.all([getMonthStartDate(), getSplitResetTimes()]);
 
   // Get all users with their stored points and voice time
   const users = await db.select().from(userTable);
@@ -699,6 +713,7 @@ async function computeExpectedValues() {
       user.timezone,
       monthStartDate,
       user.lastDailyReset,
+      splitResetTimes,
     );
     voicePointsMap.set(user.discordId, voice.points);
     voiceTimeMap.set(user.discordId, voice.time);

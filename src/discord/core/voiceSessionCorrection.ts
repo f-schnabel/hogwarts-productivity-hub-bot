@@ -33,27 +33,34 @@ export function resolveVoiceSessionEndTime(value: string, localJoinedAt: dayjs.D
 
 export function calculateVoiceSessionPointUpdatesForLocalDay(
   sessions: VoiceSessionPointInput[],
-  monthStart: Date,
+  splitResetTimes: Date[],
 ): VoiceSessionPointUpdate[] {
-  const calculatedPoints = calculateVoiceSessionPointsForLocalDay(sessions, monthStart);
+  const calculatedPoints = calculateVoiceSessionPointsForLocalDay(sessions, splitResetTimes);
   const storedPoints = new Map(sessions.map((session) => [session.id, session.points]));
   return calculatedPoints.filter((result) => storedPoints.get(result.id) !== result.points);
 }
 
 /**
  * Points per session for one local day, sessions ordered by joinedAt.
- * Sessions ending at or before `monthStart` belong to the old month; their time is passed as pre-reset
- * voice time for the sessions after it (see calculatePointsHelper).
+ * If one of `splitResetTimes` (monthly resets that split sessions) falls in the day, sessions ending at or before it
+ * belong to the old month; their time is passed as pre-reset voice time for the sessions after it
+ * (see calculatePointsHelper).
  */
 export function calculateVoiceSessionPointsForLocalDay(
-  sessions: Pick<VoiceSessionPointInput, "id" | "leftAt" | "duration">[],
-  monthStart: Date,
+  sessions: Pick<VoiceSessionPointInput, "id" | "joinedAt" | "leftAt" | "duration">[],
+  splitResetTimes: Date[],
 ): VoiceSessionPointUpdate[] {
+  const reset = splitResetTimes.find(
+    (time) =>
+      sessions.some((session) => session.leftAt !== null && session.leftAt <= time) &&
+      sessions.some((session) => session.joinedAt >= time),
+  );
+
   let dailyVoiceTime = 0;
   let preResetVoiceTime = 0;
   const result: VoiceSessionPointUpdate[] = [];
   for (const session of sessions) {
-    const beforeReset = session.leftAt !== null && session.leftAt <= monthStart;
+    const beforeReset = reset !== undefined && session.leftAt !== null && session.leftAt <= reset;
     const oldDailyVoiceTime = dailyVoiceTime;
     dailyVoiceTime += session.duration ?? 0;
     const points = beforeReset
