@@ -52,7 +52,7 @@
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
     "@types/twig": "^1.12.17",
-    "@vitest/coverage-v8": "4.1.9",
+    "@vitest/coverage-v8": "5.0.5",
     "archunit": "^2.5.4",
     "drizzle-kit": "^0.31.11",
     "eslint": "^10.13.0",
