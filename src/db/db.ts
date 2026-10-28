@@ -13,6 +13,7 @@ import {
   asc,
   type ExtractTablesWithRelations,
   isNull,
+  isNotNull,
   inArray,
   type Logger,
   not,
@@ -153,6 +154,15 @@ async function getSetting(key: SettingKey, queryDb: DbOrTx = db): Promise<string
 export async function getMonthStartDate(queryDb: DbOrTx = db): Promise<Date> {
   const setting = await getSetting(SETTINGS_KEYS.LAST_MONTHLY_RESET, queryDb);
   return setting ? new Date(setting) : dayjs().startOf("month").toDate();
+}
+
+/** Times of the monthly resets that split open voice sessions and restarted hours (see houseCupMonthTable) */
+export async function getSplitResetTimes(queryDb: DbOrTx = db): Promise<Date[]> {
+  const rows = await queryDb
+    .select({ sessionsSplitAt: schema.houseCupMonthTable.sessionsSplitAt })
+    .from(schema.houseCupMonthTable)
+    .where(isNotNull(schema.houseCupMonthTable.sessionsSplitAt));
+  return rows.flatMap((row) => (row.sessionsSplitAt ? [row.sessionsSplitAt] : []));
 }
 
 export async function setMonthStartDate(date: Date, db: DbOrTx) {

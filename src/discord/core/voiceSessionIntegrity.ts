@@ -21,6 +21,7 @@ export function calculateVoiceIntegritySums(
   timezone: string,
   monthStart: Date,
   lastDailyReset: Date,
+  splitResetTimes: Date[],
 ): { points: Sums; time: Sums } {
   const sessionsByLocalDay = new Map<string, VirtualVoiceSession[]>();
   let nextVirtualId = 1;
@@ -32,7 +33,7 @@ export function calculateVoiceIntegritySums(
       joinedAt: session.joinedAt,
       leftAt: session.leftAt,
       duration: session.duration,
-    }, timezone)) {
+    }, timezone, splitResetTimes)) {
       piece.id = nextVirtualId++;
       const dailySessions = sessionsByLocalDay.get(piece.localDay) ?? [];
       dailySessions.push(piece);
@@ -47,7 +48,7 @@ export function calculateVoiceIntegritySums(
   for (const [localDay, dailySessions] of sessionsByLocalDay) {
     dailySessions.sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
     const calculatedPoints = new Map(
-      calculateVoiceSessionPointsForLocalDay(dailySessions).map((result) => [result.id, result.points]),
+      calculateVoiceSessionPointsForLocalDay(dailySessions, splitResetTimes).map((result) => [result.id, result.points]),
     );
 
     for (const session of dailySessions) {
@@ -55,7 +56,7 @@ export function calculateVoiceIntegritySums(
       points.total += sessionPoints;
       time.total += session.duration;
 
-      if (session.leftAt >= monthStart) {
+      if (session.leftAt > monthStart) {
         points.monthly += sessionPoints;
         time.monthly += session.duration;
       }
@@ -69,9 +70,12 @@ export function calculateVoiceIntegritySums(
   return { points, time };
 }
 
+// Split at local midnights and at monthly resets that split sessions, so each piece belongs to one local day and,
+// for those resets, one month
 function splitSessionAtLocalMidnights(
   session: { joinedAt: Date; leftAt: Date; duration: number },
   timezone: string,
+  splitResetTimes: Date[],
 ): VirtualVoiceSession[] {
   if (session.leftAt <= session.joinedAt) return [];
 
@@ -83,7 +87,8 @@ function splitSessionAtLocalMidnights(
     const localCursor = dayjs(cursor).tz(timezone);
     const nextLocalDate = localCursor.add(1, "day").format("YYYY-MM-DD");
     const nextMidnight = dayjs.tz(nextLocalDate, timezone).startOf("day").toDate();
-    const leftAt = nextMidnight < session.leftAt ? nextMidnight : session.leftAt;
+    const nextBoundary = splitResetTimes.find((time) => cursor < time && time < nextMidnight) ?? nextMidnight;
+    const leftAt = nextBoundary < session.leftAt ? nextBoundary : session.leftAt;
     const elapsedFraction =
       (leftAt.getTime() - session.joinedAt.getTime()) /
       (session.leftAt.getTime() - session.joinedAt.getTime());

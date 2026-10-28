@@ -110,6 +110,14 @@ Each command exports:
 - Announcements sent to configured channel on promotion
 - Checked when a user leaves VC and when they switch channels (switch counts the open session's time so far)
 
+**Monthly Reset** (`/admin reset-monthly-points`):
+
+- Splits open voice sessions at the reset (old part closes 1ms before it and is awarded to the old month)
+- Resets monthly points/voice time but keeps daily ones; until the user's next daily reset, daily minus monthly voice time is the time before the reset (`getPreResetVoiceTime` in `src/discord/core/points.ts`)
+- On the reset day, new-month points only count hours after the reset, and the first hour after it gives 5 points only if the first-hour bonus wasn't already earned before the reset that day (2 points otherwise); the 12h daily cap covers both parts
+- The reset time is stored as `sessionsSplitAt` on the house cup month row (`getSplitResetTimes` in `src/db/db.ts`); resets from before the split have none and count the reset day as one day
+- `/admin check-integrity`/`fix-integrity` and `fix-voice-session` apply the same rule at every stored reset time; `fix-voice-session` rejects end times past a reset that split the session
+
 **Timezone-Based Daily Resets** (`src/services/centralResetService.ts`):
 
 - Runs every 15 minutes to check users needing reset, including timezones with half-hour and quarter-hour offsets
