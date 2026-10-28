@@ -493,17 +493,10 @@ async function fixVoiceSession(interaction: ChatInputCommandInteraction<"cached"
     await errorReply(interaction, "Invalid End Time", "The corrected end time cannot be in the future.", { deferred: true });
     return;
   }
-  // The monthly reset split open sessions; a session ending past one would score old-month time in the new month
+  // Sessions are split at the monthly reset and are never extended past it
   const splitResetTimes = await getSplitResetTimes();
-  const crossedReset = splitResetTimes.find((time) => oldSession.joinedAt < time && time <= correctedEndTime);
-  if (crossedReset) {
-    const resetTime = dayjs(crossedReset).tz(dbUser.timezone).format("MMM D HH:mm");
-    await errorReply(
-      interaction,
-      "Invalid End Time",
-      `The corrected end time cannot be after the monthly reset (${resetTime}). The session after it was tracked separately.`,
-      { deferred: true },
-    );
+  if (splitResetTimes.some((time) => oldSession.joinedAt < time && time <= correctedEndTime)) {
+    await errorReply(interaction, "Invalid End Time", "The corrected end time cannot be after the monthly reset.", { deferred: true });
     return;
   }
 
