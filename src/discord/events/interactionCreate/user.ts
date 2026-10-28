@@ -2,7 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import dayjs from "dayjs";
 import { db, getMonthStartDate } from "@/db/db.ts";
 import { submissionTable, userTable, voiceSessionTable } from "@/db/schema.ts";
-import { and, asc, eq, gte, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, isNull } from "drizzle-orm";
 import { formatDuration, errorReply, inGuild, splitLinesByLength } from "@/discord/utils/interaction.ts";
 import { BOT_COLORS, Role, YEAR_THRESHOLDS_HOURS } from "@/common/constants.ts";
 import { getYearFromMonthlyVoiceTime } from "@/discord/core/year.ts";
@@ -11,7 +11,7 @@ import type { Command } from "@/common/types.ts";
 import { stripIndent } from "common-tags";
 import assert from "node:assert";
 import { requireRole } from "../../utils/role.ts";
-import { calculatePoints, getPreResetVoiceTime, getUncountedVoiceTime } from "@/discord/core/points.ts";
+import { calculatePoints, getPreResetVoiceTime } from "@/discord/core/points.ts";
 
 export default {
   data: new SlashCommandBuilder()
@@ -69,8 +69,6 @@ interface ActivityData {
   voicePoints: number;
   submissionPoints: number;
   submissionCount: number;
-  /** Voice time earlier on the reset day, before the monthly reset, that didn't complete an hour for points */
-  preResetSeconds: number;
 }
 
 const emptyActivity = (): ActivityData => ({
@@ -78,7 +76,6 @@ const emptyActivity = (): ActivityData => ({
   voicePoints: 0,
   submissionPoints: 0,
   submissionCount: 0,
-  preResetSeconds: 0,
 });
 
 async function time(interaction: ChatInputCommandInteraction) {
@@ -206,25 +203,6 @@ async function points(interaction: ChatInputCommandInteraction) {
     dailyData.set(day, existing);
   }
 
-  // Voice time on the reset day from before the reset isn't part of this month, but the part of it
-  // that didn't complete an hour for points yet counted towards the points after the reset
-  const resetDay = dayjs(startOfMonth).tz(tz);
-  const resetDayData = dailyData.get(resetDay.format("YYYY-MM-DD"));
-  if (resetDayData && resetDayData.voiceSeconds > 0) {
-    const [preReset] = await db
-      .select({ seconds: sql<number>`coalesce(sum(${voiceSessionTable.duration}), 0)::int` })
-      .from(voiceSessionTable)
-      .where(
-        and(
-          eq(voiceSessionTable.discordId, user.id),
-          eq(voiceSessionTable.isTracked, true),
-          gte(voiceSessionTable.joinedAt, resetDay.startOf("day").toDate()),
-          lt(voiceSessionTable.leftAt, startOfMonth),
-        ),
-      );
-    resetDayData.preResetSeconds = getUncountedVoiceTime(preReset?.seconds ?? 0);
-  }
-
   // Build activity lines: daily for current week, weekly aggregates for previous weeks
   const now = dayjs();
   const currentWeekStart = now.startOf("week");
@@ -247,7 +225,6 @@ async function points(interaction: ChatInputCommandInteraction) {
       existing.voicePoints += data.voicePoints;
       existing.submissionPoints += data.submissionPoints;
       existing.submissionCount += data.submissionCount;
-      existing.preResetSeconds += data.preResetSeconds;
       weeklyData.set(weekStart, existing);
     }
   }
@@ -255,11 +232,7 @@ async function points(interaction: ChatInputCommandInteraction) {
   const formatLine = (label: string, data: ActivityData) => {
     const total = data.voicePoints + data.submissionPoints;
     const parts: string[] = [];
-    if (data.voiceSeconds > 0) {
-      // Points that day also count the leftover time from before the reset, so show it to explain them
-      const earlier = data.preResetSeconds > 0 ? `, +${formatDuration(data.preResetSeconds)}` : "";
-      parts.push(`${formatDuration(data.voiceSeconds)} (${data.voicePoints} pt${earlier})`);
-    }
+    if (data.voiceSeconds > 0) parts.push(`${formatDuration(data.voiceSeconds)} (${data.voicePoints} pt)`);
     if (data.submissionPoints > 0) {
       const todoLabel = data.submissionCount === 1 ? "To-Do List" : "To-Do Lists";
       parts.push(`${todoLabel} (${data.submissionPoints} pt)`);
