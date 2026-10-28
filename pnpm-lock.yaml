@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@openrouter/sdk':
-        specifier: ^1.4.25
-        version: 1.4.25
+        specifier: ^1.5.7
+        version: 1.5.7
       '@prometheus-io/client':
         specifier: ^0.16.1
         version: 0.16.1
@@ -731,8 +731,8 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@openrouter/sdk@1.4.25':
-    resolution: {integrity: sha512-H218lYMy9WhU5cMigUvW/k+e1BimCqTTP+9PqssdDXnQ0gFCeEME0HTsFGPbR6UgJgyYh2hTct43/9pMcBem5A==}
+  '@openrouter/sdk@1.5.7':
+    resolution: {integrity: sha512-vEbQCfRYNTewy02sP3nHk/bbiTZiArykfVsyskvb3Tebs6rBMqBsHewu67GEFjjPdcVMF46wrgOMDGWVx4t8Nw==}
 
   '@opentelemetry/api@1.10.0':
     resolution: {integrity: sha512-lMkyes8iHrG+mk6WH7X70MdCLI2RS0FwNBY1PyQ8UemaijE2m5mv5A0Niy3HtbYTFrgkUEQjFMXmSAk2hQDuPQ==}
@@ -3056,7 +3056,7 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.3
 
-  '@openrouter/sdk@1.4.25':
+  '@openrouter/sdk@1.5.7':
     dependencies:
       zod: 4.6.7
 

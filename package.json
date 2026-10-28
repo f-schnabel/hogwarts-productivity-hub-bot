@@ -28,7 +28,7 @@
   "license": "ISC",
   "description": "Discord bot for Hogwarts-themed productivity community with voice tracking, house points, and year progression",
   "dependencies": {
-    "@openrouter/sdk": "^1.4.25",
+    "@openrouter/sdk": "^1.5.7",
     "@prometheus-io/client": "^0.16.1",
     "@vvo/tzdb": "^6.201.1",
     "common-tags": "^1.8.2",
