@@ -43,6 +43,8 @@ export const userTable = pgTable("user", {
 
   dailyMessages: integer().default(0).notNull(),
   messageStreak: integer().default(0).notNull(),
+  // Frozen users' messages aren't counted, so their streak can't grow and resets at the next daily reset
+  streakFrozen: boolean().default(false).notNull(),
   announcedYear: integer().default(0).notNull(),
 }, (table) => [index("user_house_monthly_points_idx").on(table.house, table.monthlyPoints.desc())],
 );
