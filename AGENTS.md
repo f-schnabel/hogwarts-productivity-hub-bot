@@ -141,6 +141,7 @@ Each command exports:
 - Streak shown in nickname with fire emoji
 - Streak increments once per day on threshold hit
 - Boosters automatically maintain streak
+- `/admin freeze <user>` toggles a streak freeze: frozen users' messages aren't counted, so the streak resets at their next daily reset (boosters can't be frozen)
 
 **Analytics Dashboard** (`src/web/analytics.ts`):
 

@@ -1,9 +1,8 @@
 import type { Message, OmitPartialGroupDMChannel } from "discord.js";
 import { db, ensureUserExists, getCountingState, setCountingState } from "@/db/db.ts";
 import { userTable } from "@/db/schema.ts";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { createLogger } from "@/common/logging/logger.ts";
-import assert from "node:assert/strict";
 import { updateMessageStreakInNickname } from "@/discord/core/nicknameStreak.ts";
 
 const log = createLogger("Message");
@@ -36,10 +35,11 @@ async function streak(message: OmitPartialGroupDMChannel<Message>) {
   const [row] = await db
     .update(userTable)
     .set({ dailyMessages: sql`${userTable.dailyMessages} + 1` })
-    .where(eq(userTable.discordId, message.author.id))
+    .where(and(eq(userTable.discordId, message.author.id), eq(userTable.streakFrozen, false)))
     .returning({ messageStreak: userTable.messageStreak });
 
-  assert(row, "Failed to update daily messages");
+  // No row when the user's streak is frozen
+  if (!row) return;
   await updateMessageStreakInNickname(message.member, row.messageStreak);
 }
 

@@ -253,6 +253,13 @@
       "when": 1793181885108,
       "tag": "0035_split_reset_at",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793284275411,
+      "tag": "0036_streak_frozen",
+      "breakpoints": true
     }
   ]
 }

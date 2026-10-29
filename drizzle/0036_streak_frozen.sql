@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "streak_frozen" boolean DEFAULT false NOT NULL;

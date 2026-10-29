@@ -174,6 +174,11 @@ export default {
         ),
     ).addSubcommand((subcommand) =>
       subcommand
+        .setName("freeze")
+        .setDescription("freeze")
+        .addUserOption((option) => option.setName("user").setDescription("user").setRequired(true)),
+    ).addSubcommand((subcommand) =>
+      subcommand
         .setName("timezone")
         .setDescription("Set someone's timezone for accurate daily/monthly resets")
         .addUserOption((option) =>
@@ -245,6 +250,9 @@ export default {
         break;
       case "what-if-house":
         await whatIfHouse(interaction);
+        break;
+      case "freeze":
+        await freezeStreak(interaction);
         break;
       case "timezone": {
         const user = interaction.options.getUser("user", true);
@@ -412,6 +420,39 @@ async function countingSet(interaction: ChatInputCommandInteraction<"cached">) {
 
   log.info("Counting value set", { count, userId: interaction.user.id });
   await interaction.editReply(`Current counting value set to ${count}.`);
+}
+
+async function freezeStreak(interaction: ChatInputCommandInteraction<"cached">) {
+  const user = interaction.options.getUser("user", true);
+
+  const [dbUser] = await db
+    .select({ streakFrozen: userTable.streakFrozen })
+    .from(userTable)
+    .where(eq(userTable.discordId, user.id));
+  if (!dbUser) {
+    await errorReply(interaction, "User Not Found", `${user.tag} does not exist in the bot database.`, { deferred: true });
+    return;
+  }
+
+  const frozen = !dbUser.streakFrozen;
+  if (frozen) {
+    const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+    if (member?.premiumSince) {
+      await errorReply(interaction, "User Is Boosting", `${user.tag} is boosting the server and can't be frozen.`, {
+        deferred: true,
+      });
+      return;
+    }
+  }
+
+  // Messages already sent today don't count either once frozen
+  await db
+    .update(userTable)
+    .set(frozen ? { streakFrozen: true, dailyMessages: 0 } : { streakFrozen: false })
+    .where(eq(userTable.discordId, user.id));
+
+  log.info("Streak freeze toggled", { user: user.id, frozen, by: interaction.user.id });
+  await interaction.editReply(`${user.tag}'s streak is now ${frozen ? "frozen" : "unfrozen"}.`);
 }
 
 async function whatIfHouse(interaction: ChatInputCommandInteraction<"cached">) {
