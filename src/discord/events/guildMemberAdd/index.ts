@@ -28,6 +28,7 @@ export async function execute(member: GuildMember) {
         lastDailyReset: userTable.lastDailyReset,
         dailyMessages: userTable.dailyMessages,
         messageStreak: userTable.messageStreak,
+        streakFrozen: userTable.streakFrozen,
       })
       .from(userTable)
       .where(eq(userTable.discordId, member.id));
@@ -53,7 +54,7 @@ export async function execute(member: GuildMember) {
     // the moment they rejoin.
     if (daysMissed >= 1) {
       const metThreshold = user.dailyMessages >= MIN_DAILY_MESSAGES_FOR_STREAK;
-      newStreak = daysMissed === 1 && metThreshold ? user.messageStreak + 1 : 0;
+      newStreak = daysMissed === 1 && metThreshold && !user.streakFrozen ? user.messageStreak + 1 : 0;
 
       updates.lastDailyReset = new Date();
       updates.dailyPoints = 0;
