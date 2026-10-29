@@ -18,7 +18,11 @@ jobs:
     steps:
       - name: Deploy
         uses: appleboy/ssh-action@v1
+        env:
+          # Passed as an env var (not inlined) so quotes in commit messages can't break the script
+          COMMIT_MESSAGE: ${{ github.event.workflow_run.head_commit.message || 'manual deploy' }}
         with:
+          envs: COMMIT_MESSAGE
           host: ${{ secrets.OCI_HOST }}
           username: ubuntu
           key: ${{ secrets.OCI_PRIVATE_KEY }}
@@ -35,4 +39,4 @@ jobs:
             curl -k -X POST http://localhost:3000/api/annotations \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${{ secrets.OCI_GRAFANA_API_KEY }}" \
-              -d '{"text": "Deployment \"${{ github.event.workflow_run.head_commit.message }}\"", "tags": ["deploy", "hogwarts-bot"]}'
+              -d "$(node -e 'console.log(JSON.stringify({ text: `Deployment "${process.env.COMMIT_MESSAGE}"`, tags: ["deploy", "hogwarts-bot"] }))')"
