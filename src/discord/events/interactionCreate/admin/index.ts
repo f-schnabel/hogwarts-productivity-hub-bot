@@ -445,10 +445,9 @@ async function freezeStreak(interaction: ChatInputCommandInteraction<"cached">) 
     }
   }
 
-  // Messages already sent today don't count either once frozen
   await db
     .update(userTable)
-    .set(frozen ? { streakFrozen: true, dailyMessages: 0 } : { streakFrozen: false })
+    .set({ streakFrozen: frozen })
     .where(eq(userTable.discordId, user.id));
 
   log.info("Streak freeze toggled", { user: user.id, frozen, by: interaction.user.id });

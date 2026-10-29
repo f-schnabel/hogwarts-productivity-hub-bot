@@ -91,8 +91,10 @@ async function processDailyResets(guild: Guild, now: Date): Promise<number> {
           dailyPoints: 0,
           dailyVoiceTime: 0,
           lastDailyReset: now,
-          // Met threshold → increment, booster (below threshold) → preserve, otherwise → reset
+          // Frozen → reset, met threshold → increment, booster (below threshold) → preserve, otherwise → reset
           messageStreak: sql`CASE
+              WHEN ${userTable.streakFrozen}
+                THEN 0
               WHEN ${userTable.dailyMessages} >= ${MIN_DAILY_MESSAGES_FOR_STREAK}
                 THEN ${userTable.messageStreak} + 1
               WHEN ${inArray(userTable.discordId, boosterIds)}
