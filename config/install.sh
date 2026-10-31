@@ -37,6 +37,7 @@ sudo systemctl daemon-reload
 sudo caddy fmt --overwrite /etc/caddy/Caddyfile
 sudo caddy validate --config /etc/caddy/hogwarts.caddyfile
 sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl enable alloy
 sudo systemctl restart grafana-server prometheus loki alloy
 sudo systemctl reload caddy
 echo "Services restarted"
@@ -50,5 +51,6 @@ mkdir -p ~/.config/systemd/user
 ln -sf "$REPO_DIR/app/hogwarts-bot.service" ~/.config/systemd/user/hogwarts-bot.service
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 systemctl --user daemon-reload
+systemctl --user enable hogwarts-bot
 systemctl --user restart hogwarts-bot
 echo "Hogwarts Bot service set up and restarted."
