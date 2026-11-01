@@ -45,3 +45,8 @@ scrape_configs:
   - job_name: 'processes'
     static_configs:
       - targets: ['localhost:9256']
+    # Only what the dashboard's per-process CPU and memory panels use.
+    metric_relabel_configs:
+      - source_labels: [__name__, memtype]
+        regex: 'namedprocess_namegroup_cpu_seconds_total;.*|namedprocess_namegroup_memory_bytes;resident'
+        action: keep
