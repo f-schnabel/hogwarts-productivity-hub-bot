@@ -35,7 +35,7 @@ export function startAnalyticsServer() {
   Twig.cache(process.env.NODE_ENV === "production");
   analyticsApp.use(express.static(path.join(import.meta.dirname, "..", "..", "public")));
   analyticsApp.use(analyticsRouter);
-  const analyticsServer = analyticsApp.listen(3001, "0.0.0.0", () => {
+  const analyticsServer = analyticsApp.listen(3001, "127.0.0.1", () => {
     log.info("Analytics server started", { url: "http://localhost:3001" });
   });
   return { analyticsServer };
