@@ -39,7 +39,7 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.4",
     "express": "^5.3.0",
-    "express-rate-limit": "^8.7.1",
+    "express-rate-limit": "^8.7.2",
     "node-cron": "^4.6.0",
     "pg": "^8.23.1",
     "twig": "^3.0.0"
