@@ -26,6 +26,7 @@ import { DEFAULT_SUBMISSION_POINTS, Role, SUBMISSION_TYPES } from "@/common/cons
 import type { Command, SubmissionType } from "@/common/types.ts";
 import { sendAlert } from "../../../utils/alerting.ts";
 import { getSubmissionTypeLabel, submissionMessage } from "./submissionMessage.ts";
+import { getSubmissionDayBounds } from "./dayBounds.ts";
 import {
   canSetSubmissionReminder,
   getReminderOptions,
@@ -90,8 +91,7 @@ export default {
 
     // Fetch user's timezone for validation and display
     const userTimezone = await getUserTimezone(interaction.member.id);
-    const dayStart = dayjs().tz(userTimezone).startOf("day");
-    const dayEnd = dayStart.add(1, "day");
+    const { dayStart, dayEnd } = getSubmissionDayBounds(userTimezone);
     const sameDaySubmissions = await db.query.submissionTable.findMany({
       where: and(
         eq(submissionTable.discordId, interaction.member.id),
