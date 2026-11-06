@@ -57,7 +57,7 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^10.13.0",
     "jiti": "^2.7.0",
-    "knip": "^6.43.0",
+    "knip": "^6.44.0",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1",
