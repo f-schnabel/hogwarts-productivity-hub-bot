@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import dayjs from "dayjs";
+import { getSubmissionDayBounds } from "@/discord/events/interactionCreate/submit/dayBounds.ts";
 import { db, getOpenVoiceSessions } from "@/db/db.ts";
 import { submissionTable, userTable } from "@/db/schema.ts";
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
@@ -278,8 +279,7 @@ async function restoreSubmissionReminder(submissionId: number, reminderAt: Date 
 }
 
 async function hasCompletedSubmissionToday(discordId: string, timezone: string, now: Date): Promise<boolean> {
-  const dayStart = dayjs(now).tz(timezone).startOf("day");
-  const dayEnd = dayStart.add(1, "day");
+  const { dayStart, dayEnd } = getSubmissionDayBounds(timezone, dayjs(now));
 
   const [completedSubmission] = await db
     .select({ id: submissionTable.id })
