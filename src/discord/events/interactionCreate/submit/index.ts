@@ -1,4 +1,6 @@
 import {
+  Attachment,
+  AttachmentBuilder,
   bold,
   ButtonInteraction,
   channelMention,
@@ -37,6 +39,36 @@ import { oneLine, stripIndent } from "common-tags";
 
 const SUBMISSION_CHANNEL_IDS = process.env.SUBMISSION_CHANNEL_IDS.split(",");
 
+/** Upload limit for bots in guilds without boosts, bigger screenshots keep using the Discord URL. */
+const MAX_SCREENSHOT_REUPLOAD_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Downloads the screenshot so it can be re-uploaded with the submission message.
+ * The URL of a slash command attachment is temporary and Discord sometimes fails to load it into the embed,
+ * a file attached to the message itself stays available.
+ * Returns null if the screenshot is too big or the download fails, the caller then falls back to the URL.
+ */
+async function downloadScreenshot(
+  screenshot: Attachment,
+): Promise<{ name: string; file: AttachmentBuilder } | null> {
+  if (screenshot.size > MAX_SCREENSHOT_REUPLOAD_BYTES) return null;
+
+  try {
+    const response = await fetch(screenshot.url, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+
+    // Fixed name, Discord rewrites unusual file names which would break the attachment:// reference
+    const extension = /\.[a-z0-9]+$/i.exec(screenshot.name)?.[0].toLowerCase() ?? ".png";
+    const name = `screenshot${extension}`;
+    return { name, file: new AttachmentBuilder(Buffer.from(await response.arrayBuffer()), { name }) };
+  } catch (error) {
+    await sendAlert(
+      `Failed to download submission screenshot, falling back to its URL. error: ${error instanceof Error ? error.message : "Unknown Error"}`,
+    );
+    return null;
+  }
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName("submit")
@@ -73,10 +105,20 @@ export default {
       return;
     }
 
-    await interaction.deferReply();
-
     const screenshot     = interaction.options.getAttachment("screenshot", true);
     const submissionType = interaction.options.getString("type", true) as SubmissionType;
+
+    // Only images can be shown in the submission embed
+    if (screenshot.contentType && !screenshot.contentType.startsWith("image/")) {
+      await errorReply(
+        interaction,
+        "Invalid Screenshot",
+        "The screenshot has to be an image (for example PNG or JPG). Please submit again with an image file.",
+      );
+      return;
+    }
+
+    await interaction.deferReply();
 
     const house = getHouseFromMember(interaction.member);
     if (!house) {
@@ -169,12 +211,14 @@ export default {
 
     const linkedSubmission = submissionType === SUBMISSION_TYPES.COMPLETED ? newSubmission : undefined;
     const monthStartDate = await getMonthStartDate();
+    const screenshotFile = await downloadScreenshot(screenshot);
     const [submission] = await db
       .insert(submissionTable)
       .values({
         discordId: interaction.member.id,
         points: DEFAULT_SUBMISSION_POINTS,
-        screenshotUrl: screenshot.url,
+        // attachment:// points at the file re-uploaded with the reply, it stays valid on later edits of that message
+        screenshotUrl: screenshotFile ? `attachment://${screenshotFile.name}` : screenshot.url,
         house: house,
         submissionType,
         linkedSubmissionId: linkedSubmission?.id ?? null,
@@ -190,7 +234,10 @@ export default {
     assert(submission, "Failed to create submission");
 
     // Send the reply and capture message ID for future cross-referencing
-    const reply = await interaction.editReply(await submissionMessage({ submission, userTimezone, linkedSubmission }));
+    const reply = await interaction.editReply({
+      ...(await submissionMessage({ submission, userTimezone, linkedSubmission })),
+      files: screenshotFile ? [screenshotFile.file] : [],
+    });
 
     // Update the submission with the message ID and channel ID
     await db.update(submissionTable).set({ messageId: reply.id, channelId: reply.channelId }).where(eq(submissionTable.id, submission.id));
