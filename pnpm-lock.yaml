@@ -30,8 +30,8 @@ importers:
         specifier: ^1.11.23
         version: 1.11.23
       discord.js:
-        specifier: ^14.27.0
-        version: 14.27.0
+        specifier: ^14.28.1
+        version: 14.28.1
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -142,8 +142,8 @@ packages:
   '@cacheable/utils@2.5.0':
     resolution: {integrity: sha512-buipgOVDkkPXNR5+xBpDw7Zk2n1EvU7qBJCNUcL7rhQ//kfpOXPAvQ511Os0vpLYJ1pZnvudNytkQt2hst3wqA==}
 
-  '@discordjs/builders@1.14.1':
-    resolution: {integrity: sha512-gSKkhXLqs96TCzk66VZuHHl8z2bQMJFGwrXC0f33ngK+FLNau4hU1PYny3DNJfNdSH+gVMzE85/d5FQ2BpcNwQ==}
+  '@discordjs/builders@1.15.0':
+    resolution: {integrity: sha512-AifaDWTw6WUDhKBn8E6mwwoyjDAcfsYq+ZE0nKSu1dMH1NLR22D3hGkNx+ctEv8NqHEHdAZnP5REteHDmn1lkA==}
     engines: {node: '>=16.11.0'}
 
   '@discordjs/collection@1.5.3':
@@ -1425,8 +1425,8 @@ packages:
   discord-api-types@0.38.57:
     resolution: {integrity: sha512-R1CTSSt4RshqCq23j2Xq2ZscvzB4LzG9OB1CYQdKUGdw8Ti/oF/72EEtK2mNpagG/Vj9NcBT7dw9lKLf+Dacfg==}
 
-  discord.js@14.27.0:
-    resolution: {integrity: sha512-qHbFlFG2N7y3LjPySYsL6A1+BnX6bkTVgo842EX0CqVPk/KTMwZkojPHEXKsQUpWZNyz5BISNHK1cPpQw0+m4A==}
+  discord.js@14.28.1:
+    resolution: {integrity: sha512-Je5OcqgurnIUQK4vR+gQnmzOf/lNQsD6d/UkV8ZOj+bFa5zJXPyiGXlbywp2EagwshVT18y7YNQNSRd3FjYkDw==}
     engines: {node: '>=18'}
 
   dotenv@17.4.2:
@@ -2412,8 +2412,8 @@ packages:
   ts-mixer@6.0.4:
     resolution: {integrity: sha512-ufKpbmrugz5Aou4wcr5Wc1UUFWOLhq+Fm6qa6P0w0K5Qw2yhaUoiWszhCVuNQyNwrlGiscHOmqYoAox1PtvgjA==}
 
-  tslib@2.8.1:
-    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+  tslib@2.9.1:
+    resolution: {integrity: sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA==}
 
   tsx@4.23.15:
     resolution: {integrity: sha512-Yiex1Ovn8z2xPpOWckIiysV1SSyRMY9BkLF++q0yKiDxCqRhosKfMg3janKkiLBwZ5c/YryloKwGZcrEmtwxKw==}
@@ -2591,8 +2591,8 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  ws@8.22.0:
-    resolution: {integrity: sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==}
+  ws@8.22.1:
+    resolution: {integrity: sha512-oyL6OPYme/CmiFvNuGzeoxCJ4nOrZE2O1FwM9MWM1AsGri6nLXB2pg+lNA8aLeXMSav0J6eIVS1j6vUPzUtK9g==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -2662,7 +2662,7 @@ snapshots:
       hashery: 1.5.1
       keyv: 5.6.0
 
-  '@discordjs/builders@1.14.1':
+  '@discordjs/builders@1.15.0':
     dependencies:
       '@discordjs/formatters': 0.6.2
       '@discordjs/util': 1.2.0
@@ -2670,7 +2670,7 @@ snapshots:
       discord-api-types: 0.38.57
       fast-deep-equal: 3.1.3
       ts-mixer: 6.0.4
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@discordjs/collection@1.5.3': {}
 
@@ -2689,7 +2689,7 @@ snapshots:
       '@vladfrangu/async_event_emitter': 2.4.7
       discord-api-types: 0.38.57
       magic-bytes.js: 1.13.1
-      tslib: 2.8.1
+      tslib: 2.9.1
       undici: 6.29.1
 
   '@discordjs/util@1.2.0':
@@ -2705,8 +2705,8 @@ snapshots:
       '@types/ws': 8.18.2
       '@vladfrangu/async_event_emitter': 2.4.7
       discord-api-types: 0.38.57
-      tslib: 2.8.1
-      ws: 8.22.0
+      tslib: 2.9.1
+      ws: 8.22.1
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -2716,17 +2716,17 @@ snapshots:
   '@emnapi/core@1.11.2':
     dependencies:
       '@emnapi/wasi-threads': 1.2.2
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@emnapi/runtime@1.11.2':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@emnapi/wasi-threads@1.2.2':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@esbuild-kit/core-utils@3.3.2':
@@ -3248,7 +3248,7 @@ snapshots:
 
   '@tybys/wasm-util@0.10.4':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@types/body-parser@1.19.6':
@@ -3631,9 +3631,9 @@ snapshots:
 
   discord-api-types@0.38.57: {}
 
-  discord.js@14.27.0:
+  discord.js@14.28.1:
     dependencies:
-      '@discordjs/builders': 1.14.1
+      '@discordjs/builders': 1.15.0
       '@discordjs/collection': 1.5.3
       '@discordjs/formatters': 0.6.2
       '@discordjs/rest': 2.6.3
@@ -3644,7 +3644,7 @@ snapshots:
       fast-deep-equal: 3.1.3
       lodash.snakecase: 4.1.1
       magic-bytes.js: 1.13.1
-      tslib: 2.8.1
+      tslib: 2.9.1
       undici: 6.29.1
     transitivePeerDependencies:
       - bufferutil
@@ -4664,7 +4664,7 @@ snapshots:
 
   ts-mixer@6.0.4: {}
 
-  tslib@2.8.1: {}
+  tslib@2.9.1: {}
 
   tsx@4.23.15:
     dependencies:
@@ -4791,7 +4791,7 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  ws@8.22.0: {}
+  ws@8.22.1: {}
 
   xtend@4.0.2: {}
 
