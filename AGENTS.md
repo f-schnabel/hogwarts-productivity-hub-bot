@@ -48,7 +48,7 @@ npx drizzle-kit generate   # Generate new migration from schema changes
 - `interactionCreate/` - Slash commands, autocomplete, and button interactions
 - `messageCreate/` - Message tracking for streaks
 - `voiceStateUpdate/` - Voice channel join, leave, switch, session persistence, and year roles
-- `guildMemberAdd/`, `guildMemberRemove/` - Member lifecycle handling
+- `guildMemberAdd/`, `guildMemberRemove/` - Member lifecycle handling. Rejoin reconciliation waits for Rules Screening to complete when needed.
 
 **Commands**: Located under `src/discord/events/interactionCreate/` and registered by its `index.ts`:
 

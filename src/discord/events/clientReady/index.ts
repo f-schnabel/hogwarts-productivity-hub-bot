@@ -171,10 +171,16 @@ async function resetNicknameStreaks(client: Client) {
 
   const membersToReset = guild.members.cache.filter(
     (member) =>
-      !discordIds.has(member.id) && member.guild.ownerId !== member.user.id && member.nickname?.match(/⚡\d+$/),
+      !member.pending &&
+      !discordIds.has(member.id) &&
+      member.guild.ownerId !== member.user.id &&
+      member.nickname?.match(/⚡\d+$/),
   );
   const membersToUpdate = guild.members.cache.filter(
-    (member) => discordIds.has(member.id) && !member.nickname?.endsWith(` ⚡${String(discordIdsToStreak[member.id])}`),
+    (member) =>
+      !member.pending &&
+      discordIds.has(member.id) &&
+      !member.nickname?.endsWith(` ⚡${String(discordIdsToStreak[member.id])}`),
   );
 
   log.debug("Processing guild nicknames", {
@@ -208,7 +214,7 @@ async function resetVCEmojisAndRoles(c: Client<true>) {
     return;
   }
 
-  const membersToReset = guild.members.cache.filter((m) => m.voice.channel === null);
+  const membersToReset = guild.members.cache.filter((m) => !m.pending && m.voice.channel === null);
 
   await Promise.all(
     membersToReset.map(async (member) => {

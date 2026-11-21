@@ -16,6 +16,8 @@ import { createLogger, type Ctx } from "@/common/logging/logger.ts";
 const log = createLogger("Command");
 
 export async function execute(interaction: Interaction): Promise<void> {
+  if (interaction.member?.pending) return;
+
   const start = Date.now();
   const end = interactionExecutionTimer.startTimer();
   if (interaction.isButton()) {

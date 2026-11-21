@@ -23,7 +23,7 @@ const GRINGOTTS_CHANNEL_ID = process.env.GRINGOTTS_CHANNEL_ID;
 
 export async function execute(oldState: VoiceState, newState: VoiceState) {
   const member = newState.member ?? oldState.member;
-  if (!member || member.user.bot) return; // Ignore bots
+  if (!member || member.user.bot || member.pending) return;
 
   const end = voiceSessionExecutionTimer.startTimer();
   const start = Date.now();

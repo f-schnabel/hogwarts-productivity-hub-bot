@@ -18,7 +18,7 @@ const log = createLogger("Member");
 // Monthly stats are left alone — the monthly reset command zeroes every row,
 // including members who have left.
 export async function execute(member: GuildMember) {
-  if (member.user.bot) return;
+  if (member.user.bot || member.pending) return;
 
   await wrapWithAlerting(async () => {
     const [user] = await db

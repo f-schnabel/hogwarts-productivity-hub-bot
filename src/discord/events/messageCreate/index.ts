@@ -9,8 +9,7 @@ import { updateMessageStreakInNickname } from "@/discord/core/nicknameStreak.ts"
 const log = createLogger("Message");
 
 export async function execute(message: OmitPartialGroupDMChannel<Message>): Promise<void> {
-  // Ignore messages from bots, Ignore messages not in a guild and system messages
-  if (message.author.bot || !message.inGuild() || message.system) return;
+  if (message.author.bot || !message.inGuild() || message.system || message.member?.pending) return;
   // Ignore replies to system messages (Wave Hi)
   if (
     message.reference &&

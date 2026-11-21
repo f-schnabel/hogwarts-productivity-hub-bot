@@ -61,6 +61,11 @@ function registerEvents(client: Client) {
   client.on(Events.MessageCreate, (m) => void runOpId(OpId.msg(), () => MessageCreate.execute(m)));
   client.on(Events.MessageReactionAdd, (r, u) => void runOpId(OpId.msg(), async () => MessageReactionAdd.execute(r, u)));
   client.on(Events.GuildMemberAdd, (m) => void runOpId(OpId.mbr(), () => GuildMemberAdd.execute(m)));
+  client.on(Events.GuildMemberUpdate, (oldMember, member) => {
+    if (oldMember.pending === true && !member.pending) {
+      void runOpId(OpId.mbr(), () => GuildMemberAdd.execute(member));
+    }
+  });
   client.on(Events.GuildMemberRemove, (m) => void runOpId(OpId.mbr(), () => GuildMemberRemove.execute(m)));
   client.on(Events.Debug, (info) => log.debug(info));
   client.on(Events.Warn, (info) => log.warn(info));

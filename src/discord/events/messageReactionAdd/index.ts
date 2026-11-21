@@ -18,7 +18,7 @@ export async function execute(
   if (reaction.partial || user.partial || user.bot || reaction.emoji.name !== "⬅️" || !reaction.message.guild) return;
 
   const member = reaction.message.guild.members.cache.get(user.id);
-  if (!member || !hasAnyRole(member, Role.PREFECT)) return;
+  if (!member || member.pending || !hasAnyRole(member, Role.PREFECT)) return;
 
   const submission = await db.query.submissionTable.findFirst({
     where: eq(submissionTable.messageId, reaction.message.id),

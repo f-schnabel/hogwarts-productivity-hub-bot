@@ -6,12 +6,12 @@ const log = createLogger("UpdateMember");
 
 export async function updateMember({ member, reason, nickname, roleUpdates }: UpdateMemberParams) {
   const update: GuildMemberEditOptions = {};
-  if (nickname !== null) update.nick = nickname;
+  if (nickname !== undefined && nickname !== null) update.nick = nickname;
 
   const rolesToAdd = roleUpdates?.rolesToAdd ?? [];
   const rolesToRemove = roleUpdates?.rolesToRemove ?? [];
 
-  if (rolesToAdd.length > 0 || rolesToRemove.length > 0) {
+  if (!member.pending && (rolesToAdd.length > 0 || rolesToRemove.length > 0)) {
     update.roles = [...member.roles.cache.keys().filter((roleId) => !rolesToRemove.includes(roleId)), ...rolesToAdd];
   }
 

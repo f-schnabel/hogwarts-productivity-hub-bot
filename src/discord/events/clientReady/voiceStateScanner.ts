@@ -213,8 +213,7 @@ async function scanVoiceChannel(
     for (const [discordId, member] of members) {
       const username = member.user.username;
       try {
-        // Skip bots
-        if (member.user.bot) {
+        if (member.user.bot || member.pending) {
           continue;
         }
 

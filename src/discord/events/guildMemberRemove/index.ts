@@ -10,7 +10,7 @@ const log = createLogger("Member");
 // Record when a member leaves so that, on a later rejoin, we can tell which of
 // their stats (daily/monthly/streak) have gone stale while they were away.
 export async function execute(member: GuildMember | PartialGuildMember) {
-  if (member.user.bot) return;
+  if (member.user.bot || member.pending) return;
 
   await wrapWithAlerting(async () => {
     await db.update(userTable).set({ leftAt: new Date() }).where(eq(userTable.discordId, member.id));

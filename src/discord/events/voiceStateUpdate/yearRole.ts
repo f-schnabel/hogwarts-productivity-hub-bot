@@ -26,7 +26,7 @@ export async function announceYearPromotion(
     announcedYear: number;
   } | null,
 ): Promise<void> {
-  if (!user?.house) return;
+  if (member.pending || !user?.house) return;
   const year = getYearFromMonthlyVoiceTime(user.monthlyVoiceTime);
   if (year === null || user.announcedYear >= year) return; // Already announced this year or higher
   const ctx = { userId: member.id, username: member.user.username };
@@ -132,7 +132,7 @@ export async function refreshAllYearRoles(guild: Guild): Promise<number> {
     assert(user.house, "User house should be defined");
     try {
       const member = guild.members.cache.get(user.discordId);
-      if (!member) continue;
+      if (!member || member.pending) continue;
 
       updates.push({ member, roleUpdates: calculateYearRoles(member, user) });
       updated++;

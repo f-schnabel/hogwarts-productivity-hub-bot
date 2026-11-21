@@ -127,14 +127,12 @@ async function getUsersNeedingReset(guild: Guild, now: Date) {
     })
     .from(userTable);
 
-  // Get guild members to filter out users who left
-  const guildMemberIds = new Set(guild.members.cache.keys());
-
-  // Filter to only include users who are still in guild and past their local midnight
+  // Reset active guild members who are past their local midnight
   const usersNeedingReset: string[] = [];
   const resetBoundaries = new Map<string, Date>();
   for (const user of usersNeedingPotentialReset) {
-    if (!guildMemberIds.has(user.discordId)) continue;
+    const member = guild.members.cache.get(user.discordId);
+    if (!member || member.pending) continue;
 
     const userTime = dayjs(now).tz(user.timezone);
     const lastReset = dayjs(user.lastDailyReset).tz(user.timezone);
